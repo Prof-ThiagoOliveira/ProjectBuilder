@@ -1,0 +1,68 @@
+---
+title: "{{ project_name }}"
+subtitle: "Project overview"
+author: "Name or team"
+date: today
+---
+
+```{r}
+{{ report_setup_block }}
+```
+
+# Project parameters
+
+```{r}
+params
+```
+
+# Project paths
+
+```{r}
+paths
+```
+
+# Data summary
+
+Add project-specific data summaries here.
+
+# Analysis summary
+
+Add project-specific analysis summaries here.
+
+# Styled examples
+
+::: {.executive-summary}
+## Executive summary
+
+Write the main project findings here.
+:::
+
+::: {.info-box}
+This is an information box.
+:::
+
+::: {.warning-box}
+This is a warning box.
+:::
+
+::: {.question-box}
+<span class="question-box-header">Question</span>
+
+What is the main analytical question?
+:::
+
+::: {.callout-note}
+This is a note.
+:::
+
+::: {.callout-warning}
+This is a warning.
+:::
+
+::: {.callout-important}
+This is an important point.
+:::
+
+# Outputs
+
+Add links or summaries of generated outputs here.

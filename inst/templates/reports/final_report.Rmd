@@ -1,0 +1,48 @@
+---
+title: "{{ project_name }}"
+subtitle: "Project overview"
+author: "Name or team"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    includes:
+      in_header: reports/templates/report-pdf-header.tex
+      before_body: reports/templates/report-pdf-before-body.tex
+---
+
+```{r setup, include=FALSE}
+{{ report_setup_block }}
+```
+
+# Summary
+
+Write the main project summary here.
+
+# Methods
+
+Describe the data, assumptions, and methods.
+
+# Results
+
+Present the main results.
+
+# Cross-format callouts
+
+::: {.callout-note}
+This is a note.
+:::
+
+::: {.callout-warning}
+This is a warning.
+:::
+
+::: {.callout-important}
+This is an important point.
+:::
+
+# Discussion
+
+Discuss interpretation, limitations, and next steps.

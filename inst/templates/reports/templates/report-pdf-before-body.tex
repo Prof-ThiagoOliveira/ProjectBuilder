@@ -1,0 +1,35 @@
+% ==========================================================================
+% Professional PDF title page
+% ==========================================================================
+
+\begin{titlepage}
+\centering
+
+\vspace*{2cm}
+
+{\Huge\bfseries\color{ReportPrimary} $title$ \par}
+
+$if(subtitle)$
+\vspace{0.6cm}
+{\Large\color{ReportMuted} $subtitle$ \par}
+$endif$
+
+\vspace{1.5cm}
+
+$if(author)$
+{\large $for(author)$$author$$sep$ \and $endfor$ \par}
+$endif$
+
+\vspace{0.5cm}
+
+$if(date)$
+{\large\color{ReportMuted} $date$ \par}
+$endif$
+
+\vfill
+
+{\small\color{ReportMuted} Generated report}
+
+\vspace*{1cm}
+
+\end{titlepage}

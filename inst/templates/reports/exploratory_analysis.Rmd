@@ -1,0 +1,49 @@
+---
+title: "Exploratory analysis"
+subtitle: "Initial data review"
+author: "Name or team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: cosmo
+    css: reports/templates/report-html.css
+---
+
+```{r setup, include=FALSE}
+{{ report_setup_block }}
+```
+
+# Objective
+
+Describe the exploratory analysis objective.
+
+# Data checks
+
+Add data checks here.
+
+# Exploratory plots
+
+Add exploratory plots here.
+
+# Styled examples
+
+::: {.info-box}
+This is an information box.
+:::
+
+::: {.warning-box}
+This is a warning box.
+:::
+
+::: {.question-box}
+<span class="question-box-header">Question</span>
+
+What pattern should be investigated next?
+:::
+
+# Notes
+
+Add notes and interpretation here.

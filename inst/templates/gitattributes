@@ -1,0 +1,27 @@
+# Text files
+*.R text
+*.Rmd text
+*.qmd text
+*.md text
+*.yml text
+*.yaml text
+*.txt text
+*.csv text
+
+# Binary files
+*.rds binary
+*.RDS binary
+*.qs binary
+*.fst binary
+*.parquet binary
+*.feather binary
+*.xlsx binary
+*.xls binary
+*.pptx binary
+*.docx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.tif binary
+*.tiff binary

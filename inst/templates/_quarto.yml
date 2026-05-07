@@ -1,0 +1,26 @@
+project:
+  type: default
+  output-dir: outputs/reports
+
+execute:
+  warning: false
+  message: false
+
+format:
+  html:
+    theme: cosmo
+    css: reports/templates/report-html.css
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+  pdf:
+    documentclass: article
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    colorlinks: true
+    include-in-header: reports/templates/report-pdf-header.tex
+    include-before-body: reports/templates/report-pdf-before-body.tex

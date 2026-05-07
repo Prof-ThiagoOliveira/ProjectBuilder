@@ -1,0 +1,17 @@
+^.*.Rproj$
+^.Rproj.user$
+^.here$
+^.env$
+^.env..*
+^renv$
+^data$
+^outputs$
+^reports$
+^scripts$
+^_targets$
+^_targets.R$
+^_quarto.yml$
+^_freeze$
+^_site$
+^config.yml$
+^Makefile$

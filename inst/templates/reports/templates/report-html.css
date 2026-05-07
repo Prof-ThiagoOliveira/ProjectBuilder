@@ -1,0 +1,576 @@
+/* ==========================================================================
+   Professional report stylesheet
+   Developed by Thiago P. Oliveira
+   Purpose: HTML styling for Quarto and R Markdown reports
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Design tokens
+   -------------------------------------------------------------------------- */
+
+:root {
+  --font-body: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-code: Consolas, Monaco, "Courier New", monospace;
+
+  --colour-text: #2c2f33;
+  --colour-text-muted: #5f6670;
+  --colour-background: #f7f8fa;
+  --colour-surface: #ffffff;
+  --colour-surface-muted: #f1f3f5;
+
+  --colour-primary: #2a5e9e;
+  --colour-primary-dark: #1f4978;
+  --colour-link: #2672b1;
+  --colour-link-hover: #1e5a8d;
+
+  --colour-border: #d6dbe1;
+  --colour-border-strong: #b9c1cb;
+
+  --colour-code-bg: #f6f8fa;
+  --colour-code-text: #24292f;
+
+  --colour-info: #2672b1;
+  --colour-info-bg: #e8f3fb;
+
+  --colour-warning: #b58105;
+  --colour-warning-bg: #fff4d6;
+
+  --colour-success: #218a45;
+  --colour-success-bg: #e6f4ea;
+
+  --colour-error: #b42318;
+  --colour-error-bg: #fde8e7;
+
+  --colour-tip: #087f6f;
+  --colour-tip-bg: #e2f7f3;
+
+  --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.06);
+  --shadow-small: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  --radius-small: 4px;
+  --radius-medium: 8px;
+  --radius-large: 12px;
+
+  --content-width: 1120px;
+  --content-padding: 2rem;
+}
+
+/* --------------------------------------------------------------------------
+   Global page layout
+   -------------------------------------------------------------------------- */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--colour-text);
+  background: var(--colour-background);
+  margin: 0;
+}
+
+/* Quarto/R Markdown main containers */
+main,
+.content,
+.quarto-container,
+#quarto-content,
+main.content {
+  max-width: var(--content-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding: var(--content-padding);
+  background: var(--colour-surface);
+}
+
+/* Avoid overly wide text blocks inside Quarto content */
+#quarto-document-content,
+main.content {
+  max-width: var(--content-width);
+}
+
+/* --------------------------------------------------------------------------
+   Typography
+   -------------------------------------------------------------------------- */
+
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Avoid forced justification because it can create poor spacing in browsers. */
+p,
+li {
+  text-align: left;
+}
+
+strong {
+  font-weight: 650;
+}
+
+em {
+  color: var(--colour-text-muted);
+}
+
+small,
+.text-muted {
+  color: var(--colour-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Links
+   -------------------------------------------------------------------------- */
+
+a {
+  color: var(--colour-link);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(38, 114, 177, 0.35);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+a:hover,
+a:focus {
+  color: var(--colour-link-hover);
+  border-bottom-color: var(--colour-link-hover);
+  text-decoration: none;
+}
+
+/* Do not animate inline links vertically; it causes layout instability. */
+
+/* --------------------------------------------------------------------------
+   Titles and headings
+   -------------------------------------------------------------------------- */
+
+.title,
+h1.title {
+  font-family: var(--font-heading);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--colour-primary);
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.subtitle,
+h2.subtitle {
+  font-size: 1.2rem;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--colour-text-muted);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  border-bottom: none;
+}
+
+.author,
+.date {
+  color: var(--colour-text-muted);
+  font-size: 0.95rem;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  color: var(--colour-text);
+  line-height: 1.3;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  padding-bottom: 0.45rem;
+  border-bottom: 2px solid var(--colour-border);
+}
+
+h2 {
+  font-size: 1.45rem;
+  font-weight: 650;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--colour-border);
+}
+
+h3 {
+  font-size: 1.2rem;
+  font-weight: 650;
+}
+
+h4 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--colour-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Header block
+   -------------------------------------------------------------------------- */
+
+.report-header {
+  background: var(--colour-surface);
+  border-left: 6px solid var(--colour-primary);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-small);
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2rem;
+}
+
+.report-header h1 {
+  border-bottom: none;
+  margin-top: 0;
+  padding-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Logo
+   -------------------------------------------------------------------------- */
+
+.logo img,
+.report-logo img {
+  max-width: 160px;
+  height: auto;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Code
+   -------------------------------------------------------------------------- */
+
+pre,
+pre.sourceCode {
+  font-family: var(--font-code);
+  background: var(--colour-code-bg);
+  color: var(--colour-code-text);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-medium);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  box-shadow: none;
+}
+
+code {
+  font-family: var(--font-code);
+  background: var(--colour-code-bg);
+  color: var(--colour-code-text);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-small);
+  padding: 0.12rem 0.35rem;
+  font-size: 0.9em;
+}
+
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Pandoc/Quarto syntax highlighting classes */
+.sourceCode .co,
+pre.sourceCode .comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+.sourceCode .kw,
+.sourceCode .cf,
+pre.sourceCode .keyword {
+  color: #005cc5;
+  font-weight: 600;
+}
+
+.sourceCode .st,
+pre.sourceCode .string {
+  color: #22863a;
+}
+
+.sourceCode .fu,
+pre.sourceCode .function {
+  color: #6f42c1;
+}
+
+.sourceCode .dv,
+.sourceCode .fl,
+.sourceCode .bn,
+pre.sourceCode .number {
+  color: #b31d28;
+}
+
+/* --------------------------------------------------------------------------
+   Tables
+   -------------------------------------------------------------------------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.95rem;
+  background: var(--colour-surface);
+}
+
+caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--colour-text-muted);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+thead th {
+  background: var(--colour-surface-muted);
+  color: var(--colour-text);
+  font-weight: 650;
+  border-bottom: 2px solid var(--colour-border-strong);
+}
+
+th,
+td {
+  border: 1px solid var(--colour-border);
+  padding: 0.65rem 0.75rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafbfc;
+}
+
+tbody tr:hover {
+  background: #f1f6fb;
+}
+
+/* Quarto table classes */
+.table,
+.gt_table {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Figures
+   -------------------------------------------------------------------------- */
+
+figure {
+  margin: 1.5rem 0;
+}
+
+figcaption {
+  color: var(--colour-text-muted);
+  font-size: 0.92rem;
+  margin-top: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   General boxes
+   -------------------------------------------------------------------------- */
+
+.info-box,
+.warning-box,
+.success-box,
+.error-box,
+.tip-box,
+.note-box,
+.executive-summary,
+.question-box {
+  border-radius: var(--radius-medium);
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow-small);
+}
+
+.info-box {
+  border-left: 6px solid var(--colour-info);
+  background: var(--colour-info-bg);
+}
+
+.warning-box {
+  border-left: 6px solid var(--colour-warning);
+  background: var(--colour-warning-bg);
+}
+
+.success-box {
+  border-left: 6px solid var(--colour-success);
+  background: var(--colour-success-bg);
+}
+
+.error-box {
+  border-left: 6px solid var(--colour-error);
+  background: var(--colour-error-bg);
+}
+
+.tip-box {
+  border-left: 6px solid var(--colour-tip);
+  background: var(--colour-tip-bg);
+}
+
+.note-box {
+  border-left: 6px solid var(--colour-info);
+  background: var(--colour-surface-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Executive summary
+   -------------------------------------------------------------------------- */
+
+.executive-summary {
+  background: #ffffff;
+  border: 1px solid var(--colour-border);
+  border-left: 8px solid var(--colour-primary);
+}
+
+.executive-summary h1,
+.executive-summary h2,
+.executive-summary h3 {
+  margin-top: 0;
+  color: var(--colour-primary);
+  border-bottom: none;
+}
+
+.executive-summary p:last-child,
+.executive-summary ul:last-child,
+.executive-summary ol:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Question box
+   -------------------------------------------------------------------------- */
+
+.question-box {
+  background: #ffffff;
+  border: 1px solid var(--colour-border);
+  border-left: 6px solid var(--colour-primary);
+}
+
+.question-box-header {
+  display: block;
+  font-weight: 700;
+  color: var(--colour-primary);
+  margin-bottom: 0.75rem;
+}
+
+.question-box p:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Quarto callouts
+   -------------------------------------------------------------------------- */
+
+.callout {
+  border-radius: var(--radius-medium);
+}
+
+.callout.callout-style-default {
+  box-shadow: var(--shadow-small);
+}
+
+.callout-title {
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   Table of contents
+   -------------------------------------------------------------------------- */
+
+#TOC,
+.sidebar nav[role="doc-toc"] {
+  font-size: 0.95rem;
+}
+
+#TOC a,
+.sidebar nav[role="doc-toc"] a {
+  border-bottom: none;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive behaviour
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  :root {
+    --content-padding: 1rem;
+  }
+
+  body {
+    font-size: 15px;
+  }
+
+  main,
+  .content,
+  .quarto-container,
+  #quarto-content,
+  main.content {
+    padding: var(--content-padding);
+  }
+
+  .title,
+  h1.title {
+    font-size: 1.8rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Print behaviour
+   -------------------------------------------------------------------------- */
+
+@media print {
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-size: 11pt;
+  }
+
+  main,
+  .content,
+  .quarto-container,
+  #quarto-content,
+  main.content {
+    max-width: none;
+    padding: 0;
+    background: #ffffff;
+  }
+
+  a {
+    color: #000000;
+    border-bottom: none;
+    text-decoration: underline;
+  }
+
+  pre,
+  pre.sourceCode,
+  code {
+    border: 1px solid #cccccc;
+    background: #f8f8f8;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

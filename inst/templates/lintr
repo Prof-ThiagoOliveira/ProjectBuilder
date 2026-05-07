@@ -1,0 +1,5 @@
+linters: lintr::linters_with_defaults(
+  lintr::line_length_linter(100),
+  lintr::object_name_linter(styles = "snake_case"),
+  commented_code_linter = NULL
+)

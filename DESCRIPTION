@@ -1,0 +1,39 @@
+Package: projectSetupR
+Title: Project Scaffolding for Reproducible R Analysis
+Version: 0.0.1
+Authors@R:
+    person("Thiago", "Oliveira", email = "thiago@example.com", role = c("aut", "cre"))
+Description: Creates standardised, reproducible R analysis-project
+    scaffolds with helper files, report templates, Git-safe defaults, and
+    optional reproducibility tooling.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    cli,
+    fs,
+    glue,
+    yaml,
+    rlang
+Suggests:
+    testthat (>= 3.0.0),
+    withr,
+    pak,
+    renv,
+    usethis,
+    pkgload,
+    box,
+    quarto,
+    rmarkdown,
+    targets,
+    gert,
+    gh,
+    config,
+    lintr,
+    styler,
+    pkgdown,
+    devtools,
+    roxygen2,
+    covr
+Config/testthat/edition: 3

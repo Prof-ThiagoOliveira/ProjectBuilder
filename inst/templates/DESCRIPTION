@@ -1,0 +1,15 @@
+Package: {{ package_name }}
+Title: {{ project_name }}
+Version: 0.0.1
+Authors@R:
+    person("First", "Last", email = "name@example.com", role = c("aut", "cre"))
+Description: Reproducible analysis project scaffold.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+{{ description_imports }}
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

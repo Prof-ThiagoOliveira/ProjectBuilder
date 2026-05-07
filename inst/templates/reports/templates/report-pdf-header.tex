@@ -1,0 +1,194 @@
+% ==========================================================================
+% Professional PDF report header
+% Developed by Thiago P. Oliveira
+% Purpose: PDF styling for Quarto and R Markdown reports
+% ==========================================================================
+
+\usepackage[a4paper,margin=2.2cm,headheight=15pt]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{microtype}
+\usepackage{hyperref}
+
+% --------------------------------------------------------------------------
+% Colours
+% --------------------------------------------------------------------------
+
+\definecolor{ReportText}{HTML}{2C2F33}
+\definecolor{ReportMuted}{HTML}{5F6670}
+\definecolor{ReportPrimary}{HTML}{2A5E9E}
+\definecolor{ReportPrimaryDark}{HTML}{1F4978}
+\definecolor{ReportBorder}{HTML}{D6DBE1}
+\definecolor{ReportLight}{HTML}{F7F8FA}
+\definecolor{ReportCodeBg}{HTML}{F6F8FA}
+
+\definecolor{InfoColour}{HTML}{2672B1}
+\definecolor{InfoBg}{HTML}{E8F3FB}
+\definecolor{WarningColour}{HTML}{B58105}
+\definecolor{WarningBg}{HTML}{FFF4D6}
+\definecolor{SuccessColour}{HTML}{218A45}
+\definecolor{SuccessBg}{HTML}{E6F4EA}
+\definecolor{ErrorColour}{HTML}{B42318}
+\definecolor{ErrorBg}{HTML}{FDE8E7}
+\definecolor{TipColour}{HTML}{087F6F}
+\definecolor{TipBg}{HTML}{E2F7F3}
+
+% --------------------------------------------------------------------------
+% Base typography
+% --------------------------------------------------------------------------
+
+\color{ReportText}
+\setstretch{1.12}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.7em}
+\setlist{itemsep=0.25em, topsep=0.4em}
+
+% --------------------------------------------------------------------------
+% Hyperlinks
+% --------------------------------------------------------------------------
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=ReportPrimary,
+  urlcolor=ReportPrimary,
+  citecolor=ReportPrimaryDark,
+  filecolor=ReportPrimary
+}
+
+% --------------------------------------------------------------------------
+% Headings
+% --------------------------------------------------------------------------
+
+\titleformat{\section}
+  {\Large\bfseries\color{ReportPrimary}}
+  {\thesection}
+  {0.75em}
+  {}
+  [\titlerule]
+
+\titleformat{\subsection}
+  {\large\bfseries\color{ReportText}}
+  {\thesubsection}
+  {0.75em}
+  {}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{ReportText}}
+  {\thesubsubsection}
+  {0.75em}
+  {}
+
+\titlespacing*{\section}{0pt}{1.6em}{0.8em}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.5em}
+\titlespacing*{\subsubsection}{0pt}{1.0em}{0.4em}
+
+% --------------------------------------------------------------------------
+% Header and footer
+% --------------------------------------------------------------------------
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textcolor{ReportMuted}{\nouppercase{\leftmark}}}
+\rhead{\textcolor{ReportMuted}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{ReportBorder}\leaders\hrule height \headrulewidth\hfill}}
+
+% --------------------------------------------------------------------------
+% Captions and tables
+% --------------------------------------------------------------------------
+
+\captionsetup{
+  font=small,
+  labelfont=bf,
+  textfont=it,
+  singlelinecheck=false
+}
+
+\renewcommand{\arraystretch}{1.15}
+
+% --------------------------------------------------------------------------
+% Code blocks
+% --------------------------------------------------------------------------
+
+\usepackage{fancyvrb}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+  commandchars=\\\{\},
+  fontsize=\small,
+  frame=single,
+  framerule=0.3pt,
+  framesep=4pt
+}
+
+% --------------------------------------------------------------------------
+% Custom boxes
+% --------------------------------------------------------------------------
+
+\tcbset{
+  enhanced,
+  boxrule=0.4pt,
+  arc=2mm,
+  left=2mm,
+  right=2mm,
+  top=1mm,
+  bottom=1mm,
+  coltext=ReportText
+}
+
+\newtcolorbox{infobox}{
+  colback=InfoBg,
+  colframe=InfoColour,
+  title=Information,
+  fonttitle=\bfseries
+}
+
+\newtcolorbox{warningbox}{
+  colback=WarningBg,
+  colframe=WarningColour,
+  title=Warning,
+  fonttitle=\bfseries
+}
+
+\newtcolorbox{successbox}{
+  colback=SuccessBg,
+  colframe=SuccessColour,
+  title=Result,
+  fonttitle=\bfseries
+}
+
+\newtcolorbox{errorbox}{
+  colback=ErrorBg,
+  colframe=ErrorColour,
+  title=Important,
+  fonttitle=\bfseries
+}
+
+\newtcolorbox{tipbox}{
+  colback=TipBg,
+  colframe=TipColour,
+  title=Tip,
+  fonttitle=\bfseries
+}
+
+\newtcolorbox{executivesummarybox}{
+  colback=white,
+  colframe=ReportPrimary,
+  title=Executive summary,
+  fonttitle=\bfseries,
+  boxrule=0.8pt
+}
+
+\newtcolorbox{questionbox}{
+  colback=ReportLight,
+  colframe=ReportPrimary,
+  title=Question,
+  fonttitle=\bfseries
+}

@@ -1,0 +1,46 @@
+---
+title: "Exploratory analysis"
+subtitle: "Initial data review"
+author: "Name or team"
+date: today
+---
+
+```{r}
+{{ report_setup_block }}
+```
+
+# Objective
+
+Describe the exploratory analysis objective.
+
+# Data checks
+
+Add data checks here.
+
+# Exploratory plots
+
+Add exploratory plots here.
+
+# Styled examples
+
+::: {.info-box}
+This is an information box.
+:::
+
+::: {.question-box}
+<span class="question-box-header">Question</span>
+
+What pattern should be investigated next?
+:::
+
+::: {.callout-note}
+This is a note.
+:::
+
+::: {.callout-warning}
+This is a warning.
+:::
+
+# Notes
+
+Add notes and interpretation here.
