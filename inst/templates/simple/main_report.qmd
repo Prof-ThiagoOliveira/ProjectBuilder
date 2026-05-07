@@ -1,0 +1,20 @@
+---
+title: "{{ project_name }}"
+format: html
+---
+
+# Overview
+
+Describe the project goal here.
+
+# Data
+
+Put raw input files in `data/raw/` and save cleaned datasets in `data/processed/`.
+
+# Analysis
+
+Add project-specific analysis results here.
+
+# Outputs
+
+Rendered reports are saved in `outputs/reports/`.

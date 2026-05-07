@@ -1,5 +1,8 @@
 template_registry <- function(
     group = c(
+      "simple_core",
+      "simple_internal",
+      "simple_quarto",
       "core",
       "code_loading_package",
       "code_loading_box",
@@ -15,6 +18,16 @@ template_registry <- function(
   group <- match.arg(group)
 
   registries <- list(
+    simple_core = list(
+      list(source = fs::path("simple", "README.md"), target = "README.md"),
+      list(source = fs::path("simple", "run_project.R"), target = "run_project.R")
+    ),
+    simple_internal = list(
+      list(source = fs::path("simple", "project_registry_note.txt"), target = fs::path(".projectSetupR", "README.txt"))
+    ),
+    simple_quarto = list(
+      list(source = fs::path("simple", "main_report.qmd"), target = fs::path("reports", "main_report.qmd"))
+    ),
     core = list(
       list(source = "README.md", target = "README.md"),
       list(source = "PROJECT_GUIDE.md", target = "PROJECT_GUIDE.md"),

@@ -1,6 +1,8 @@
 #' Initialise renv when available
 #'
 #' @param path Project root path.
+#' @param packages Character vector of packages to install into the project
+#'   library after initialising renv.
 #' @param snapshot Logical. Should `renv::snapshot()` be run?
 #' @param strict Logical. Should failures error instead of warning?
 #'

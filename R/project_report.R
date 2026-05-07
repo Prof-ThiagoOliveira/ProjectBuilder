@@ -13,11 +13,17 @@ new_analysis_project_scaffold <- function(
     use_rmarkdown,
     use_targets,
     use_renv,
-    use_git) {
+    use_git,
+    preset = "analysis",
+    mode = "simple",
+    entrypoint = "run_project.R",
+    guide = "README.md") {
   structure(
     list(
       path = path,
       project_name = project_name,
+      preset = preset,
+      mode = mode,
       template = template,
       dependency_profile = dependency_profile,
       code_loading = code_loading,
@@ -30,7 +36,9 @@ new_analysis_project_scaffold <- function(
       use_rmarkdown = use_rmarkdown,
       use_targets = use_targets,
       use_renv = use_renv,
-      use_git = use_git
+      use_git = use_git,
+      entrypoint = entrypoint,
+      guide = guide
     ),
     class = "analysis_project_scaffold"
   )
@@ -46,6 +54,8 @@ new_analysis_project_scaffold <- function(
 print.analysis_project_scaffold <- function(x, ...) {
   cat("Project name: ", x$project_name, "\n", sep = "")
   cat("Project path: ", x$path, "\n", sep = "")
+  cat("Preset: ", x$preset, "\n", sep = "")
+  cat("Mode: ", x$mode, "\n", sep = "")
   cat("Template: ", x$template, "\n", sep = "")
   cat("Dependency profile: ", x$dependency_profile, "\n", sep = "")
   cat("Code loading: ", x$code_loading, "\n", sep = "")
@@ -61,13 +71,22 @@ print.analysis_project_scaffold <- function(x, ...) {
 
   cat("\nStart here:\n")
   cat("1. Open: ", paste0(x$project_name, ".Rproj"), "\n", sep = "")
-  cat("2. Run in R: source(\"scripts/00_start_here.R\")\n")
-  cat("3. Read: PROJECT_GUIDE.md\n")
-  cat("4. Add raw data to: data/raw/\n")
-  cat("5. Edit: scripts/01_import_data.R\n")
+  cat("2. Add raw data to: data/raw/\n")
+
+  if (identical(x$entrypoint, "run_project.R")) {
+    cat('3. Run in R: source("run_project.R")', "\n", sep = "")
+    cat("4. Read: README.md\n")
+  } else {
+    cat('3. Run in R: source("scripts/00_start_here.R")', "\n", sep = "")
+    cat("4. Read: PROJECT_GUIDE.md\n")
+  }
 
   if (isTRUE(x$use_quarto)) {
-    cat("* Render reports with: Rscript scripts/render_reports.R\n")
+    if (identical(x$mode, "simple")) {
+      cat("* Render reports with: projectSetupR::render_project_reports()\n")
+    } else {
+      cat("* Render reports with: Rscript scripts/render_reports.R\n")
+    }
   }
 
   if (isTRUE(x$use_rmarkdown)) {

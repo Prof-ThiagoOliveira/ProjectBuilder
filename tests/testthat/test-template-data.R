@@ -38,3 +38,34 @@ test_that("write_registered_templates remains backwards compatible with project_
     "Example Project"
   )
 })
+
+test_that("scaffold planning separates simple and advanced defaults", {
+  simple_plan <- projectSetupR:::plan_project_scaffold(
+    preset = "analysis",
+    mode = "simple",
+    use_quarto = TRUE,
+    use_renv = FALSE,
+    use_git = FALSE
+  )
+
+  advanced_plan <- projectSetupR:::plan_project_scaffold(
+    preset = "package",
+    mode = "advanced",
+    use_quarto = TRUE,
+    use_targets = TRUE,
+    use_renv = FALSE,
+    use_git = FALSE,
+    use_config = TRUE,
+    code_loading = "package",
+    dependency_profile = "package-development"
+  )
+
+  expect_true("run_project.R" %in% simple_plan$user_files)
+  expect_true("project.yml" %in% simple_plan$user_files)
+  expect_true(".projectSetupR/project_registry.yml" %in% simple_plan$internal_files)
+  expect_false("DESCRIPTION" %in% simple_plan$user_files)
+
+  expect_true("README.md" %in% advanced_plan$user_files)
+  expect_true("DESCRIPTION" %in% advanced_plan$optional_files)
+  expect_true("NAMESPACE" %in% advanced_plan$optional_files)
+})

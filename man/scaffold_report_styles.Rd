@@ -20,6 +20,9 @@ scaffold_report_styles(
 \item{use_quarto}{Logical. Should Quarto-specific style files be created?}
 
 \item{use_rmarkdown}{Logical. Should R Markdown style files be created?}
+
+\item{template_data}{Named list of template variables used when rendering
+report style files.}
 }
 \value{
 A list with created and skipped file paths.

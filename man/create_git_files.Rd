@@ -4,12 +4,22 @@
 \alias{create_git_files}
 \title{Create Git support files}
 \usage{
-create_git_files(path, overwrite = FALSE)
+create_git_files(
+  path,
+  overwrite = FALSE,
+  mode = c("advanced", "simple"),
+  gitkeep_files = NULL
+)
 }
 \arguments{
 \item{path}{Project root path.}
 
 \item{overwrite}{Logical. Should existing files be overwritten?}
+
+\item{mode}{Git scaffold mode. Use \code{"simple"} for analyst-facing projects
+and \code{"advanced"} for the full scaffold.}
+
+\item{gitkeep_files}{Relative \code{.gitkeep} paths to create.}
 }
 \value{
 A list with created and skipped file paths.

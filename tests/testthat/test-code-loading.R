@@ -1,8 +1,9 @@
-test_that("package loading mode creates package-style loaders", {
+test_that("advanced package loading mode creates package-style loaders", {
   project_path <- make_project_path("code-loading-package")
 
   create_analysis_project(
     path = project_path,
+    mode = "advanced",
     code_loading = "package",
     use_targets = TRUE,
     use_renv = FALSE,
@@ -22,11 +23,12 @@ test_that("package loading mode creates package-style loaders", {
   expect_true(any(grepl("pkgload::load_all", report_file, fixed = TRUE)))
 })
 
-test_that("box loading mode creates modules and box loader", {
+test_that("advanced box loading mode creates modules and box loader", {
   project_path <- make_project_path("code-loading-box")
 
   create_analysis_project(
     path = project_path,
+    mode = "advanced",
     code_loading = "box",
     use_targets = TRUE,
     use_renv = FALSE,
@@ -45,11 +47,12 @@ test_that("box loading mode creates modules and box loader", {
   expect_true(any(grepl("box::use", targets_file, fixed = TRUE)))
 })
 
-test_that("source loading mode creates controlled source loader", {
+test_that("advanced source loading mode creates controlled source loader", {
   project_path <- make_project_path("code-loading-source")
 
   create_analysis_project(
     path = project_path,
+    mode = "advanced",
     code_loading = "source",
     use_renv = FALSE,
     use_git = FALSE,
@@ -72,6 +75,7 @@ test_that("invalid code_loading errors clearly", {
   expect_error(
     create_analysis_project(
       path = project_path,
+      mode = "advanced",
       code_loading = "invalid",
       use_renv = FALSE,
       use_git = FALSE,

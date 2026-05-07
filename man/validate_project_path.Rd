@@ -2,7 +2,7 @@
 % Please edit documentation in R/validate_inputs.R
 \name{validate_project_path}
 \alias{validate_project_path}
-\title{Validate a project path}
+\title{Validate whether a project path can be used}
 \usage{
 validate_project_path(path, overwrite = FALSE)
 }
@@ -15,5 +15,5 @@ validate_project_path(path, overwrite = FALSE)
 Invisibly returns the validated path.
 }
 \description{
-Validate a project path
+Validate whether a project path can be used
 }

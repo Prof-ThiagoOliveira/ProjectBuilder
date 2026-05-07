@@ -1,8 +1,9 @@
-test_that("report styling files are created for Quarto projects", {
+test_that("advanced report styling files are created for Quarto projects", {
   project_path <- make_project_path("report-styles-quarto")
 
   create_analysis_project(
     path = project_path,
+    mode = "advanced",
     use_quarto = TRUE,
     use_rmarkdown = FALSE,
     use_renv = FALSE,
@@ -37,11 +38,12 @@ test_that("report styling files are created for Quarto projects", {
   expect_true(any(grepl("reports/templates/report-pdf-before-body\\.tex", quarto_lines)))
 })
 
-test_that("report styling files are created for R Markdown projects", {
+test_that("advanced report styling files are created for R Markdown projects", {
   project_path <- make_project_path("report-styles-rmd")
 
   create_analysis_project(
     path = project_path,
+    mode = "advanced",
     use_quarto = FALSE,
     use_rmarkdown = TRUE,
     use_renv = FALSE,

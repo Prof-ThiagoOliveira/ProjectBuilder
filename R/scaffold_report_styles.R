@@ -4,6 +4,8 @@
 #' @param overwrite Logical. Should existing files be overwritten?
 #' @param use_quarto Logical. Should Quarto-specific style files be created?
 #' @param use_rmarkdown Logical. Should R Markdown style files be created?
+#' @param template_data Named list of template variables used when rendering
+#'   report style files.
 #'
 #' @return A list with created and skipped file paths.
 scaffold_report_styles <- function(

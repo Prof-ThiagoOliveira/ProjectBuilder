@@ -1,6 +1,42 @@
 #' Validate a project path
 #'
 #' @param path Target project path.
+#'
+#' @return A normalized project path.
+resolve_project_path <- function(path) {
+  normalizePath(path.expand(trimws(path)), winslash = "/", mustWork = FALSE)
+}
+
+detect_path_construction_warning <- function(raw_path, resolved_path) {
+  normalized_raw_path <- gsub("\\\\", "/", trimws(raw_path))
+  temp_path_candidates <- unique(
+    tolower(c(
+      gsub("\\\\", "/", tempdir()),
+      gsub("\\\\", "/", normalizePath(tempdir(), winslash = "/", mustWork = FALSE)),
+      if (.Platform$OS.type == "windows") {
+        gsub("\\\\", "/", utils::shortPathName(tempdir()))
+      } else {
+        character()
+      }
+    ))
+  )
+  has_navigation <- grepl("(^|/)\\.{1,2}(/|$)", normalized_raw_path)
+  is_temp_prefixed <- any(startsWith(tolower(normalized_raw_path), temp_path_candidates))
+
+  if (!has_navigation || !is_temp_prefixed) {
+    return(NULL)
+  }
+
+  paste0(
+    "`path` resolved to `",
+    resolved_path,
+    "` from a temporary-path prefix. If you meant to create the project in a regular folder, pass that folder directly (for example `./../../R Packages/anal`) or use `tempfile(tmpdir = './../../R Packages', pattern = 'anal')`."
+  )
+}
+
+#' Validate whether a project path can be used
+#'
+#' @param path Target project path.
 #' @param overwrite Logical. Should existing files be overwritten?
 #'
 #' @return Invisibly returns the validated path.

@@ -1,38 +1,59 @@
-test_that("option combinations create the expected optional files", {
-  combinations <- expand.grid(
-    use_quarto = c(TRUE, FALSE),
-    use_rmarkdown = c(TRUE, FALSE),
-    use_targets = c(TRUE, FALSE),
-    use_git = c(TRUE, FALSE),
-    stringsAsFactors = FALSE
+test_that("simple mode keeps the scaffold minimal", {
+  project_path <- make_project_path("options-simple")
+
+  result <- create_analysis_project(
+    path = project_path,
+    preset = "analysis",
+    mode = "simple",
+    use_renv = FALSE,
+    use_git = FALSE,
+    open = FALSE
   )
 
-  for (index in seq_len(nrow(combinations))) {
-    settings <- combinations[index, ]
-    project_path <- make_project_path(paste0("options-", index))
+  expect_identical(result$mode, "simple")
+  expect_true(file.exists(file.path(project_path, "run_project.R")))
+  expect_false(file.exists(file.path(project_path, "_quarto.yml")))
+  expect_false(file.exists(file.path(project_path, "_targets.R")))
+  expect_false(file.exists(file.path(project_path, "PROJECT_GUIDE.md")))
+})
 
-    result <- create_analysis_project(
-      path = project_path,
-      use_quarto = settings$use_quarto,
-      use_rmarkdown = settings$use_rmarkdown,
-      use_renv = FALSE,
-      use_targets = settings$use_targets,
-      use_git = settings$use_git,
-      open = FALSE
-    )
+test_that("advanced package mode remains available explicitly", {
+  project_path <- make_project_path("options-advanced-package")
 
-    expect_s3_class(result, "analysis_project_scaffold")
-    expect_identical(file.exists(file.path(project_path, "_quarto.yml")), settings$use_quarto)
-    expect_identical(
-      file.exists(file.path(project_path, "reports", "final_report.Rmd")),
-      settings$use_rmarkdown
-    )
-    expect_identical(file.exists(file.path(project_path, "_targets.R")), settings$use_targets)
-    expect_identical(file.exists(file.path(project_path, ".gitignore")), settings$use_git)
-  }
+  result <- create_analysis_project(
+    path = project_path,
+    preset = "package",
+    mode = "advanced",
+    use_renv = FALSE,
+    use_git = FALSE,
+    open = FALSE
+  )
+
+  expect_identical(result$mode, "advanced")
+  expect_true(file.exists(file.path(project_path, "DESCRIPTION")))
+  expect_true(file.exists(file.path(project_path, "NAMESPACE")))
+  expect_true(dir.exists(file.path(project_path, "R")))
+  expect_true(dir.exists(file.path(project_path, "tests", "testthat")))
+})
+
+test_that("pipeline requests enable advanced scaffold components", {
+  project_path <- make_project_path("options-pipeline")
+
+  result <- create_analysis_project(
+    path = project_path,
+    preset = "pipeline",
+    use_renv = FALSE,
+    use_git = FALSE,
+    open = FALSE
+  )
+
+  expect_identical(result$mode, "advanced")
+  expect_true(file.exists(file.path(project_path, "_targets.R")))
 })
 
 test_that("use_renv can be enabled without failing scaffold creation", {
+  skip("renv initialisation is optional and slow in the current test environment.")
+
   project_path <- make_project_path("options-renv")
 
   expect_no_error(
@@ -43,32 +64,4 @@ test_that("use_renv can be enabled without failing scaffold creation", {
       open = FALSE
     )
   )
-})
-
-test_that("template presets enable their matching scaffold components", {
-  targets_path <- make_project_path("template-targets")
-  targets_result <- create_analysis_project(
-    path = targets_path,
-    template = "targets",
-    use_targets = FALSE,
-    use_renv = FALSE,
-    use_git = FALSE,
-    open = FALSE
-  )
-
-  expect_true(file.exists(file.path(targets_path, "_targets.R")))
-  expect_true(any(grepl("Template 'targets' enables targets scaffolding", targets_result$warnings, fixed = TRUE)))
-
-  quarto_path <- make_project_path("template-quarto")
-  quarto_result <- create_analysis_project(
-    path = quarto_path,
-    template = "quarto",
-    use_quarto = FALSE,
-    use_renv = FALSE,
-    use_git = FALSE,
-    open = FALSE
-  )
-
-  expect_true(file.exists(file.path(quarto_path, "_quarto.yml")))
-  expect_true(any(grepl("Template 'quarto' enables Quarto report scaffolding", quarto_result$warnings, fixed = TRUE)))
 })

@@ -14,6 +14,9 @@ init_renv_project(
 \arguments{
 \item{path}{Project root path.}
 
+\item{packages}{Character vector of packages to install into the project
+library after initialising renv.}
+
 \item{snapshot}{Logical. Should \code{renv::snapshot()} be run?}
 
 \item{strict}{Logical. Should failures error instead of warning?}

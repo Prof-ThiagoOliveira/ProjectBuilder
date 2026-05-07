@@ -1,0 +1,2 @@
+This folder stores projectSetupR support files.
+You normally do not need to edit these files manually.

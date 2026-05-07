@@ -7,8 +7,8 @@ git_status_code <- function(project_path, relative_path) {
   )
 }
 
-test_that("git support files are created", {
-  project_path <- make_project_path("git-files")
+test_that("simple git support files are created", {
+  project_path <- make_project_path("git-files-simple")
 
   create_analysis_project(
     path = project_path,
@@ -18,20 +18,30 @@ test_that("git support files are created", {
   )
 
   expect_true(file.exists(file.path(project_path, ".gitignore")))
+  expect_false(file.exists(file.path(project_path, ".Rbuildignore")))
+  expect_false(file.exists(file.path(project_path, ".gitattributes")))
+
+  expect_true(file.exists(file.path(project_path, "analysis", ".gitkeep")))
+  expect_true(file.exists(file.path(project_path, "data", "raw", ".gitkeep")))
+  expect_true(file.exists(file.path(project_path, "data", "processed", ".gitkeep")))
+  expect_true(file.exists(file.path(project_path, "outputs", ".gitkeep")))
+})
+
+test_that("advanced git support files are still available", {
+  project_path <- make_project_path("git-files-advanced")
+
+  create_analysis_project(
+    path = project_path,
+    mode = "advanced",
+    use_renv = FALSE,
+    use_git = TRUE,
+    open = FALSE
+  )
+
+  expect_true(file.exists(file.path(project_path, ".gitignore")))
   expect_true(file.exists(file.path(project_path, ".Rbuildignore")))
   expect_true(file.exists(file.path(project_path, ".gitattributes")))
-
-  expect_true(file.exists(file.path(project_path, "data", "raw", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "data", "external", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "data", "interim", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "data", "processed", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "data", "metadata", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "outputs", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "outputs", "tables", ".gitkeep")))
   expect_true(file.exists(file.path(project_path, "outputs", "figures", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "outputs", "models", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "outputs", "reports", ".gitkeep")))
-  expect_true(file.exists(file.path(project_path, "outputs", "logs", ".gitkeep")))
 })
 
 test_that("gitignore protects data and outputs but keeps gitkeep files trackable", {
@@ -47,15 +57,12 @@ test_that("gitignore protects data and outputs but keeps gitkeep files trackable
   )
 
   writeLines("x", file.path(project_path, "data", "raw", "example.csv"))
-  writeLines("x", file.path(project_path, "outputs", "figures", "example.png"))
+  writeLines("x", file.path(project_path, "outputs", "example.txt"))
 
   expect_identical(git_status_code(project_path, "data/raw/example.csv"), 0L)
-  expect_identical(git_status_code(project_path, "outputs/figures/example.png"), 0L)
+  expect_identical(git_status_code(project_path, "outputs/example.txt"), 0L)
   expect_identical(git_status_code(project_path, "data/raw/.gitkeep"), 1L)
-  expect_identical(git_status_code(project_path, "outputs/tables/.gitkeep"), 1L)
-
-  gitignore <- readLines(file.path(project_path, ".gitignore"), warn = FALSE)
-  expect_false(any(grepl("^renv\\.lock$", gitignore)))
+  expect_identical(git_status_code(project_path, "outputs/.gitkeep"), 1L)
 })
 
 test_that("existing gitignore is not overwritten unless overwrite is TRUE", {
@@ -69,11 +76,11 @@ test_that("existing gitignore is not overwritten unless overwrite is TRUE", {
 
   writeLines("custom", file.path(project_path, ".gitignore"))
 
-  initial <- projectSetupR:::create_git_files(project_path, overwrite = FALSE)
+  initial <- projectSetupR:::create_git_files(project_path, overwrite = FALSE, mode = "simple")
   expect_true(gitignore_path %in% initial$files_skipped)
   expect_identical(readLines(file.path(project_path, ".gitignore"), warn = FALSE), "custom")
 
-  updated <- projectSetupR:::create_git_files(project_path, overwrite = TRUE)
+  updated <- projectSetupR:::create_git_files(project_path, overwrite = TRUE, mode = "simple")
   expect_true(gitignore_path %in% updated$files_created)
   expect_false(identical(readLines(file.path(project_path, ".gitignore"), warn = FALSE), "custom"))
 })

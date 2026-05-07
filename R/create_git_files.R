@@ -18,14 +18,33 @@ gitkeep_paths <- function() {
 #'
 #' @param path Project root path.
 #' @param overwrite Logical. Should existing files be overwritten?
+#' @param mode Git scaffold mode. Use `"simple"` for analyst-facing projects
+#'   and `"advanced"` for the full scaffold.
+#' @param gitkeep_files Relative `.gitkeep` paths to create.
 #'
 #' @return A list with created and skipped file paths.
-create_git_files <- function(path, overwrite = FALSE) {
-  registry <- list(
-    list(source = "gitignore", target = ".gitignore"),
-    list(source = "rbuildignore", target = ".Rbuildignore"),
-    list(source = "gitattributes", target = ".gitattributes")
-  )
+create_git_files <- function(
+    path,
+    overwrite = FALSE,
+    mode = c("advanced", "simple"),
+    gitkeep_files = NULL) {
+  mode <- match.arg(mode)
+
+  registry <- if (identical(mode, "simple")) {
+    list(
+      list(source = "gitignore", target = ".gitignore")
+    )
+  } else {
+    list(
+      list(source = "gitignore", target = ".gitignore"),
+      list(source = "rbuildignore", target = ".Rbuildignore"),
+      list(source = "gitattributes", target = ".gitattributes")
+    )
+  }
+
+  if (is.null(gitkeep_files)) {
+    gitkeep_files <- gitkeep_paths()
+  }
 
   base_results <- lapply(
     registry,
@@ -39,7 +58,7 @@ create_git_files <- function(path, overwrite = FALSE) {
   )
 
   gitkeep_results <- lapply(
-    gitkeep_paths(),
+    gitkeep_files,
     function(relative_path) {
       write_template_file(
         fs::path(path, relative_path),
