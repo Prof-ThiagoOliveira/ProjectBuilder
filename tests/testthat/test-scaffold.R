@@ -86,18 +86,17 @@ test_that("example script runs without real data", {
   expect_true(file.exists(file.path(project_path, "outputs", "example_analysis.rds")))
 })
 
-test_that("default report renders without real data when Quarto is available", {
-  skip_if_not_installed("quarto")
-  skip_if_not(quarto::quarto_available())
-
+test_that("default report render workflow creates the registered output", {
+  local_mock_quarto_render()
+  
   project_path <- make_project_path("render-report")
-
+  
   new_project(
     path = project_path,
     infrastructure = character(),
     open = FALSE
   )
-
+  
   expect_no_error(build_project(project_path, render_reports = TRUE))
   expect_true(file.exists(file.path(project_path, "outputs", "reports", "main_report.html")))
 })
@@ -195,6 +194,7 @@ test_that("plan_project and high-level verbs grow the project", {
     open = FALSE
   )
 
+  local_mock_quarto_render()
   expect_no_error(serve_project(project_path, watch = FALSE))
 
   withr::local_dir(project_path)

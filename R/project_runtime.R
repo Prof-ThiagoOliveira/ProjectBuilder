@@ -1092,41 +1092,146 @@ run_script_in_project <- function(script_path, root, name, order = NA_real_) {
   )
 }
 
+projflow_quarto_available <- function() {
+  override <- getOption("projflow.quarto_available", NULL)
+  
+  if (is.function(override)) {
+    return(isTRUE(override()))
+  }
+  
+  if (!requireNamespace("quarto", quietly = TRUE)) {
+    return(FALSE)
+  }
+  
+  if ("quarto_available" %in% getNamespaceExports("quarto")) {
+    return(isTRUE(quarto::quarto_available()))
+  }
+  
+  TRUE
+}
+
+
+projflow_quarto_render <- function(input,
+                                   output_file = NULL,
+                                   quiet = TRUE,
+                                   execute_dir = NULL,
+                                   ...) {
+  override <- getOption("projflow.quarto_render", NULL)
+  
+  if (is.function(override)) {
+    return(
+      override(
+        input = input,
+        output_file = output_file,
+        quiet = quiet,
+        execute_dir = execute_dir,
+        ...
+      )
+    )
+  }
+  
+  if (!requireNamespace("quarto", quietly = TRUE)) {
+    rlang::abort("Quarto is not installed.")
+  }
+  
+  render_args <- list(
+    input = input,
+    output_file = output_file,
+    quiet = quiet
+  )
+  
+  if (!is.null(execute_dir) &&
+      "execute_dir" %in% names(formals(quarto::quarto_render))) {
+    render_args$execute_dir <- execute_dir
+  }
+  
+  do.call(quarto::quarto_render, render_args)
+}
+
 render_one_report <- function(input_path, output_path) {
   extension <- tolower(fs::path_ext(input_path))
+  input_path <- normalize_absolute_path(input_path)
+  output_path <- normalize_absolute_path(output_path)
+  
   fs::dir_create(fs::path_dir(output_path), recurse = TRUE)
-
+  
   if (identical(extension, "qmd")) {
-    if (!requireNamespace("quarto", quietly = TRUE)) {
-      return("Quarto is not installed; skipped report rendering.")
-    }
-    if ("quarto_available" %in% getNamespaceExports("quarto") &&
-        !isTRUE(quarto::quarto_available())) {
+    if (!projflow_quarto_available()) {
       return("Quarto command-line tools are not available; skipped report rendering.")
     }
-
-    quarto::quarto_render(
-      input = input_path,
-      output_file = output_path,
-      quiet = TRUE
+    
+    render_root <- find_project_root(fs::path_dir(input_path))
+    output_file <- fs::path_file(output_path)
+    
+    rendered <- tryCatch(
+      projflow_quarto_render(
+        input = input_path,
+        output_file = output_file,
+        quiet = TRUE,
+        execute_dir = render_root
+      ),
+      error = function(error) {
+        rlang::abort(
+          paste0(
+            "Failed to render Quarto report `",
+            normalize_relative_path(input_path),
+            "`. Check that Quarto is correctly installed and that the report runs interactively. ",
+            "Original error: ",
+            conditionMessage(error)
+          ),
+          parent = error
+        )
+      }
     )
+    
+    candidate_paths <- unique(c(
+      output_path,
+      if (is.character(rendered) && length(rendered) > 0L) rendered[[1]] else character(),
+      fs::path(fs::path_dir(input_path), output_file),
+      fs::path(render_root, output_file)
+    ))
+    
+    candidate_paths <- candidate_paths[fs::file_exists(candidate_paths)]
+    
+    if (!fs::file_exists(output_path) && length(candidate_paths) > 0L) {
+      fs::file_copy(candidate_paths[[1]], output_path, overwrite = TRUE)
+    }
+    
+    if (!fs::file_exists(output_path)) {
+      return(paste0("Quarto completed, but expected output was not found: ", output_path))
+    }
+    
     return(NULL)
   }
-
+  
   if (identical(extension, "rmd")) {
     if (!requireNamespace("rmarkdown", quietly = TRUE)) {
       return("rmarkdown is not installed; skipped report rendering.")
     }
-
-    rmarkdown::render(
-      input = input_path,
-      output_file = fs::path_file(output_path),
-      output_dir = fs::path_dir(output_path),
-      quiet = TRUE
+    
+    tryCatch(
+      rmarkdown::render(
+        input = input_path,
+        output_file = fs::path_file(output_path),
+        output_dir = fs::path_dir(output_path),
+        quiet = TRUE
+      ),
+      error = function(error) {
+        rlang::abort(
+          paste0(
+            "Failed to render R Markdown report `",
+            normalize_relative_path(input_path),
+            "`. Original error: ",
+            conditionMessage(error)
+          ),
+          parent = error
+        )
+      }
     )
+    
     return(NULL)
   }
-
+  
   paste0("Unsupported report type: ", input_path)
 }
 

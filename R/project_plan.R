@@ -646,7 +646,10 @@ validate_project_component_spec <- function(spec) {
   }
 
   validate_character_vector(spec$component, "component")
-  spec$component <- normalise_project_components(spec$component, component_map = setNames(list(spec), spec$component))[[1]]
+  spec$component <- 
+    normalise_project_components(
+      spec$component, 
+      component_map = stats::setNames(list(spec), spec$component))[[1]]
 
   spec$folders <- spec$folders %||% character()
   spec$files <- spec$files %||% character()

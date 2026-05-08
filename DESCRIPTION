@@ -21,5 +21,8 @@ Suggests:
     renv,
     quarto,
     rmarkdown,
-    gert
+    gert,
+    ggplot2,
+    pak,
+    shiny
 Config/testthat/edition: 3
