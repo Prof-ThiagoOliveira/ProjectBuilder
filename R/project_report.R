@@ -56,9 +56,6 @@ print.analysis_project_scaffold <- function(x, ...) {
   cat("Project path: ", x$path, "\n", sep = "")
   cat("Preset: ", x$preset, "\n", sep = "")
   cat("Scaffold level: ", x$scaffold_level, "\n", sep = "")
-  cat("Template: ", x$template, "\n", sep = "")
-  cat("Dependency profile: ", x$dependency_profile, "\n", sep = "")
-  cat("Code loading: ", x$code_loading, "\n", sep = "")
   cat("Packages: ", length(x$packages), "\n", sep = "")
   cat("Directories created: ", length(x$directories_created), "\n", sep = "")
   cat("Files created: ", length(x$files_created), "\n", sep = "")
@@ -72,29 +69,11 @@ print.analysis_project_scaffold <- function(x, ...) {
   cat("\nStart here:\n")
   cat("1. Open: ", paste0(x$project_name, ".Rproj"), "\n", sep = "")
   cat("2. Configure external data with: projflow::set_project_data_root(\"path/to/external/data\")\n")
-
-  if (identical(x$entrypoint, "run_project.R")) {
-    cat('3. Run in R: source("run_project.R")', "\n", sep = "")
-    cat("4. Read: README.md\n")
-  } else {
-    cat('3. Run in R: source("scripts/00_start_here.R")', "\n", sep = "")
-    cat("4. Read: PROJECT_GUIDE.md\n")
-  }
+  cat("3. Check the project with: projflow::check_project()\n")
+  cat("4. Build the project with: projflow::build_project()\n")
 
   if (isTRUE(x$use_quarto)) {
-    if (x$scaffold_level %in% c("minimal", "simple")) {
-      cat("* Render reports with: projflow::render_project_reports()\n")
-    } else {
-      cat("* Render reports with: Rscript scripts/render_reports.R\n")
-    }
-  }
-
-  if (isTRUE(x$use_rmarkdown)) {
-    cat("* Render R Markdown reports with: Rscript scripts/render_rmarkdown_reports.R\n")
-  }
-
-  if (isTRUE(x$use_targets)) {
-    cat("* Run pipeline with: Rscript scripts/run_pipeline.R\n")
+    cat("* Serve reports or dashboards with: projflow::serve_project()\n")
   }
 
   if (isTRUE(x$use_renv)) {

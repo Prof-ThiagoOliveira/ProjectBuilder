@@ -7,10 +7,10 @@
 render_project_reports(root = ".")
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-Invisibly returns the rendered report paths.
+Invisibly returns rendered report paths.
 }
 \description{
 Render project reports

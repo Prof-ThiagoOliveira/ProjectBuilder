@@ -9,10 +9,10 @@ load_project_object(name, root = ".")
 \arguments{
 \item{name}{Object name.}
 
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-The loaded object, or the source path when no saved output exists.
+Loaded object.
 }
 \description{
 Load a saved project object

@@ -7,19 +7,20 @@
 create_git_files(
   path,
   overwrite = FALSE,
-  mode = c("advanced", "simple"),
-  gitkeep_files = NULL
+  use_internal_data_dirs = FALSE,
+  deliverables = character()
 )
 }
 \arguments{
 \item{path}{Project root path.}
 
-\item{overwrite}{Logical. Should existing files be overwritten?}
+\item{overwrite}{Should existing files be overwritten?}
 
-\item{mode}{Git scaffold mode. Use \code{"simple"} for analyst-facing projects
-and \code{"advanced"} for the full scaffold.}
+\item{use_internal_data_dirs}{Should internal data directories be ignored
+explicitly?}
 
-\item{gitkeep_files}{Relative \code{.gitkeep} paths to create.}
+\item{deliverables}{Project deliverables used to shape allow-lists for final
+tracked outputs.}
 }
 \value{
 A list with created and skipped file paths.

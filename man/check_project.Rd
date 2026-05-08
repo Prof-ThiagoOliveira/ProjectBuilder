@@ -2,16 +2,22 @@
 % Please edit documentation in R/project_runtime.R
 \name{check_project}
 \alias{check_project}
-\title{Check whether a project is ready to run}
+\title{Check project health}
 \usage{
-check_project(root = ".")
+check_project(root = ".", deep = TRUE, strict = FALSE, repair = FALSE)
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
+
+\item{deep}{Should deeper checks such as report rendering run?}
+
+\item{strict}{Should critical failures raise an error?}
+
+\item{repair}{Should safe repairs be applied?}
 }
 \value{
-An object of class \code{"project_status"}.
+Structured project-check result.
 }
 \description{
-Check whether a project is ready to run
+Check project health
 }

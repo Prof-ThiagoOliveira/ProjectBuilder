@@ -2,18 +2,18 @@
 % Please edit documentation in R/project_runtime.R
 \name{run_project_step}
 \alias{run_project_step}
-\title{Run a project step}
+\title{Run a registered project step}
 \usage{
 run_project_step(name, root = ".")
 }
 \arguments{
 \item{name}{Step name.}
 
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-Invisibly returns the source path used.
+Invisibly returns the executed path.
 }
 \description{
-Run a project step
+Run a registered project step
 }

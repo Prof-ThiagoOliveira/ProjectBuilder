@@ -6,6 +6,8 @@
 #' @param deliverables Deliverables to prepare.
 #' @param infrastructure Technical support features to enable.
 #' @param preset Optional preset shortcut.
+#' @param component_specs Optional custom component spec path, spec list, or
+#'   list of specs.
 #' @param use_internal_data_dirs Should internal data directories be created?
 #' @param include_example Should example files be created?
 #'
@@ -18,6 +20,7 @@ plan_project <- function(
     deliverables = NULL,
     infrastructure = NULL,
     preset = NULL,
+    component_specs = NULL,
     use_internal_data_dirs = FALSE,
     include_example = TRUE) {
   build_project_plan(
@@ -27,6 +30,7 @@ plan_project <- function(
     deliverables = deliverables,
     infrastructure = infrastructure,
     preset = preset,
+    component_specs = component_specs,
     use_internal_data_dirs = use_internal_data_dirs,
     include_example = include_example
   )
@@ -37,12 +41,13 @@ plan_project <- function(
 #' @param name Script name.
 #' @param type Script type.
 #' @param root Project root.
+#' @param order Optional execution order.
 #' @param open Included for API compatibility.
 #'
 #' @return Invisibly returns the created script path.
 #' @export
-new_script <- function(name, type = "analysis", root = ".", open = interactive()) {
-  new_project_script(name = name, type = type, root = root, open = open)
+new_script <- function(name, type = "analysis", root = ".", order = NULL, open = interactive()) {
+  new_project_script(name = name, type = type, root = root, order = order, open = open)
 }
 
 #' Create a new report
@@ -173,15 +178,42 @@ build_project <- function(root = ".", render_reports = TRUE, run_apps = FALSE) {
 #' Serve a project for interactive development
 #'
 #' @param root Project root.
+#' @param target What to serve.
 #' @param watch Included for API compatibility.
+#' @param render Should reports be rendered for report-oriented projects?
 #'
 #' @return Invisibly returns the launched target or build result.
 #' @export
-serve_project <- function(root = ".", watch = interactive()) {
+serve_project <- function(
+    root = ".",
+    target = c("auto", "reports", "shiny_app", "dashboard", "project"),
+    watch = interactive(),
+    render = TRUE) {
+  target <- match.arg(target)
   validate_logical_scalar(watch, "watch")
+  validate_logical_scalar(render, "render")
   root <- find_project_root(root)
+  has_shiny <- fs::file_exists(fs::path(root, "app", "app.R"))
+  has_dashboard <- fs::file_exists(fs::path(root, "dashboard", "dashboard.qmd"))
+  has_reports <- length(read_project_registry(root)$reports) > 0L || length(list.files(fs::path(root, "reports"), pattern = "\\.(qmd|Rmd)$")) > 0L
 
-  if (fs::file_exists(fs::path(root, "app", "app.R"))) {
+  resolved_target <- target
+  if (identical(target, "auto")) {
+    resolved_target <- if (has_shiny) {
+      "shiny_app"
+    } else if (has_dashboard) {
+      "dashboard"
+    } else if (has_reports) {
+      "reports"
+    } else {
+      "project"
+    }
+  }
+
+  if (identical(resolved_target, "shiny_app")) {
+    if (!has_shiny) {
+      rlang::abort("This project does not contain `app/app.R`.")
+    }
     if (!requireNamespace("shiny", quietly = TRUE)) {
       rlang::abort("The `shiny` package is required to serve this project app.")
     }
@@ -190,9 +222,35 @@ serve_project <- function(root = ".", watch = interactive()) {
     return(invisible(fs::path(root, "app", "app.R")))
   }
 
-  if (isTRUE(watch)) {
-    cli::cli_alert_info("Continuous watch mode is not implemented; rendering current reports once.")
+  if (identical(resolved_target, "dashboard")) {
+    if (!has_dashboard) {
+      rlang::abort("This project does not contain a Quarto dashboard.")
+    }
+    if (isTRUE(watch)) {
+      cli::cli_alert_info("Continuous dashboard watch mode is not implemented; previewing the current dashboard once.")
+    }
+    if (isTRUE(render)) {
+      return(invisible(render_one_report(
+        fs::path(root, "dashboard", "dashboard.qmd"),
+        fs::path(root, "outputs", "reports", "dashboard.html")
+      )))
+    }
+    return(invisible(fs::path(root, "dashboard", "dashboard.qmd")))
   }
 
-  invisible(render_project_reports(root = root))
+  if (identical(resolved_target, "reports")) {
+    if (isTRUE(watch)) {
+      cli::cli_alert_info("Continuous report watch mode is not implemented; rendering current reports once.")
+    }
+    if (isTRUE(render)) {
+      return(invisible(render_project_reports(root = root)))
+    }
+    return(invisible(project_status(root)))
+  }
+
+  if (isTRUE(watch)) {
+    cli::cli_alert_info("Continuous project watch mode is not implemented; running a one-shot build.")
+  }
+
+  invisible(build_project(root = root, render_reports = render, run_apps = FALSE))
 }

@@ -14,6 +14,8 @@ filesystem_normalize <- function(paths) {
 #' @param deliverables Deliverables to prepare.
 #' @param infrastructure Technical support features to enable.
 #' @param preset Optional preset shortcut.
+#' @param component_specs Optional custom component spec path, spec list, or
+#'   list of specs.
 #' @param use_internal_data_dirs Should internal `data/raw/` and
 #'   `data/processed/` folders be created? Defaults to `FALSE`.
 #' @param include_example Should example files be created?
@@ -30,6 +32,7 @@ new_project <- function(
     deliverables = NULL,
     infrastructure = NULL,
     preset = NULL,
+    component_specs = NULL,
     use_internal_data_dirs = FALSE,
     include_example = TRUE,
     open = interactive(),
@@ -53,6 +56,7 @@ new_project <- function(
     deliverables = deliverables,
     infrastructure = infrastructure,
     preset = preset,
+    component_specs = component_specs,
     use_internal_data_dirs = use_internal_data_dirs,
     include_example = include_example
   )

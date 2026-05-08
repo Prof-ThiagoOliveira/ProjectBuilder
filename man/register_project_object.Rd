@@ -2,33 +2,24 @@
 % Please edit documentation in R/project_runtime.R
 \name{register_project_object}
 \alias{register_project_object}
-\title{Register a project object}
+\title{Register an output object in the project registry}
 \usage{
-register_project_object(
-  name,
-  type,
-  source = NULL,
-  output = NULL,
-  root = ".",
-  status = "active"
-)
+register_project_object(name, path, type, root = ".", overwrite = FALSE)
 }
 \arguments{
 \item{name}{Object name.}
 
+\item{path}{Relative output path.}
+
 \item{type}{Object type.}
 
-\item{source}{Optional source path relative to the project root.}
+\item{root}{Project root.}
 
-\item{output}{Optional output path relative to the project root.}
-
-\item{root}{Project root. Defaults to the current project.}
-
-\item{status}{Registry status string.}
+\item{overwrite}{Should an existing registry entry be overwritten?}
 }
 \value{
-Invisibly returns the registered object entry.
+Invisibly returns the registry entry.
 }
 \description{
-Register a project object
+Register an output object in the project registry
 }

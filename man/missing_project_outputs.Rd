@@ -7,10 +7,10 @@
 missing_project_outputs(root = ".")
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-A character vector of missing output paths.
+Character vector of missing output paths.
 }
 \description{
 Report missing project outputs

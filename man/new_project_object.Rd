@@ -11,12 +11,12 @@ new_project_object(name, type, root = ".", overwrite = FALSE)
 
 \item{type}{Object type.}
 
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 
-\item{overwrite}{Logical. Should an existing source file be overwritten?}
+\item{overwrite}{Should an existing file be overwritten?}
 }
 \value{
-Invisibly returns the registered object entry.
+Invisibly returns the created path.
 }
 \description{
 Create and register a project object

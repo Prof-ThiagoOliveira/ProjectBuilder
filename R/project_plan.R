@@ -2,6 +2,8 @@
   if (is.null(x)) y else x
 }
 
+.projflow_component_registry <- new.env(parent = emptyenv())
+
 canonical_component_order <- function() {
   c(
     "data_preparation",
@@ -303,7 +305,16 @@ infer_scaffold_level <- function(components, deliverables, infrastructure) {
   "simple"
 }
 
-available_project_components <- function() canonical_component_order()
+registered_project_components <- function() {
+  as.list(.projflow_component_registry, all.names = TRUE)
+}
+
+available_project_components <- function() {
+  order_keywords(
+    c(canonical_component_order(), names(registered_project_components())),
+    canonical_component_order()
+  )
+}
 available_project_deliverables <- function() canonical_deliverable_order()
 available_project_infrastructure <- function() canonical_infrastructure_order()
 available_project_presets <- function() names(project_presets())
@@ -332,8 +343,9 @@ normalise_keyword_vector <- function(values, aliases, available, label) {
   unique(values)
 }
 
-normalise_project_components <- function(components) {
-  normalise_keyword_vector(components, component_aliases(), available_project_components(), "components")
+normalise_project_components <- function(components, component_map = NULL) {
+  available <- if (is.null(component_map)) available_project_components() else names(component_map)
+  normalise_keyword_vector(components, component_aliases(), available, "components")
 }
 
 normalise_project_deliverables <- function(deliverables) {
@@ -345,7 +357,8 @@ normalise_project_infrastructure <- function(infrastructure) {
 }
 
 order_keywords <- function(values, canonical) {
-  intersect(canonical, unique(values))
+  values <- unique(values)
+  c(intersect(canonical, values), setdiff(values, canonical))
 }
 
 resolve_dependency_vector <- function(values, dependencies, label) {
@@ -384,16 +397,39 @@ resolve_dependency_vector <- function(values, dependencies, label) {
   list(values = resolved, messages = unique(messages))
 }
 
-resolve_project_component_dependencies <- function(components) {
-  resolved <- resolve_dependency_vector(components, component_dependencies(), "component")
+resolve_project_component_dependencies <- function(components, dependency_map = component_dependencies()) {
+  resolved <- resolve_dependency_vector(components, dependency_map, "component")
   resolved$values <- order_keywords(resolved$values, canonical_component_order())
   resolved
 }
 
-resolve_project_deliverable_dependencies <- function(deliverables) {
-  resolved <- resolve_dependency_vector(deliverables, deliverable_dependencies(), "component")
-  resolved$values <- order_keywords(resolved$values, canonical_component_order())
-  resolved
+resolve_project_deliverable_dependencies <- function(deliverables, existing_components = character()) {
+  dependency_map <- deliverable_dependencies()
+  required_components <- unique(unlist(dependency_map[deliverables], use.names = FALSE))
+  required_components <- required_components[!is.na(required_components)]
+  messages <- character()
+
+  for (deliverable in deliverables) {
+    needed <- dependency_map[[deliverable]] %||% character()
+    needed_messages <- setdiff(needed, existing_components)
+    if (length(needed_messages) > 0L) {
+      messages <- c(
+        messages,
+        paste0(
+          "Adding required component `",
+          needed_messages,
+          "` because `",
+          deliverable,
+          "` depends on it."
+        )
+      )
+    }
+  }
+
+  list(
+    values = order_keywords(unique(required_components), canonical_component_order()),
+    messages = unique(messages)
+  )
 }
 
 resolve_project_infrastructure_dependencies <- function(infrastructure) {
@@ -415,8 +451,9 @@ validate_project_plan <- function(components, deliverables, infrastructure) {
 }
 
 explain_project_component <- function(component) {
-  component <- normalise_project_components(component)
-  spec <- component_specs()[[component[[1]]]]
+  specs <- component_specs()
+  component <- normalise_project_components(component, component_map = specs)
+  spec <- specs[[component[[1]]]]
   spec$component <- component[[1]]
   spec
 }
@@ -490,7 +527,7 @@ governance_file_templates <- function() {
   )
 }
 
-component_specs <- function() {
+built_in_component_specs <- function() {
   list(
     data_preparation = list(
       folders = c("analysis", "outputs/logs"),
@@ -597,6 +634,113 @@ component_specs <- function() {
       files = c("docs/validation_plan.md", "docs/signoff.md", "docs/reproducibility_checklist.md")
     )
   )
+}
+
+validate_project_component_spec <- function(spec) {
+  if (is.character(spec) && length(spec) == 1L && fs::file_exists(spec)) {
+    spec <- read_project_component_spec(spec)
+  }
+
+  if (!is.list(spec) || is.null(spec$component)) {
+    rlang::abort("A project component spec must be a list with a `component` field.")
+  }
+
+  validate_character_vector(spec$component, "component")
+  spec$component <- normalise_project_components(spec$component, component_map = setNames(list(spec), spec$component))[[1]]
+
+  spec$folders <- spec$folders %||% character()
+  spec$files <- spec$files %||% character()
+  spec$packages <- spec$packages %||% character()
+  spec$checks <- spec$checks %||% character()
+  spec$depends_on <- spec$depends_on %||% character()
+
+  if (length(spec$scripts %||% list()) > 0L) {
+    for (script in spec$scripts) {
+      if (is.null(script$name) || is.null(script$path) || is.null(script$type) || is.null(script$order)) {
+        rlang::abort("Each custom component script must define `name`, `path`, `type`, and `order`.")
+      }
+    }
+  }
+
+  if (length(spec$reports %||% list()) > 0L) {
+    for (report in spec$reports) {
+      if (is.null(report$name) || is.null(report$path) || is.null(report$type)) {
+        rlang::abort("Each custom component report must define `name`, `path`, and `type`.")
+      }
+    }
+  }
+
+  spec
+}
+
+read_project_component_spec <- function(path) {
+  validate_character_vector(path, "path")
+  path <- path[[1]]
+  if (!fs::file_exists(path)) {
+    rlang::abort(paste0("Component spec file does not exist: ", path))
+  }
+
+  spec <- yaml::read_yaml(path)
+  validate_project_component_spec(spec)
+}
+
+register_project_component <- function(spec, overwrite = FALSE) {
+  validate_logical_scalar(overwrite, "overwrite")
+  spec <- validate_project_component_spec(spec)
+  name <- spec$component
+
+  if (name %in% names(built_in_component_specs()) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Cannot overwrite built-in component `", name, "` without `overwrite = TRUE`."))
+  }
+  if (exists(name, envir = .projflow_component_registry, inherits = FALSE) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Component `", name, "` is already registered."))
+  }
+
+  assign(name, spec, envir = .projflow_component_registry)
+  invisible(name)
+}
+
+use_project_component_spec <- function(path, overwrite = FALSE) {
+  register_project_component(read_project_component_spec(path), overwrite = overwrite)
+}
+
+component_specs <- function(custom_component_specs = NULL) {
+  specs <- built_in_component_specs()
+  registered <- registered_project_components()
+  if (length(registered) > 0L) {
+    specs[names(registered)] <- registered
+  }
+
+  if (is.null(custom_component_specs)) {
+    return(specs)
+  }
+
+  supplied <- if (is.character(custom_component_specs)) {
+    lapply(custom_component_specs, read_project_component_spec)
+  } else if (is.list(custom_component_specs) && !is.null(custom_component_specs$component)) {
+    list(validate_project_component_spec(custom_component_specs))
+  } else if (is.list(custom_component_specs)) {
+    lapply(custom_component_specs, validate_project_component_spec)
+  } else {
+    rlang::abort("`component_specs` must be `NULL`, a spec path, a spec list, or a list of specs.")
+  }
+
+  for (spec in supplied) {
+    specs[[spec$component]] <- spec
+  }
+
+  specs
+}
+
+component_dependency_map <- function(component_map = component_specs()) {
+  dependencies <- component_dependencies()
+  custom_names <- setdiff(names(component_map), names(dependencies))
+  if (length(custom_names) > 0L) {
+    for (name in custom_names) {
+      dependencies[[name]] <- component_map[[name]]$depends_on %||% character()
+    }
+  }
+  dependencies
 }
 
 deliverable_specs <- function() {
@@ -740,6 +884,7 @@ build_project_plan <- function(
     deliverables = NULL,
     infrastructure = NULL,
     preset = NULL,
+    component_specs = NULL,
     use_internal_data_dirs = FALSE,
     include_example = TRUE) {
   validate_character_vector(path, "path")
@@ -753,24 +898,36 @@ build_project_plan <- function(
     explain_project_preset(preset)
   }
 
-  components <- normalise_project_components(unique(c(preset_spec$components, components)))
-  infrastructure <- normalise_project_infrastructure(unique(c(default_infrastructure(), preset_spec$infrastructure, infrastructure)))
+  component_map <- get("component_specs", mode = "function")(component_specs)
+  components <- normalise_project_components(unique(c(preset_spec$components, components)), component_map = component_map)
+
+  inferred_infrastructure <- if (is.null(infrastructure)) default_infrastructure() else character()
+  infrastructure <- normalise_project_infrastructure(unique(c(inferred_infrastructure, preset_spec$infrastructure, infrastructure)))
 
   legacy_terms <- normalise_legacy_terms(components, infrastructure)
-  components <- normalise_project_components(legacy_terms$components)
+  components <- normalise_project_components(legacy_terms$components, component_map = component_map)
   infrastructure <- normalise_project_infrastructure(legacy_terms$infrastructure)
 
-  deliverables <- unique(c(
-    default_deliverables_for_components(components),
-    preset_spec$deliverables,
-    deliverables
-  ))
+  deliverables <- if (is.null(deliverables)) {
+    unique(c(
+      default_deliverables_for_components(components),
+      preset_spec$deliverables
+    ))
+  } else {
+    unique(c(preset_spec$deliverables, deliverables))
+  }
   deliverables <- normalise_project_deliverables(deliverables)
 
-  deliverable_components <- resolve_project_deliverable_dependencies(deliverables)
+  deliverable_components <- resolve_project_deliverable_dependencies(
+    deliverables,
+    existing_components = components
+  )
   components <- unique(c(components, deliverable_components$values))
 
-  component_resolution <- resolve_project_component_dependencies(components)
+  component_resolution <- resolve_project_component_dependencies(
+    components,
+    dependency_map = component_dependency_map(component_map)
+  )
   infrastructure_resolution <- resolve_project_infrastructure_dependencies(infrastructure)
 
   components <- component_resolution$values
@@ -778,7 +935,6 @@ build_project_plan <- function(
   infrastructure <- infrastructure_resolution$values
   scaffold_level <- infer_scaffold_level(components, deliverables, infrastructure)
 
-  component_map <- component_specs()
   deliverable_map <- deliverable_specs()
   infrastructure_map <- infrastructure_specs()
 
@@ -869,6 +1025,8 @@ build_project_plan <- function(
   governance_files <- governance_file_templates()
   files <- c(files, intersect(names(governance_files), files))
 
+  custom_component_names <- setdiff(names(component_map), names(built_in_component_specs()))
+
   plan <- list(
     path = resolve_project_path(path),
     title = title,
@@ -876,6 +1034,7 @@ build_project_plan <- function(
     deliverables = deliverables,
     infrastructure = infrastructure,
     scaffold_level = scaffold_level,
+    component_specs = if (length(custom_component_names) > 0L) component_map[custom_component_names] else list(),
     folders = unique(folders),
     files = unique(c(files, project_core_files(project_name))),
     scripts = script_entries,
@@ -888,6 +1047,8 @@ build_project_plan <- function(
         scaffold_level = scaffold_level,
         created = as.character(Sys.Date())
       ),
+      custom_components = custom_component_names,
+      component_specs = if (length(custom_component_names) > 0L) component_map[custom_component_names] else list(),
       components = components,
       deliverables = deliverables,
       infrastructure = infrastructure,
@@ -928,22 +1089,6 @@ build_project_plan <- function(
 
   class(plan) <- "project_plan"
   plan
-}
-
-plan_analysis_project <- function(
-    components = c("statistical_analysis", "report"),
-    deliverables = NULL,
-    infrastructure = NULL,
-    preset = NULL) {
-  build_project_plan(
-    path = ".",
-    components = components,
-    deliverables = deliverables,
-    infrastructure = infrastructure,
-    preset = preset,
-    use_internal_data_dirs = FALSE,
-    include_example = TRUE
-  )
 }
 
 project_components <- function(root = ".") read_project_registry(root)$components %||% character()

@@ -2,16 +2,16 @@
 % Please edit documentation in R/project_runtime.R
 \name{list_project_outputs}
 \alias{list_project_outputs}
-\title{List saved project outputs}
+\title{List registered project outputs}
 \usage{
 list_project_outputs(root = ".")
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-A data frame of registered outputs and whether they exist.
+Data frame of outputs and their existence status.
 }
 \description{
-List saved project outputs
+List registered project outputs
 }

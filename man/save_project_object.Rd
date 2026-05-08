@@ -2,9 +2,16 @@
 % Please edit documentation in R/project_runtime.R
 \name{save_project_object}
 \alias{save_project_object}
-\title{Save a project object using the standard project structure}
+\title{Save a project object}
 \usage{
-save_project_object(object, name, type, root = ".")
+save_project_object(
+  object,
+  name,
+  type,
+  root = ".",
+  location = c("outputs", "external"),
+  source = "default"
+)
 }
 \arguments{
 \item{object}{Object to save.}
@@ -13,11 +20,15 @@ save_project_object(object, name, type, root = ".")
 
 \item{type}{Object type.}
 
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
+
+\item{location}{Save inside \verb{outputs/} or under an external data source.}
+
+\item{source}{External data source name when \code{location = "external"}.}
 }
 \value{
-Invisibly returns the saved output path.
+Invisibly returns the saved path.
 }
 \description{
-Save a project object using the standard project structure
+Save a project object
 }

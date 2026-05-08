@@ -196,6 +196,16 @@ write_yaml_file <- function(path, data, overwrite = FALSE) {
 }
 
 normalize_registry <- function(registry, project_name = NULL) {
+  normalize_keyword_field <- function(x) {
+    if (is.null(x) || (is.list(x) && length(x) == 0L)) {
+      return(character())
+    }
+    if (is.character(x)) {
+      return(x)
+    }
+    unlist(x, use.names = FALSE)
+  }
+
   if (is.null(registry)) {
     registry <- list()
   }
@@ -214,14 +224,26 @@ normalize_registry <- function(registry, project_name = NULL) {
   if (is.null(registry$components)) {
     registry$components <- character()
   }
+  registry$components <- normalize_keyword_field(registry$components)
+
+  if (is.null(registry$custom_components)) {
+    registry$custom_components <- character()
+  }
+  registry$custom_components <- normalize_keyword_field(registry$custom_components)
+
+  if (is.null(registry$component_specs)) {
+    registry$component_specs <- list()
+  }
 
   if (is.null(registry$deliverables)) {
     registry$deliverables <- character()
   }
+  registry$deliverables <- normalize_keyword_field(registry$deliverables)
 
   if (is.null(registry$infrastructure)) {
     registry$infrastructure <- character()
   }
+  registry$infrastructure <- normalize_keyword_field(registry$infrastructure)
 
   if (is.null(registry$scripts)) {
     registry$scripts <- list()
@@ -1746,8 +1768,6 @@ required_gitignore_entries <- function() {
     "*.qs",
     "*.parquet",
     "*.fst",
-    "*.csv",
-    "*.tsv",
     "*.xlsx"
   )
 }
@@ -1862,7 +1882,7 @@ github_workflow_contents <- function(workflow, use_renv = FALSE) {
     "render-reports" = c(
       "      - name: Render reports",
       "        run: |",
-      "          Rscript -e 'projflow::render_project_reports()'"
+      "          Rscript -e 'projflow::build_project()'"
     )
   )
 
@@ -2049,26 +2069,8 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
     )
   }
 
-  if (length(git_status$tracked_data_files) > 0L) {
-    warnings <- append_issue(
-      warnings,
-      "tracked_data_files",
-      paste("Git is tracking data-like files:", paste(git_status$tracked_data_files, collapse = ", ")),
-      "",
-      "Keep raw and large data outside the repository."
-    )
-  }
-
   data_sources <- check_project_data_access(root)
-  if (nrow(data_sources) == 0L) {
-    suggestions <- append_issue(
-      suggestions,
-      "external_data",
-      "No external data root is configured yet.",
-      ".projectSetupR/local.yml",
-      'Run `projflow::set_project_data_root("path/to/external/data")`.'
-    )
-  } else {
+  if (nrow(data_sources) > 0L) {
     for (index in seq_len(nrow(data_sources))) {
       if (!isTRUE(data_sources$exists[[index]])) {
         errors <- append_issue(
@@ -2108,6 +2110,62 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
   components_selected <- registry$components %||% character()
   deliverables_selected <- registry$deliverables %||% character()
   infrastructure_selected <- registry$infrastructure %||% character()
+  reports_registry <- registry$reports %||% list()
+  external_data_required <- any(c("data_preparation", "quality_control") %in% components_selected) ||
+    "external_data_configured" %in% collect_scalar_strings(registry$checks) ||
+    any(vapply(
+      registry$scripts %||% list(),
+      function(entry) {
+        script_path <- fs::path(root, entry$path %||% "")
+        if (!fs::file_exists(script_path)) {
+          return(FALSE)
+        }
+        any(grepl("^\\s*[^#].*project_data_path\\(", readLines(script_path, warn = FALSE)))
+      },
+      logical(1)
+    ))
+
+  if (nrow(data_sources) == 0L && isTRUE(external_data_required)) {
+    suggestions <- append_issue(
+      suggestions,
+      "external_data",
+      "No external data root is configured for a project plan that expects external data.",
+      ".projectSetupR/local.yml",
+      'Run `projflow::set_project_data_root("path/to/external/data")`.'
+    )
+  }
+
+  if (length(git_status$tracked_data_files) > 0L) {
+    allowed_patterns <- character()
+    if ("tables" %in% deliverables_selected) {
+      allowed_patterns <- c(allowed_patterns, "^outputs/tables/.*\\.(csv|tsv)$")
+    }
+    if (any(c("html_report", "client_report", "internal_report") %in% deliverables_selected)) {
+      allowed_patterns <- c(allowed_patterns, "^outputs/reports/.*\\.html$")
+    }
+
+    tracked_rel <- normalize_relative_path(git_status$tracked_data_files)
+    allowed_tracked <- if (length(allowed_patterns) == 0L) {
+      rep(FALSE, length(tracked_rel))
+    } else {
+      vapply(
+        tracked_rel,
+        function(path) any(vapply(allowed_patterns, grepl, logical(1), x = path)),
+        logical(1)
+      )
+    }
+    problematic_tracked <- tracked_rel[!allowed_tracked]
+
+    if (length(problematic_tracked) > 0L) {
+      warnings <- append_issue(
+        warnings,
+        "tracked_data_files",
+        paste("Git is tracking data-like files:", paste(problematic_tracked, collapse = ", ")),
+        "",
+        "Keep raw and large data outside the repository."
+      )
+    }
+  }
 
   component_required_files <- list(
     data_preparation = "analysis/01_prepare_inputs.R",

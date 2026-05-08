@@ -373,7 +373,8 @@ apply_project_plan <- function(plan, open = interactive(), overwrite = FALSE) {
   git_files <- create_git_files(
     path = path,
     overwrite = overwrite,
-    use_internal_data_dirs = "data/raw" %in% plan$folders
+    use_internal_data_dirs = "data/raw" %in% plan$folders,
+    deliverables = plan$deliverables
   )
   files_created <- c(files_created, git_files$files_created)
   files_skipped <- c(files_skipped, git_files$files_skipped)
@@ -423,12 +424,14 @@ apply_project_plan <- function(plan, open = interactive(), overwrite = FALSE) {
 rebuild_project_plan <- function(root = ".") {
   root <- find_project_root(root)
   config <- read_project_config(root)
+  registry <- read_project_registry(root)
   build_project_plan(
     path = root,
     title = config$project$title %||% config$project$name,
     components = project_components(root),
     deliverables = project_deliverables(root),
     infrastructure = project_infrastructure(root),
+    component_specs = registry$component_specs %||% list(),
     use_internal_data_dirs = isTRUE(config$settings$use_internal_data_dirs),
     include_example = fs::file_exists(fs::path(root, "analysis", "example_analysis.R"))
   )

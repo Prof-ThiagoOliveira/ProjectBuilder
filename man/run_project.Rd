@@ -7,10 +7,10 @@
 run_project(root = ".")
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-Invisibly returns the script paths that were run.
+Invisibly returns executed script paths.
 }
 \description{
 Run the project workflow

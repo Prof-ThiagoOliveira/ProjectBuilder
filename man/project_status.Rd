@@ -2,16 +2,16 @@
 % Please edit documentation in R/project_runtime.R
 \name{project_status}
 \alias{project_status}
-\title{Check project status}
+\title{Project status alias}
 \usage{
 project_status(root = ".")
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-An object of class \code{"project_status"}.
+Structured project-check result.
 }
 \description{
-Check project status
+Project status alias
 }

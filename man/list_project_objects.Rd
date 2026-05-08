@@ -2,16 +2,16 @@
 % Please edit documentation in R/project_runtime.R
 \name{list_project_objects}
 \alias{list_project_objects}
-\title{List project objects}
+\title{List registered project entities}
 \usage{
 list_project_objects(root = ".")
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-A data frame describing registered project objects.
+Data frame with scripts, reports, and outputs.
 }
 \description{
-List project objects
+List registered project entities
 }

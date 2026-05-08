@@ -7,10 +7,10 @@
 stale_project_outputs(root = ".")
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-A character vector of output paths older than their source files.
+Character vector of stale output paths.
 }
 \description{
 Report stale project outputs

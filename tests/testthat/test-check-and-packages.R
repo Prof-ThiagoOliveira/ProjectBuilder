@@ -3,6 +3,7 @@ test_that("check_project detects missing external data paths and internal data w
 
   new_project(
     path = project_path,
+    components = c("data_preparation", "report"),
     infrastructure = character(),
     open = FALSE
   )
@@ -16,6 +17,30 @@ test_that("check_project detects missing external data paths and internal data w
   expect_false(check$ok)
   expect_true(any(grepl("does not exist", check$errors$message)))
   expect_true(any(grepl("internal data folders", check$warnings$message)))
+})
+
+test_that("external data checks are conditional on selected components", {
+  no_data_path <- make_project_path("no-data-check")
+  data_path <- make_project_path("yes-data-check")
+
+  new_project(
+    path = no_data_path,
+    components = c("statistical_analysis", "report"),
+    infrastructure = character(),
+    open = FALSE
+  )
+  new_project(
+    path = data_path,
+    components = c("data_preparation", "report"),
+    infrastructure = character(),
+    open = FALSE
+  )
+
+  no_data_check <- check_project(no_data_path, deep = FALSE)
+  data_check <- check_project(data_path, deep = FALSE)
+
+  expect_false(any(no_data_check$suggestions$check == "external_data"))
+  expect_true(any(data_check$suggestions$check == "external_data"))
 })
 
 test_that("check_project strict mode fails on critical inconsistencies", {

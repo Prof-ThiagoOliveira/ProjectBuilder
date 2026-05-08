@@ -9,10 +9,10 @@ run_project_object(name, root = ".")
 \arguments{
 \item{name}{Object name.}
 
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 }
 \value{
-Invisibly returns the source or output path used.
+Invisibly returns the executed path.
 }
 \description{
 Run a registered project object

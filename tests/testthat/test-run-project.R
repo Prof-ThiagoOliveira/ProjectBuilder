@@ -1,4 +1,4 @@
-test_that("run_project works when called outside the project root", {
+test_that("build_project works when called outside the project root", {
   project_path <- make_project_path("run-outside-root")
   call_path <- file.path(tempdir(), paste0("run-call-", as.integer(stats::runif(1, 1, 1e9))))
   dir.create(call_path, recursive = TRUE)
@@ -22,13 +22,13 @@ test_that("run_project works when called outside the project root", {
   )
 
   withr::local_dir(call_path)
-  expect_no_error(run_project(project_path))
+  expect_no_error(build_project(project_path, render_reports = FALSE))
 
   saved <- readRDS(file.path(project_path, "outputs", "record_wd.rds"))
   expect_identical(saved$wd[[1]], normalizePath(project_path, winslash = "/", mustWork = TRUE))
 })
 
-test_that("run_project restores the original working directory", {
+test_that("build_project restores the original working directory", {
   project_path <- make_project_path("restore-wd")
   caller_dir <- file.path(tempdir(), paste0("caller-", as.integer(stats::runif(1, 1, 1e9))))
   dir.create(caller_dir, recursive = TRUE)
@@ -41,11 +41,11 @@ test_that("run_project restores the original working directory", {
 
   withr::local_dir(caller_dir)
   before <- getwd()
-  expect_no_error(run_project(project_path))
+  expect_no_error(build_project(project_path, render_reports = FALSE))
   expect_identical(getwd(), before)
 })
 
-test_that("run_project follows registry order", {
+test_that("build_project follows registry order", {
   project_path <- make_project_path("run-order")
 
   new_project(
@@ -56,8 +56,8 @@ test_that("run_project follows registry order", {
   )
 
   withr::local_dir(project_path)
-  new_project_script("second_step", order = 20, open = FALSE)
-  new_project_script("first_step", order = 10, open = FALSE)
+  new_script("second_step", order = 20, open = FALSE)
+  new_script("first_step", order = 10, open = FALSE)
 
   writeLines(
     c(
@@ -76,12 +76,12 @@ test_that("run_project follows registry order", {
     "analysis/first_step.R"
   )
 
-  expect_no_error(run_project())
+  expect_no_error(build_project(render_reports = FALSE))
   lines <- readLines(file.path(project_path, "outputs", "order.txt"), warn = FALSE)
   expect_identical(lines, c("first", "second"))
 })
 
-test_that("run_project reports failing scripts clearly", {
+test_that("build_project reports failing scripts clearly", {
   project_path <- make_project_path("run-failure")
 
   new_project(
@@ -92,11 +92,11 @@ test_that("run_project reports failing scripts clearly", {
   )
 
   withr::local_dir(project_path)
-  new_project_script("broken_step", order = 10, open = FALSE)
+  new_script("broken_step", order = 10, open = FALSE)
   writeLines("stop('boom')", "analysis/broken_step.R")
 
   expect_error(
-    run_project(),
+    build_project(render_reports = FALSE),
     "broken_step.*analysis/broken_step.R.*order: 10.*boom"
   )
 })

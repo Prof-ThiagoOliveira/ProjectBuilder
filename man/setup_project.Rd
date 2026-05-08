@@ -12,16 +12,16 @@ setup_project(
 )
 }
 \arguments{
-\item{root}{Project root. Defaults to the current project.}
+\item{root}{Project root.}
 
-\item{install_missing}{Logical. Included for compatibility; currently unused.}
+\item{install_missing}{Should missing packages be installed?}
 
-\item{check_paths}{Logical. Should required directories be created if missing?}
+\item{check_paths}{Should key directories be created if absent?}
 
-\item{set_seed}{Logical. Should the configured random seed be set?}
+\item{set_seed}{Should the configured random seed be set?}
 }
 \value{
-A named list with project configuration, paths, and registry entries.
+Project metadata, paths, registry, and package status.
 }
 \description{
 Set up a project for use

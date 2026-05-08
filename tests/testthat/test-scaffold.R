@@ -37,6 +37,27 @@ test_that("default scaffold is minimal and external-data oriented", {
   expect_true(".projectSetupR/local.yml" %in% gitignore)
 })
 
+test_that("infrastructure NULL infers defaults and character(0) disables them", {
+  inferred_path <- make_project_path("inferred-infra")
+  none_path <- make_project_path("no-infra")
+
+  new_project(
+    path = inferred_path,
+    components = c("statistical_analysis", "report"),
+    infrastructure = NULL,
+    open = FALSE
+  )
+  new_project(
+    path = none_path,
+    components = c("statistical_analysis", "report"),
+    infrastructure = character(),
+    open = FALSE
+  )
+
+  expect_true("git" %in% project_infrastructure(inferred_path))
+  expect_false("git" %in% project_infrastructure(none_path))
+})
+
 test_that("internal data directories are created only when explicitly requested", {
   project_path <- make_project_path("internal-data")
 
@@ -114,6 +135,45 @@ test_that("project management component creates governance files and task helper
   expect_true(any(status$tasks$status == "blocked"))
 })
 
+test_that("custom component specs can be registered and used", {
+  project_path <- make_project_path("custom-component")
+  spec_path <- file.path(tempdir(), "genomic_component.yml")
+  writeLines(
+    c(
+      "component: genomic_evaluation",
+      "folders:",
+      "  - outputs/ebv",
+      "scripts:",
+      "  - name: genomic_evaluation",
+      "    path: analysis/08_genomic_evaluation.R",
+      "    type: statistical_analysis",
+      "    order: 80",
+      "packages:",
+      "  - stats"
+    ),
+    spec_path
+  )
+
+  expect_identical(read_project_component_spec(spec_path)$component, "genomic_evaluation")
+  expect_identical(use_project_component_spec(spec_path), "genomic_evaluation")
+
+  new_project(
+    path = project_path,
+    components = c("statistical_analysis", "genomic_evaluation", "report"),
+    component_specs = spec_path,
+    infrastructure = character(),
+    open = FALSE
+  )
+
+  expect_true(file.exists(file.path(project_path, "analysis", "08_genomic_evaluation.R")))
+  expect_true(dir.exists(file.path(project_path, "outputs", "ebv")))
+
+  registry <- yaml::read_yaml(file.path(project_path, ".projectSetupR", "project_registry.yml"))
+  expect_true("genomic_evaluation" %in% registry$components)
+  expect_true("genomic_evaluation" %in% registry$custom_components)
+  expect_true("genomic_evaluation" %in% names(registry$component_specs))
+})
+
 test_that("plan_project and high-level verbs grow the project", {
   project_path <- make_project_path("high-level-verbs")
 
@@ -146,4 +206,44 @@ test_that("plan_project and high-level verbs grow the project", {
   expect_true(file.exists(file.path(project_path, "analysis", "secondary_analysis.R")))
   expect_true(file.exists(file.path(project_path, "reports", "client_report.qmd")))
   expect_true(file.exists(file.path(project_path, "app", "app.R")))
+})
+
+test_that("serve_project handles report, shiny and plain project targets", {
+  report_path <- make_project_path("serve-report")
+  plain_path <- make_project_path("serve-plain")
+  shiny_path <- make_project_path("serve-shiny")
+
+  new_project(
+    path = report_path,
+    components = c("statistical_analysis", "report"),
+    infrastructure = character(),
+    open = FALSE
+  )
+  new_project(
+    path = plain_path,
+    components = c("statistical_analysis"),
+    infrastructure = character(),
+    open = FALSE
+  )
+  new_project(
+    path = shiny_path,
+    components = c("statistical_analysis", "shiny_app"),
+    infrastructure = character(),
+    open = FALSE
+  )
+
+  expect_no_error(serve_project(report_path, target = "reports", watch = FALSE, render = FALSE))
+  expect_no_error(serve_project(plain_path, target = "project", watch = FALSE, render = FALSE))
+
+  skip_if_not_installed("shiny")
+  called <- FALSE
+  local_mocked_bindings(
+    runApp = function(appDir, launch.browser = TRUE) {
+      called <<- TRUE
+      invisible(appDir)
+    },
+    .package = "shiny"
+  )
+  expect_no_error(serve_project(shiny_path, target = "shiny_app", watch = FALSE, render = FALSE))
+  expect_true(called)
 })

@@ -48,7 +48,7 @@ test_that("projects with .projectSetupR registry are recognised", {
   expect_identical(find_project_root(nested), normalizePath(project_path, winslash = "/", mustWork = TRUE))
 })
 
-test_that("new_project_script creates a parseable script and registers it", {
+test_that("new_script creates a parseable script and registers it", {
   project_path <- make_project_path("new-script")
 
   new_project(
@@ -59,7 +59,7 @@ test_that("new_project_script creates a parseable script and registers it", {
   )
 
   withr::local_dir(project_path)
-  expect_no_error(new_project_script("Clean Phenotypes", type = "data_cleaning", open = FALSE))
+  expect_no_error(new_script("Clean Phenotypes", type = "data_cleaning", open = FALSE))
 
   expect_true(file.exists("analysis/clean_phenotypes.R"))
   expect_no_error(parse(file = "analysis/clean_phenotypes.R"))
