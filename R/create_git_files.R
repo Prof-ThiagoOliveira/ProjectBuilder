@@ -1,72 +1,54 @@
-gitkeep_paths <- function() {
-  c(
-    "data/raw/.gitkeep",
-    "data/external/.gitkeep",
-    "data/interim/.gitkeep",
-    "data/processed/.gitkeep",
-    "data/metadata/.gitkeep",
-    "outputs/.gitkeep",
-    "outputs/tables/.gitkeep",
-    "outputs/figures/.gitkeep",
-    "outputs/models/.gitkeep",
-    "outputs/reports/.gitkeep",
-    "outputs/logs/.gitkeep"
+gitignore_template <- function(use_internal_data_dirs = FALSE) {
+  lines <- c(
+    ".projectSetupR/local.yml",
+    ".Rhistory",
+    ".RData",
+    ".Ruserdata",
+    ".Rproj.user/",
+    "renv/library/",
+    "*.RData",
+    "*.rds",
+    "*.qs",
+    "*.parquet",
+    "*.fst",
+    "*.csv",
+    "*.tsv",
+    "*.xlsx"
   )
+
+  if (isTRUE(use_internal_data_dirs)) {
+    lines <- c(lines, "data/raw/", "data/processed/")
+  }
+
+  paste(unique(lines), collapse = "\n")
 }
 
 #' Create Git support files
 #'
 #' @param path Project root path.
-#' @param overwrite Logical. Should existing files be overwritten?
-#' @param mode Git scaffold mode. Use `"simple"` for analyst-facing projects
-#'   and `"advanced"` for the full scaffold.
-#' @param gitkeep_files Relative `.gitkeep` paths to create.
+#' @param overwrite Should existing files be overwritten?
+#' @param use_internal_data_dirs Should internal data directories be ignored
+#'   explicitly?
 #'
 #' @return A list with created and skipped file paths.
-create_git_files <- function(
-    path,
-    overwrite = FALSE,
-    mode = c("advanced", "simple"),
-    gitkeep_files = NULL) {
-  mode <- match.arg(mode)
-
-  registry <- if (identical(mode, "simple")) {
-    list(
-      list(source = "gitignore", target = ".gitignore")
+create_git_files <- function(path, overwrite = FALSE, use_internal_data_dirs = FALSE) {
+  results <- list(
+    write_template_file(
+      fs::path(path, ".gitignore"),
+      gitignore_template(use_internal_data_dirs = use_internal_data_dirs),
+      overwrite = overwrite
+    ),
+    write_template_file(
+      fs::path(path, ".Rbuildignore"),
+      ".Rproj.user\n.Rhistory\n.RData",
+      overwrite = overwrite
+    ),
+    write_template_file(
+      fs::path(path, ".gitattributes"),
+      "*.R text eol=lf\n*.qmd text eol=lf\n*.yml text eol=lf",
+      overwrite = overwrite
     )
-  } else {
-    list(
-      list(source = "gitignore", target = ".gitignore"),
-      list(source = "rbuildignore", target = ".Rbuildignore"),
-      list(source = "gitattributes", target = ".gitattributes")
-    )
-  }
-
-  if (is.null(gitkeep_files)) {
-    gitkeep_files <- gitkeep_paths()
-  }
-
-  base_results <- lapply(
-    registry,
-    function(entry) {
-      write_template_file(
-        fs::path(path, entry$target),
-        read_template(entry$source),
-        overwrite = overwrite
-      )
-    }
   )
 
-  gitkeep_results <- lapply(
-    gitkeep_files,
-    function(relative_path) {
-      write_template_file(
-        fs::path(path, relative_path),
-        "",
-        overwrite = overwrite
-      )
-    }
-  )
-
-  collect_template_results(c(base_results, gitkeep_results))
+  collect_template_results(results)
 }

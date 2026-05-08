@@ -1,291 +1,510 @@
-create_directories_from_plan <- function(path, directories) {
+project_readme_template <- function(plan) {
+  component_line <- if (length(plan$components) == 0L) "none" else paste(plan$components, collapse = ", ")
+  deliverable_line <- if (length(plan$deliverables) == 0L) "none" else paste(plan$deliverables, collapse = ", ")
+  infrastructure_line <- if (length(plan$infrastructure) == 0L) "none" else paste(plan$infrastructure, collapse = ", ")
+
+  paste(
+    paste0("# ", safe_basename(plan$path)),
+    "",
+    "This repository stores project code, reports, and lightweight project metadata.",
+    "Data are expected to live outside the repository.",
+    "",
+    "## Project plan",
+    "",
+    paste0("- Components: ", component_line),
+    paste0("- Deliverables: ", deliverable_line),
+    paste0("- Infrastructure: ", infrastructure_line),
+    paste0("- Scaffold level: ", plan$scaffold_level),
+    "",
+    "## External data",
+    "",
+    "Configure the external data location:",
+    "",
+    "```r",
+    'projflow::set_project_data_root("path/to/external/data")',
+    "```",
+    "",
+    "Access data reproducibly:",
+    "",
+    "```r",
+    'projflow::project_data_path("file.csv")',
+    "```",
+    "",
+    "## Workflow",
+    "",
+    "```r",
+    "projflow::check_project(deep = TRUE)",
+    "projflow::build_project()",
+    "```",
+    "",
+    "`outputs/` is intended for small generated artefacts such as tables, figures, and model summaries.",
+    "Raw data, cleaned data, and large intermediate files should normally stay outside the repository.",
+    sep = "\n"
+  )
+}
+
+run_project_template <- function() {
+  paste(
+    "projflow::check_project(deep = FALSE)",
+    "projflow::build_project()",
+    sep = "\n"
+  )
+}
+
+example_analysis_template <- function() {
+  paste(
+    "# Example analysis",
+    paste0("# Created: ", as.character(Sys.Date())),
+    "",
+    "projflow::setup_project()",
+    "",
+    "# This example runs without external data by creating toy data in memory.",
+    "toy_data <- data.frame(",
+    "  id = 1:3,",
+    "  value = c(10, 15, 13)",
+    ")",
+    "",
+    "result <- transform(",
+    "  toy_data,",
+    "  centred_value = value - mean(value)",
+    ")",
+    "",
+    'projflow::save_project_object(result, name = "example_analysis", type = "analysis")',
+    sep = "\n"
+  )
+}
+
+base_script_template <- function(script) {
+  data_comment <- c(
+    "# Data are expected to live outside this repository.",
+    "# Configure the external data root once with:",
+    '# projflow::set_project_data_root("path/to/external/data")',
+    "#",
+    "# Then access files with:",
+    '# input_file <- projflow::project_data_path("input_file.csv")'
+  )
+
+  header <- c(
+    paste0("# ", safe_basename(script$path)),
+    paste0("# Created: ", as.character(Sys.Date())),
+    "",
+    "projflow::setup_project()",
+    "",
+    data_comment,
+    ""
+  )
+
+  output_lines <- character()
+  outputs <- script$outputs %||% character()
+
+  if (length(outputs) > 0L) {
+    main_object <- outputs[[1]]
+    object_type <- if (identical(script$type, "summary")) "table" else if (main_object %in% c("summary_figures", "exploratory_figures")) "figure" else script$type
+    output_lines <- c(
+      output_lines,
+      "result <- data.frame(",
+      '  message = "Replace this example with project-specific logic.",',
+      "  created = Sys.time()",
+      ")",
+      "",
+      if (identical(object_type, "figure")) {
+        c(
+          "if (requireNamespace(\"ggplot2\", quietly = TRUE)) {",
+          "  figure <- ggplot2::ggplot(data.frame(x = 1:3, y = c(2, 5, 3)), ggplot2::aes(x, y)) +",
+          "    ggplot2::geom_col()",
+          paste0('  projflow::save_project_object(figure, name = "', main_object, '", type = "figure")'),
+          "}"
+        )
+      } else {
+        paste0('projflow::save_project_object(result, name = "', main_object, '", type = "', object_type, '")')
+      }
+    )
+  } else {
+    output_lines <- c(
+      "result <- data.frame(",
+      '  message = "Replace this example with project-specific logic.",',
+      "  created = Sys.time()",
+      ")"
+    )
+  }
+
+  paste(c(header, output_lines), collapse = "\n")
+}
+
+report_template_for_plan <- function(report) {
+  title <- switch(
+    report$type,
+    manuscript = "Manuscript",
+    dashboard = "Dashboard",
+    status_report = "Status Report",
+    report = "Main Report",
+    tools::toTitleCase(gsub("_", " ", report$name))
+  )
+
+  body <- if (identical(report$type, "status_report")) {
+    c(
+      "```{r}",
+      "projflow::setup_project()",
+      "projflow::project_status_report(output = 'data')",
+      "```"
+    )
+  } else {
+    c(
+      "```{r}",
+      "projflow::setup_project()",
+      "data_available <- projflow::check_project_data_access()",
+      "data_available",
+      "```",
+      "",
+      "## Overview",
+      "",
+      "```{r}",
+      "if (file.exists('outputs/example_analysis.rds')) {",
+      "  readRDS('outputs/example_analysis.rds')",
+      "} else {",
+      "  data.frame(message = 'Report template is ready. Add project outputs as they become available.')",
+      "}",
+      "```"
+    )
+  }
+
+  paste(
+    "---",
+    paste0('title: "', title, '"'),
+    "format: html",
+    "---",
+    "",
+    body,
+    sep = "\n"
+  )
+}
+
+shiny_app_template <- function() {
+  paste(
+    "library(shiny)",
+    "",
+    "ui <- fluidPage(",
+    '  titlePanel("Project dashboard"),',
+    "  tableOutput('preview')",
+    ")",
+    "",
+    "server <- function(input, output, session) {",
+    "  output$preview <- renderTable({",
+    "    if (file.exists(file.path('outputs', 'example_analysis.rds'))) {",
+    "      readRDS(file.path('outputs', 'example_analysis.rds'))",
+    "    } else {",
+    '      data.frame(message = "No lightweight project outputs are available yet.")',
+    "    }",
+    "  })",
+    "}",
+    "",
+    "shinyApp(ui, server)",
+    sep = "\n"
+  )
+}
+
+plain_file_template <- function(path, plan) {
+  governance <- governance_file_templates()
+  if (path %in% names(governance)) {
+    return(governance[[path]])
+  }
+
+  switch(
+    normalize_relative_path(path),
+    ".here" = "",
+    "config.yml" = paste0("project:\n  name: ", safe_basename(plan$path), "\n"),
+    "tests/testthat.R" = "library(testthat)\nlibrary(projflow)\n\ntest_check('projflow')\n",
+    ".lintr" = "linters: lintr::linters_with_defaults()\n",
+    "_targets.R" = "library(targets)\n\nlist()\n",
+    "Dockerfile" = "FROM rocker/r-ver:latest\n",
+    "app/app.R" = shiny_app_template(),
+    ""
+  )
+}
+
+create_project_dirs <- function(path, folders) {
   created <- character()
-
-  for (directory in unique(directories)) {
+  for (directory in unique(folders)) {
     full_path <- fs::path(path, directory)
-
     if (!fs::dir_exists(full_path)) {
       fs::dir_create(full_path, recurse = TRUE)
       created <- c(created, full_path)
     }
   }
-
   created
 }
 
-simple_gitkeep_paths <- function() {
-  c(
-    "analysis/.gitkeep",
-    "data/raw/.gitkeep",
-    "data/processed/.gitkeep",
-    "outputs/.gitkeep"
-  )
-}
-
-simple_template_data <- function(project_name, preset, packages) {
+project_config_from_plan <- function(plan) {
   list(
-    project_name = project_name,
-    preset = preset,
-    package_vector = if (length(packages) == 0L) {
-      "none yet"
-    } else {
-      paste(packages, collapse = ", ")
-    }
-  )
-}
-
-initial_project_registry <- function(use_quarto = TRUE) {
-  objects <- list()
-
-  if (isTRUE(use_quarto)) {
-    objects$main_report <- list(
-      type = "report",
-      source = "reports/main_report.qmd",
-      output = "outputs/reports/main_report.html",
-      status = "active"
+    version = 1L,
+    project = list(
+      name = safe_basename(plan$path),
+      title = if (is.null(plan$title)) safe_basename(plan$path) else plan$title,
+      type = "analysis",
+      scaffold_level = plan$scaffold_level,
+      created = as.character(Sys.Date())
+    ),
+    components = plan$components,
+    deliverables = plan$deliverables,
+    infrastructure = plan$infrastructure,
+    packages = plan$packages,
+    settings = list(
+      use_git = "git" %in% plan$infrastructure,
+      use_github_actions = "github_actions" %in% plan$infrastructure,
+      use_quarto = any(vapply(plan$reports, function(x) grepl("\\.qmd$", x$path), logical(1))),
+      use_renv = "renv" %in% plan$infrastructure,
+      use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed"))
+    ),
+    paths = list(
+      analysis = "analysis",
+      reports = "reports",
+      outputs = "outputs"
     )
-  }
-
-  list(objects = objects)
+  )
 }
 
-check_simple_scaffold_integrity <- function(path, plan) {
-  required_paths <- unique(c(plan$user_files, plan$internal_files))
-  missing <- required_paths[!vapply(
-    required_paths,
-    function(relative_path) {
-      fs::file_exists(fs::path(path, relative_path)) ||
-        fs::dir_exists(fs::path(path, relative_path))
-    },
-    logical(1)
-  )]
-
-  if (length(missing) == 0L) {
-    return(character())
-  }
-
-  paste0("Expected scaffold file or directory is missing: ", missing)
-}
-
-create_simple_analysis_project <- function(
-    path,
-    project_name,
-    preset,
-    dependency_profile,
-    selected_packages,
-    use_quarto,
-    use_renv,
-    use_git,
-    use_config,
-    install_packages,
-    snapshot_renv,
-    run_health_check,
-    strict,
-    overwrite,
-    open,
-    inherited_warnings = character()) {
-  plan <- plan_project_scaffold(
-    preset = preset,
-    mode = "simple",
-    use_quarto = use_quarto,
-    use_renv = use_renv,
-    use_git = use_git,
-    use_config = use_config,
-    dependency_profile = dependency_profile
-  )
-
-  template_data <- simple_template_data(
-    project_name = project_name,
-    preset = preset,
-    packages = selected_packages
-  )
-
-  warnings <- inherited_warnings
+write_plan_files <- function(path, plan, overwrite = FALSE) {
   files_created <- character()
   files_skipped <- character()
 
-  fs::dir_create(path, recurse = TRUE)
-
-  cli::cli_alert_info("Creating analyst-friendly project scaffold at {.path {path}}")
-
-  directories_created <- create_directories_from_plan(path, plan$directories)
-
-  simple_core <- write_registered_templates(
-    path = path,
-    project_name = project_name,
-    registry = template_registry("simple_core", options = plan$options),
-    overwrite = overwrite,
-    template_data = template_data
-  )
-  files_created <- c(files_created, simple_core$files_created)
-  files_skipped <- c(files_skipped, simple_core$files_skipped)
-
-  simple_internal <- write_registered_templates(
-    path = path,
-    project_name = project_name,
-    registry = template_registry("simple_internal", options = plan$options),
-    overwrite = overwrite,
-    template_data = template_data
-  )
-  files_created <- c(files_created, simple_internal$files_created)
-  files_skipped <- c(files_skipped, simple_internal$files_skipped)
-
-  if (isTRUE(use_quarto)) {
-    simple_reports <- write_registered_templates(
-      path = path,
-      project_name = project_name,
-      registry = template_registry("simple_quarto", options = plan$options),
-      overwrite = overwrite,
-      template_data = template_data
-    )
-    files_created <- c(files_created, simple_reports$files_created)
-    files_skipped <- c(files_skipped, simple_reports$files_skipped)
-  }
-
-  if (isTRUE(use_config)) {
-    config_result <- write_yaml_file(
-      fs::path(path, "project.yml"),
-      default_project_config(
-        project_name = project_name,
-        preset = preset,
-        mode = "simple",
-        packages = selected_packages,
-        use_quarto = use_quarto
-      ),
-      overwrite = overwrite
-    )
-
-    if (config_result$status %in% c("created", "overwritten")) {
-      files_created <- c(files_created, config_result$path)
+  track_result <- function(result) {
+    if (result$status %in% c("created", "overwritten")) {
+      files_created <<- c(files_created, result$path)
     } else {
-      files_skipped <- c(files_skipped, config_result$path)
+      files_skipped <<- c(files_skipped, result$path)
     }
   }
 
-  registry_result <- write_yaml_file(
-    fs::path(path, ".projectSetupR", "project_registry.yml"),
-    initial_project_registry(use_quarto = use_quarto),
-    overwrite = overwrite
-  )
+  track_result(write_template_file(fs::path(path, "README.md"), project_readme_template(plan), overwrite = overwrite))
+  track_result(write_template_file(fs::path(path, "run_project.R"), run_project_template(), overwrite = overwrite))
+  track_result(write_yaml_file(fs::path(path, "project.yml"), project_config_from_plan(plan), overwrite = overwrite))
+  track_result(write_yaml_file(fs::path(path, ".projectSetupR", "project_registry.yml"), plan$registry, overwrite = overwrite))
+  track_result(write_yaml_file(fs::path(path, ".projectSetupR", "local.yml"), default_local_config(), overwrite = overwrite))
 
-  if (registry_result$status %in% c("created", "overwritten")) {
-    files_created <- c(files_created, registry_result$path)
-  } else {
-    files_skipped <- c(files_skipped, registry_result$path)
+  if ("project_management" %in% plan$components) {
+    track_result(write_yaml_file(fs::path(path, ".projectSetupR", "tasks.yml"), plan$tasks, overwrite = overwrite))
   }
 
-  rproj_result <- create_rproj_file(path, project_name, overwrite = overwrite)
+  for (script in plan$scripts) {
+    track_result(write_template_file(fs::path(path, script$path), base_script_template(script), overwrite = overwrite))
+  }
+
+  for (report in plan$reports) {
+    track_result(write_template_file(fs::path(path, report$path), report_template_for_plan(report), overwrite = overwrite))
+  }
+
+  extra_files <- setdiff(
+    plan$files,
+    c(project_core_files(safe_basename(plan$path)), "analysis/example_analysis.R")
+  )
+
+  for (file in extra_files) {
+    if (file %in% vapply(plan$scripts, `[[`, character(1), "path") ||
+        file %in% vapply(plan$reports, `[[`, character(1), "path")) {
+      next
+    }
+
+    content <- plain_file_template(file, plan)
+    track_result(write_template_file(fs::path(path, file), content, overwrite = overwrite))
+  }
+
+  if ("analysis/example_analysis.R" %in% plan$files) {
+    track_result(write_template_file(fs::path(path, "analysis", "example_analysis.R"), example_analysis_template(), overwrite = overwrite))
+  }
+
+  list(files_created = unique(files_created), files_skipped = unique(files_skipped))
+}
+
+finalise_project_scaffold <- function(
+    path,
+    project_name,
+    scaffold_level,
+    packages,
+    directories_created,
+    files_created,
+    files_skipped,
+    infrastructure,
+    warnings = character()) {
+  new_analysis_project_scaffold(
+    path = path,
+    project_name = project_name,
+    template = "component_plan",
+    dependency_profile = "analysis",
+    code_loading = scaffold_level,
+    packages = packages,
+    directories_created = unique(filesystem_normalize(directories_created)),
+    files_created = unique(filesystem_normalize(files_created)),
+    files_skipped = unique(filesystem_normalize(files_skipped)),
+    warnings = warnings,
+    use_quarto = TRUE,
+    use_rmarkdown = FALSE,
+    use_targets = "targets" %in% infrastructure,
+    use_renv = "renv" %in% infrastructure,
+    use_git = "git" %in% infrastructure,
+    preset = "analysis",
+    scaffold_level = scaffold_level,
+    entrypoint = "run_project.R",
+    guide = "README.md"
+  )
+}
+
+apply_project_plan <- function(plan, open = interactive(), overwrite = FALSE) {
+  validate_logical_scalar(open, "open")
+  validate_logical_scalar(overwrite, "overwrite")
+
+  path <- plan$path
+  if (!fs::dir_exists(path)) {
+    validate_project_path(path, overwrite = overwrite)
+  }
+  fs::dir_create(path, recurse = TRUE)
+  directories_created <- create_project_dirs(path, plan$folders)
+  file_results <- write_plan_files(path, plan, overwrite = overwrite)
+  rproj_result <- create_rproj_file(path, safe_basename(path), overwrite = overwrite)
+
+  files_created <- file_results$files_created
+  files_skipped <- file_results$files_skipped
+
   if (rproj_result$status %in% c("created", "overwritten")) {
     files_created <- c(files_created, rproj_result$path)
   } else {
     files_skipped <- c(files_skipped, rproj_result$path)
   }
 
-  if (isTRUE(use_git)) {
-    git_files <- create_git_files(
-      path,
-      overwrite = overwrite,
-      mode = "simple",
-      gitkeep_files = simple_gitkeep_paths()
-    )
-    files_created <- c(files_created, git_files$files_created)
-    files_skipped <- c(files_skipped, git_files$files_skipped)
+  git_files <- create_git_files(
+    path = path,
+    overwrite = overwrite,
+    use_internal_data_dirs = "data/raw" %in% plan$folders
+  )
+  files_created <- c(files_created, git_files$files_created)
+  files_skipped <- c(files_skipped, git_files$files_skipped)
+
+  warnings <- character()
+  for (note in plan$checks[grepl("^Adding required |^Moving `", plan$checks)]) {
+    message(note)
   }
 
-  renv_available <- requireNamespace("renv", quietly = TRUE)
-
-  if (isTRUE(use_renv)) {
-    renv_warning <- init_renv_project(
-      path,
-      packages = if (isTRUE(install_packages) && renv_available) selected_packages else character(),
-      snapshot = snapshot_renv,
-      strict = strict
-    )
-
-    if (!is.null(renv_warning)) {
-      warnings <- c(warnings, renv_warning)
-      cli::cli_alert_warning(renv_warning)
-    }
-  }
-
-  if (isTRUE(use_git)) {
-    git_warning <- init_git_repo(path, strict = strict)
-
+  if ("git" %in% plan$infrastructure) {
+    git_warning <- init_git_repo(path, strict = FALSE)
     if (!is.null(git_warning)) {
       warnings <- c(warnings, git_warning)
-      cli::cli_alert_warning(git_warning)
     }
   }
 
-  if (isTRUE(install_packages) && (!isTRUE(use_renv) || !renv_available)) {
-    install_warning <- install_packages_for_project(selected_packages, strict = strict)
-
-    if (!is.null(install_warning)) {
-      warnings <- c(warnings, install_warning)
-      cli::cli_alert_warning(install_warning)
+  if ("renv" %in% plan$infrastructure) {
+    renv_warning <- init_renv_project(path = path, packages = plan$packages, snapshot = TRUE, strict = FALSE)
+    if (!is.null(renv_warning)) {
+      warnings <- c(warnings, renv_warning)
     }
   }
 
-  if (isTRUE(run_health_check)) {
-    health_warnings <- check_simple_scaffold_integrity(path, plan)
-
-    if (length(health_warnings) > 0L && isTRUE(strict)) {
-      rlang::abort(health_warnings[[1]])
-    }
-
-    if (length(health_warnings) > 0L) {
-      warnings <- c(warnings, health_warnings)
-
-      for (warning in health_warnings) {
-        cli::cli_alert_warning(warning)
-      }
-    }
+  if ("github_actions" %in% plan$infrastructure) {
+    workflow_path <- get("use_github_actions", mode = "function")(path, workflow = "check-project")
+    files_created <- c(files_created, workflow_path)
   }
 
+  ensure_gitignore_entries(path)
   if (isTRUE(open)) {
-    warnings <- c(
-      warnings,
-      "Project opening is not automated by this package; open the .Rproj file manually if needed."
-    )
+    warnings <- c(warnings, "Project opening is not automated by this package; open the .Rproj file manually if needed.")
   }
 
-  result <- new_analysis_project_scaffold(
+  finalise_project_scaffold(
     path = path,
-    project_name = project_name,
-    template = "standard",
-    dependency_profile = dependency_profile,
-    code_loading = "source",
-    packages = selected_packages,
-    directories_created = unique(filesystem_normalize(directories_created)),
-    files_created = unique(filesystem_normalize(files_created)),
-    files_skipped = unique(filesystem_normalize(files_skipped)),
-    warnings = warnings,
-    use_quarto = use_quarto,
-    use_rmarkdown = FALSE,
-    use_targets = FALSE,
-    use_renv = use_renv,
-    use_git = use_git,
-    preset = preset,
-    mode = "simple",
-    entrypoint = "run_project.R",
-    guide = "README.md"
+    project_name = safe_basename(path),
+    scaffold_level = plan$scaffold_level,
+    packages = plan$packages,
+    directories_created = directories_created,
+    files_created = files_created,
+    files_skipped = files_skipped,
+    infrastructure = plan$infrastructure,
+    warnings = warnings
   )
+}
 
-  cli::cli_alert_success("Project created successfully.")
-  cat("\nStart here:\n")
-  cat("1. Open: ", paste0(project_name, ".Rproj"), "\n", sep = "")
-  cat("2. Put raw data in: data/raw/\n")
-  cat("3. Edit: run_project.R\n")
-  cat('4. Run in R: source("run_project.R")', "\n", sep = "")
+rebuild_project_plan <- function(root = ".") {
+  root <- find_project_root(root)
+  config <- read_project_config(root)
+  build_project_plan(
+    path = root,
+    title = config$project$title %||% config$project$name,
+    components = project_components(root),
+    deliverables = project_deliverables(root),
+    infrastructure = project_infrastructure(root),
+    use_internal_data_dirs = isTRUE(config$settings$use_internal_data_dirs),
+    include_example = fs::file_exists(fs::path(root, "analysis", "example_analysis.R"))
+  )
+}
 
-  if (isTRUE(use_quarto)) {
-    cat("5. Write report text in: reports/main_report.qmd\n")
-  }
+add_project_component <- function(component, root = ".", open = interactive()) {
+  plan <- rebuild_project_plan(root)
+  plan <- build_project_plan(
+    path = plan$path,
+    title = plan$title,
+    components = unique(c(plan$components, component)),
+    deliverables = plan$deliverables,
+    infrastructure = plan$infrastructure,
+    use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
+    include_example = "analysis/example_analysis.R" %in% plan$files
+  )
+  apply_project_plan(plan, open = open, overwrite = FALSE)
+}
 
-  cat("\nUseful commands:\n")
-  cat("- projectSetupR::project_status()\n")
-  cat('- projectSetupR::new_project_object("clean_data", type = "data_cleaning")\n')
-  cat("- projectSetupR::run_project()\n")
+add_project_deliverable <- function(deliverable, root = ".", open = interactive()) {
+  plan <- rebuild_project_plan(root)
+  plan <- build_project_plan(
+    path = plan$path,
+    title = plan$title,
+    components = plan$components,
+    deliverables = unique(c(plan$deliverables, deliverable)),
+    infrastructure = plan$infrastructure,
+    use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
+    include_example = "analysis/example_analysis.R" %in% plan$files
+  )
+  apply_project_plan(plan, open = open, overwrite = FALSE)
+}
 
-  invisible(result)
+add_project_infrastructure <- function(infrastructure, root = ".", open = interactive()) {
+  plan <- rebuild_project_plan(root)
+  plan <- build_project_plan(
+    path = plan$path,
+    title = plan$title,
+    components = plan$components,
+    deliverables = plan$deliverables,
+    infrastructure = unique(c(plan$infrastructure, infrastructure)),
+    use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
+    include_example = "analysis/example_analysis.R" %in% plan$files
+  )
+  apply_project_plan(plan, open = open, overwrite = FALSE)
+}
+
+remove_project_component <- function(component, root = ".", delete_files = FALSE) {
+  component <- normalise_project_components(component)
+  registry <- read_project_registry(root)
+  registry$components <- setdiff(project_components(root), component)
+  write_project_registry(registry, root = root, overwrite = TRUE)
+  config <- read_project_config(root)
+  config$components <- registry$components
+  write_project_config(config, root = root, overwrite = TRUE)
+  invisible(registry$components)
+}
+
+remove_project_deliverable <- function(deliverable, root = ".", delete_files = FALSE) {
+  deliverable <- normalise_project_deliverables(deliverable)
+  registry <- read_project_registry(root)
+  registry$deliverables <- setdiff(project_deliverables(root), deliverable)
+  write_project_registry(registry, root = root, overwrite = TRUE)
+  config <- read_project_config(root)
+  config$deliverables <- registry$deliverables
+  write_project_config(config, root = root, overwrite = TRUE)
+  invisible(registry$deliverables)
+}
+
+remove_project_infrastructure <- function(infrastructure, root = ".", delete_files = FALSE) {
+  infrastructure <- normalise_project_infrastructure(infrastructure)
+  registry <- read_project_registry(root)
+  registry$infrastructure <- setdiff(project_infrastructure(root), infrastructure)
+  write_project_registry(registry, root = root, overwrite = TRUE)
+  config <- read_project_config(root)
+  config$infrastructure <- registry$infrastructure
+  write_project_config(config, root = root, overwrite = TRUE)
+  invisible(registry$infrastructure)
 }

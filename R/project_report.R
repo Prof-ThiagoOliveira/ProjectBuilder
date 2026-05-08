@@ -15,7 +15,7 @@ new_analysis_project_scaffold <- function(
     use_renv,
     use_git,
     preset = "analysis",
-    mode = "simple",
+    scaffold_level = "simple",
     entrypoint = "run_project.R",
     guide = "README.md") {
   structure(
@@ -23,7 +23,7 @@ new_analysis_project_scaffold <- function(
       path = path,
       project_name = project_name,
       preset = preset,
-      mode = mode,
+      scaffold_level = scaffold_level,
       template = template,
       dependency_profile = dependency_profile,
       code_loading = code_loading,
@@ -55,7 +55,7 @@ print.analysis_project_scaffold <- function(x, ...) {
   cat("Project name: ", x$project_name, "\n", sep = "")
   cat("Project path: ", x$path, "\n", sep = "")
   cat("Preset: ", x$preset, "\n", sep = "")
-  cat("Mode: ", x$mode, "\n", sep = "")
+  cat("Scaffold level: ", x$scaffold_level, "\n", sep = "")
   cat("Template: ", x$template, "\n", sep = "")
   cat("Dependency profile: ", x$dependency_profile, "\n", sep = "")
   cat("Code loading: ", x$code_loading, "\n", sep = "")
@@ -71,7 +71,7 @@ print.analysis_project_scaffold <- function(x, ...) {
 
   cat("\nStart here:\n")
   cat("1. Open: ", paste0(x$project_name, ".Rproj"), "\n", sep = "")
-  cat("2. Add raw data to: data/raw/\n")
+  cat("2. Configure external data with: projflow::set_project_data_root(\"path/to/external/data\")\n")
 
   if (identical(x$entrypoint, "run_project.R")) {
     cat('3. Run in R: source("run_project.R")', "\n", sep = "")
@@ -82,8 +82,8 @@ print.analysis_project_scaffold <- function(x, ...) {
   }
 
   if (isTRUE(x$use_quarto)) {
-    if (identical(x$mode, "simple")) {
-      cat("* Render reports with: projectSetupR::render_project_reports()\n")
+    if (x$scaffold_level %in% c("minimal", "simple")) {
+      cat("* Render reports with: projflow::render_project_reports()\n")
     } else {
       cat("* Render reports with: Rscript scripts/render_reports.R\n")
     }

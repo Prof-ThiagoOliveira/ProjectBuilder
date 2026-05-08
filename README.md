@@ -1,56 +1,58 @@
-# projectSetupR
+# projflow
 
-`projectSetupR` builds reproducible R analysis-project scaffolds while keeping
-the default user surface intentionally small.
+`projflow` creates lightweight, component-driven analysis projects. The repository is for code, reports and project metadata; data are expected to live outside the repository by default.
 
-## Recommended interface
+## Default workflow
 
 ```r
-projectSetupR::create_analysis_project("my_project")
+projflow::new_project(
+  "my_project",
+  components = c("data_preparation", "statistical_analysis", "report"),
+  deliverables = c("html_report", "tables", "figures")
+)
+
+projflow::set_project_data_root("D:/shared/project_data/my_project")
+
+projflow::new_script(
+  name = "clean_phenotypes",
+  type = "data_cleaning"
+)
+
+projflow::check_project(deep = TRUE)
+projflow::build_project()
 ```
 
-This creates an analyst-facing scaffold with one obvious entry point:
+## Core idea
+
+Projects are assembled from:
+
+- `components`
+- `deliverables`
+- `infrastructure`
+- an optional `preset`
+
+`projflow` infers an internal scaffold level from those choices, but that is not part of the main public API.
+
+## Main helpers
+
+```r
+projflow::set_project_data_root("path/to/external/data")
+projflow::project_data_path("file.csv")
+projflow::new_script("clean_phenotypes", type = "data_cleaning")
+projflow::check_project(deep = TRUE)
+projflow::build_project()
+```
+
+## Typical structure
 
 - `README.md`
 - `run_project.R`
 - `project.yml`
 - `analysis/`
 - `reports/`
-- `data/raw/`
-- `data/processed/`
 - `outputs/`
+- `.projectSetupR/project_registry.yml`
+- `.projectSetupR/local.yml`
 - `my_project.Rproj`
 
-The default is meant for analysts, not package developers.
-
-## Presets
-
-```r
-create_analysis_project("my_project", preset = "analysis")
-create_analysis_project("my_project", preset = "modelling")
-create_analysis_project("my_project", preset = "geospatial")
-create_analysis_project("my_project", preset = "pipeline")
-create_analysis_project("my_project", preset = "package", mode = "advanced")
-```
-
-Use `mode = "advanced"` when you explicitly want package-style scaffolding such
-as `DESCRIPTION`, `NAMESPACE`, `R/`, `tests/testthat/`, advanced loaders, or
-targets-oriented support files.
-
-## User-facing helpers
-
-The package also provides helpers that reduce path and file-format decisions:
-
-```r
-projectSetupR::project_status()
-projectSetupR::new_project_object("clean_trial_data", type = "data_cleaning")
-projectSetupR::run_project_object("clean_trial_data")
-projectSetupR::save_project_object(mtcars, name = "trial_data", type = "dataset")
-projectSetupR::run_project()
-projectSetupR::render_project_reports()
-```
-
-## Development
-
-Template assets live under `inst/templates/` and scaffold logic lives under
-`R/`.
+`outputs/` is intended for small generated artefacts such as tables, plots, model summaries and governance summaries. Raw data, cleaned data and large intermediate files should normally stay outside the repository.

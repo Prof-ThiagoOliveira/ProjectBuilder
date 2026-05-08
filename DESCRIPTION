@@ -1,11 +1,11 @@
-Package: projectSetupR
-Title: Project Scaffolding for Reproducible R Analysis
+Package: projflow
+Title: Component-Driven Scaffolding for Reproducible Analysis Projects
 Version: 0.0.1
 Authors@R:
     person("Thiago", "Oliveira", email = "thiago@example.com", role = c("aut", "cre"))
-Description: Creates standardised, reproducible R analysis-project
-    scaffolds with helper files, report templates, Git-safe defaults, and
-    optional reproducibility tooling.
+Description: Creates lightweight, component-driven analysis project
+    scaffolds with external-data-aware defaults, project registries,
+    governance helpers, and optional reproducibility infrastructure.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -13,27 +13,13 @@ RoxygenNote: 7.3.3
 Imports:
     cli,
     fs,
-    glue,
     yaml,
     rlang
 Suggests:
     testthat (>= 3.0.0),
     withr,
-    pak,
     renv,
-    usethis,
-    pkgload,
-    box,
     quarto,
     rmarkdown,
-    targets,
-    gert,
-    gh,
-    config,
-    lintr,
-    styler,
-    pkgdown,
-    devtools,
-    roxygen2,
-    covr
+    gert
 Config/testthat/edition: 3

@@ -1,4 +1,4 @@
 library(testthat)
-library(projectSetupR)
+library(projflow)
 
-test_check("projectSetupR")
+test_check("projflow")
