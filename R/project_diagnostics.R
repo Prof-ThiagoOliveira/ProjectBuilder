@@ -57,14 +57,69 @@ project_files_data <- function(root = ".", include_file_hashes = FALSE, registry
   data
 }
 
-orphan_project_files <- function(root = ".", registry = read_project_registry(root)) {
+all_project_files_for_review <- function(root = ".") {
   root <- find_project_root(root)
-  registered <- project_registered_files(root, registry)
   all_files <- list.files(root, recursive = TRUE, all.files = FALSE)
   all_files <- normalize_relative_path(all_files)
   ignored_prefixes <- c(".git/", ".Rproj.user/", paste0(default_project_metadata_dir(), "/backups/"))
-  all_files <- all_files[!vapply(all_files, function(path) any(startsWith(path, ignored_prefixes)), logical(1))]
-  setdiff(all_files, registered)
+  all_files[!vapply(all_files, function(path) any(startsWith(path, ignored_prefixes)), logical(1))]
+}
+
+project_support_file_patterns <- function() {
+  c(
+    "^README[.](md|Rmd|qmd)$",
+    "^LICENSE$",
+    "^NEWS[.]md$",
+    "^CHANGELOG[.]md$",
+    "^_quarto[.]ya?ml$",
+    "^[^/]+[.]Rproj$",
+    "^[.]gitignore$",
+    "^[.]here$",
+    "^project[.]ya?ml$",
+    "^config[.]ya?ml$",
+    "^docs/(assumptions|changelog|decisions|project_plan|risks|status)[.]md$",
+    "^references/.*[.](bib|ris|enw)$"
+  )
+}
+
+is_project_support_file <- function(path) {
+  path <- normalize_relative_path(path)
+  patterns <- project_support_file_patterns()
+  vapply(path, function(one) any(vapply(patterns, grepl, logical(1), x = one, ignore.case = TRUE)), logical(1))
+}
+
+is_project_workflow_file <- function(path) {
+  path <- normalize_relative_path(path)
+  workflow_prefixes <- c(
+    "analysis/",
+    "reports/",
+    "outputs/",
+    "app/",
+    "dashboard/",
+    "R/",
+    "tests/",
+    "tests/testthat/",
+    "data/raw/",
+    "data/processed/"
+  )
+  workflow_extensions <- c("R", "r", "qmd", "Rmd", "rmd", "csv", "tsv", "txt", "rds", "RDS", "png", "jpg", "jpeg", "pdf", "html", "xlsx", "xls")
+  starts <- vapply(path, function(one) any(startsWith(one, workflow_prefixes)), logical(1))
+  extensions <- tools::file_ext(path)
+  starts & extensions %in% workflow_extensions & !is_project_support_file(path)
+}
+
+orphan_project_files <- function(root = ".", registry = read_project_registry(root)) {
+  root <- find_project_root(root)
+  registered <- project_registered_files(root, registry)
+  candidates <- setdiff(all_project_files_for_review(root), registered)
+  candidates[is_project_workflow_file(candidates)]
+}
+
+support_project_files <- function(root = ".", registry = read_project_registry(root)) {
+  root <- find_project_root(root)
+  registered <- project_registered_files(root, registry)
+  candidates <- setdiff(all_project_files_for_review(root), registered)
+  candidates[is_project_support_file(candidates)]
 }
 
 #' Construct project network data
@@ -234,7 +289,7 @@ project_network_data <- function(root = ".") {
 }
 
 check_dashboard_dependencies <- function(
-    packages = c("shiny", "bslib", "DT", "htmltools"),
+    packages = c("shiny", "bslib", "htmltools"),
     require_network = FALSE) {
   validate_character_vector(packages, "packages")
   validate_logical_scalar(require_network, "require_network")
@@ -362,8 +417,11 @@ project_diagnostics_data <- function(
   files <- project_files_data(root, include_file_hashes = include_file_hashes, registry = registry)
   network <- if (isTRUE(include_network)) project_network_data(root) else list(nodes = data.frame(), edges = data.frame())
   orphan_files <- orphan_project_files(root, registry)
+  support_files <- support_project_files(root, registry)
   activity <- list_project_activity(root)
-  status_summary <- project_status_report(root, output = "data")
+  risk_counts <- risk_status_summary(risks)
+  missing_outputs_count <- if (nrow(outputs) == 0L || !"exists" %in% names(outputs)) 0L else sum(!outputs$exists, na.rm = TRUE)
+  stale_outputs_count <- length(stale_project_outputs(root))
 
   diagnostics <- list(
     project = list(
@@ -376,11 +434,11 @@ project_diagnostics_data <- function(
     ),
     summary = data.frame(
       overall_status = if (nrow(check_result$errors) > 0L) "Broken" else if (nrow(check_result$warnings) > 0L) "Needs attention" else "Healthy",
-      open_tasks = status_summary$counts$open_tasks,
-      overdue_tasks = status_summary$counts$overdue_tasks,
-      open_risks = status_summary$counts$open_risks,
-      missing_outputs = length(missing_project_outputs(root)),
-      stale_outputs = length(stale_project_outputs(root)),
+      open_tasks = sum(tasks$status %in% c("backlog", "todo", "in_progress", "blocked"), na.rm = TRUE),
+      overdue_tasks = count_overdue_tasks(tasks),
+      open_risks = risk_counts$open,
+      missing_outputs = missing_outputs_count,
+      stale_outputs = stale_outputs_count,
       reports_needing_render = sum(reports$source_exists & !reports$output_exists),
       missing_packages = sum(!package_df$installed),
       data_sources_unavailable = sum(!data_sources$exists | !data_sources$readable),
@@ -404,7 +462,8 @@ project_diagnostics_data <- function(
     files = files,
     network = network,
     activity = activity,
-    orphan_files = data.frame(path = orphan_files, stringsAsFactors = FALSE)
+    orphan_files = data.frame(path = orphan_files, stringsAsFactors = FALSE),
+    support_files = data.frame(path = support_files, stringsAsFactors = FALSE)
   )
 
   class(diagnostics) <- "projflow_diagnostics"

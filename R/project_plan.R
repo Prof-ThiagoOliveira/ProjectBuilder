@@ -1104,11 +1104,10 @@ build_project_plan <- function(
   script_entries <- unname(scripts)
   report_entries <- unname(reports)
 
-  tasks <- if ("project_management" %in% components) {
-    build_default_tasks(script_entries, report_entries)
-  } else {
-    list()
-  }
+  # Project management support creates the governance register, but it should
+  # not populate the project with synthetic tasks. Users should create, import,
+  # or edit tasks deliberately from the dashboard or governance API.
+  tasks <- list()
 
   project_name <- validate_project_name(basename(path))
   governance_files <- governance_file_templates()

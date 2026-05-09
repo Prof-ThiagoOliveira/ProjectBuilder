@@ -27,7 +27,7 @@ launch_project_manager <- function(
   mode <- match.arg(mode)
   root <- find_project_root(root)
   check_dashboard_dependencies(
-    packages = c("shiny", "bslib", "DT", "htmltools"),
+    packages = c("shiny", "bslib", "htmltools"),
     require_network = FALSE
   )
 
@@ -85,54 +85,63 @@ project_diagnostics_app <- function(root = ".", launch = interactive(), ...) {
 project_manager_app <- function(root = ".", mode = c("manage", "diagnose")) {
   mode <- match.arg(mode)
   manage <- identical(mode, "manage")
-  title <- paste0("projflow Project Manager: ", safe_basename(root))
 
   ui <- shiny::fluidPage(
-    theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
-    shiny::tags$head(
-      shiny::tags$style(shiny::HTML(
-        ".projflow-root{font-size:0.95rem;color:#52606d;margin-bottom:1rem;}
-         .projflow-actions .btn{margin-right:0.5rem;margin-bottom:0.5rem;}
-         .projflow-panel{margin-top:1rem;}
-         .projflow-muted{color:#6c757d;}"
-      ))
+    theme = bslib::bs_theme(
+      version = 5,
+      bootswatch = "flatly",
+      primary = "#235789"
     ),
-    shiny::titlePanel(title),
+    shiny::tags$head(shiny::tags$style(dashboard_css())),
     shiny::div(
-      class = "projflow-root",
-      shiny::strong("Project root: "),
-      shiny::code(normalize_absolute_path(root)),
-      shiny::span(" | "),
-      shiny::strong("Mode: "),
-      if (manage) "manage" else "diagnose"
-    ),
-    shiny::fluidRow(
-      shiny::column(
-        width = 12,
+      class = "projflow-app",
+      dashboard_header(root = root, mode = mode, manage = manage),
+      shiny::div(
+        class = "projflow-shell",
         shiny::div(
-          class = "projflow-actions",
-          shiny::actionButton("refresh_dashboard", "Refresh diagnostics"),
-          if (manage) shiny::actionButton("show_backups", "Backups"),
-          shiny::verbatimTextOutput("dashboard_status", placeholder = TRUE)
+          class = "projflow-topbar",
+          shiny::div(
+            class = "projflow-actions",
+            shiny::actionButton("refresh_dashboard", "Refresh diagnostics", class = "btn-primary"),
+            if (isTRUE(manage)) shiny::actionButton("show_backups", "Show backups", class = "btn-outline-secondary")
+          ),
+          shiny::div(class = "projflow-status", shiny::uiOutput("dashboard_status_ui"))
+        ),
+        shiny::navbarPage(
+          title = NULL,
+          id = "main_tabs",
+          inverse = FALSE,
+          collapsible = TRUE,
+          shiny::tabPanel("Overview", mod_overview_ui("overview", manage = manage)),
+          shiny::tabPanel("Planning charts", mod_charts_ui("charts")),
+          shiny::navbarMenu(
+            "Work management",
+            shiny::tabPanel("Task board", mod_tasks_ui("tasks", manage = manage)),
+            shiny::tabPanel("Risks", mod_risks_ui("risks", manage = manage)),
+            shiny::tabPanel("Milestones", mod_milestones_ui("milestones", manage = manage)),
+            shiny::tabPanel("Decisions", mod_decisions_ui("decisions", manage = manage))
+          ),
+          shiny::navbarMenu(
+            "Build and artefacts",
+            shiny::tabPanel("Add object", mod_add_object_ui("add_object", manage = manage)),
+            shiny::tabPanel("Outputs", mod_outputs_ui("outputs", manage = manage)),
+            shiny::tabPanel("Reports", mod_reports_ui("reports", manage = manage)),
+            shiny::tabPanel("Registry", mod_registry_ui("registry", manage = manage)),
+            shiny::tabPanel("Network", mod_network_ui("network"))
+          ),
+          shiny::navbarMenu(
+            "Quality and dependencies",
+            shiny::tabPanel("Checks and fixes", mod_checks_ui("checks", manage = manage)),
+            shiny::tabPanel("Packages and files", mod_dependencies_ui("dependencies")),
+            shiny::tabPanel("Data sources", mod_data_sources_ui("data_sources", manage = manage))
+          ),
+          shiny::navbarMenu(
+            "Audit and settings",
+            shiny::tabPanel("Activity log", mod_activity_log_ui("activity", manage = manage)),
+            shiny::tabPanel("Settings", mod_settings_ui("settings", manage = manage))
+          )
         )
       )
-    ),
-    shiny::tabsetPanel(
-      id = "main_tabs",
-      shiny::tabPanel("Overview", mod_overview_ui("overview", manage = manage)),
-      shiny::tabPanel("Task board", mod_tasks_ui("tasks", manage = manage)),
-      shiny::tabPanel("Registry", mod_registry_ui("registry", manage = manage)),
-      shiny::tabPanel("Add object", mod_add_object_ui("add_object", manage = manage)),
-      shiny::tabPanel("Outputs", mod_outputs_ui("outputs", manage = manage)),
-      shiny::tabPanel("Reports", mod_reports_ui("reports", manage = manage)),
-      shiny::tabPanel("Data sources", mod_data_sources_ui("data_sources", manage = manage)),
-      shiny::tabPanel("Risks", mod_risks_ui("risks", manage = manage)),
-      shiny::tabPanel("Milestones", mod_milestones_ui("milestones", manage = manage)),
-      shiny::tabPanel("Decisions", mod_decisions_ui("decisions", manage = manage)),
-      shiny::tabPanel("Network", mod_network_ui("network")),
-      shiny::tabPanel("Checks and fixes", mod_checks_ui("checks", manage = manage)),
-      shiny::tabPanel("Activity log", mod_activity_log_ui("activity", manage = manage)),
-      shiny::tabPanel("Settings", mod_settings_ui("settings", manage = manage))
     )
   )
 
@@ -140,8 +149,10 @@ project_manager_app <- function(root = ".", mode = c("manage", "diagnose")) {
     state <- new_dashboard_state(root = root, mode = mode)
     refresh_dashboard_state(state)
 
-    output$dashboard_status <- shiny::renderText({
-      state$last_action %||% "Ready."
+    output$dashboard_status_ui <- shiny::renderUI({
+      message <- state$last_action %||% "Ready."
+      type <- if (grepl("error|failed|required|does not", message, ignore.case = TRUE)) "danger" else "success"
+      dashboard_alert(message, type = type)
     })
 
     shiny::observeEvent(input$refresh_dashboard, {
@@ -150,28 +161,32 @@ project_manager_app <- function(root = ".", mode = c("manage", "diagnose")) {
       shiny::showNotification("Diagnostics refreshed.", type = "message")
     })
 
-    shiny::observeEvent(input$show_backups, {
-      backups <- list_project_backups(root)
-      message <- if (nrow(backups) == 0L) {
-        "No backups available."
-      } else {
-        paste("Available backups:", paste(backups$name, collapse = ", "))
-      }
-      shiny::showNotification(message, duration = 8)
-    })
+    if (isTRUE(manage)) {
+      shiny::observeEvent(input$show_backups, {
+        backups <- list_project_backups(root)
+        message <- if (nrow(backups) == 0L) {
+          "No backups are available for this project yet."
+        } else {
+          paste("Available backups:", paste(backups$name, collapse = ", "))
+        }
+        shiny::showNotification(message, duration = 8)
+      })
+    }
 
-    mod_overview_server("overview", state)
+    mod_overview_server("overview", state, parent_session = session, manage = manage)
     mod_tasks_server("tasks", state, manage = manage)
-    mod_registry_server("registry", state, manage = manage)
+    mod_charts_server("charts", state)
     mod_add_object_server("add_object", state, manage = manage)
     mod_outputs_server("outputs", state, manage = manage)
     mod_reports_server("reports", state, manage = manage)
+    mod_registry_server("registry", state, manage = manage)
+    mod_network_server("network", state)
+    mod_checks_server("checks", state, manage = manage)
+    mod_dependencies_server("dependencies", state)
     mod_data_sources_server("data_sources", state, manage = manage)
     mod_risks_server("risks", state, manage = manage)
     mod_milestones_server("milestones", state, manage = manage)
     mod_decisions_server("decisions", state, manage = manage)
-    mod_network_server("network", state)
-    mod_checks_server("checks", state, manage = manage)
     mod_activity_log_server("activity", state, manage = manage)
     mod_settings_server("settings", state, manage = manage)
   }

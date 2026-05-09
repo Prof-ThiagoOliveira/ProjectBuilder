@@ -80,3 +80,102 @@ test_that("dashboard dependency checks report missing packages clearly", {
     "optional packages that are not installed"
   )
 })
+
+test_that("project manager app can be constructed without launching", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("bslib")
+
+  project_path <- make_project_path("project-manager-app-construction")
+
+  new_project(
+    path = project_path,
+    components = c("statistical_analysis", "project_management"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  app <- project_manager_app(project_path, mode = "manage")
+  testthat::expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("dashboard table helper tolerates NULL diagnostics tables", {
+  testthat::expect_s3_class(dashboard_safe_data_frame(NULL), "data.frame")
+  testthat::expect_equal(nrow(dashboard_safe_data_frame(NULL)), 0L)
+})
+
+test_that("dashboard date helpers tolerate list and mixed date values", {
+  values <- list("2026-05-09", NA_character_, "")
+  parsed <- dashboard_as_date_vector(values)
+  expect_s3_class(parsed, "Date")
+  expect_equal(sum(!is.na(parsed)), 1L)
+  expect_equal(dashboard_count_with_dates(data.frame(due_date = I(values)), "due_date"), 1L)
+})
+
+test_that("support documentation files are not reported as registry candidates", {
+  project_path <- make_project_path("support-files-not-orphans")
+
+  new_project(
+    path = project_path,
+    components = c("statistical_analysis", "project_management"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  writeLines("support", file.path(project_path, "README.md"))
+  dir.create(file.path(project_path, "docs"), showWarnings = FALSE)
+  writeLines("support", file.path(project_path, "docs", "status.md"))
+
+  diagnostics <- project_diagnostics_data(project_path)
+  expect_false("README.md" %in% diagnostics$orphan_files$path)
+  expect_false("docs/status.md" %in% diagnostics$orphan_files$path)
+})
+
+
+test_that("new project does not create synthetic plan tasks", {
+  project_path <- make_project_path("no-synthetic-plan-tasks")
+
+  new_project(
+    path = project_path,
+    components = c("data_preparation", "statistical_analysis", "report", "project_management"),
+    deliverables = c("html_report", "manuscript", "status_report"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  tasks <- project_tasks(project_path)
+  expect_equal(nrow(tasks), 0L)
+})
+
+test_that("dashboard object subtype choices prevent invalid creation arguments", {
+  expect_equal(dashboard_object_subtype("report", NULL), "html_report")
+  expect_equal(dashboard_object_subtype("report", "scientific_report"), "scientific_report")
+  expect_error(dashboard_object_subtype("report", "report"), "Invalid Report type")
+
+  expect_equal(dashboard_object_subtype("app", NULL), "shiny")
+  expect_equal(dashboard_object_subtype("script", "statistical_analysis"), "statistical_analysis")
+  expect_null(dashboard_object_subtype("task", NULL))
+})
+
+test_that("planning chart data are structured for hierarchical visualisation", {
+  project_path <- make_project_path("planning-chart-data")
+
+  new_project(
+    path = project_path,
+    components = c("data_preparation", "statistical_analysis", "report"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  diagnostics <- project_diagnostics_data(project_path, include_network = TRUE)
+  wbs <- dashboard_wbs_data(diagnostics, max_items = 20L)
+  pert <- dashboard_pert_data(diagnostics, network = diagnostics$network, max_items = 20L)
+
+  expect_true(all(c("id", "label", "group", "level") %in% names(wbs$nodes)))
+  expect_true(all(c("from", "to") %in% names(wbs$edges)))
+  expect_s3_class(pert$nodes, "data.frame")
+  expect_s3_class(pert$edges, "data.frame")
+})
