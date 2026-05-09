@@ -13,30 +13,64 @@ new_component(
 )
 }
 \arguments{
-\item{component}{Component name to add, such as \code{"tables"},
-\code{"figures"}, or \code{"project_management"}.}
+\item{component}{Character scalar. Component name to add. Examples include
+\code{"tables"}, \code{"figures"}, \code{"report"},
+\code{"dashboard"}, \code{"shiny_app"},
+\code{"project_management"}, \code{"data_governance"}, and
+\code{"validation"}. The exact accepted values are defined by the installed
+package version.}
 
-\item{root}{Existing project root to update.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before the component is added.}
 
-\item{open}{Logical scalar kept for API compatibility. Added files are not
-opened automatically.}
+\item{open}{Logical scalar. Retained for user-interface compatibility. Added
+files are not opened automatically by this wrapper.}
 
-\item{overwrite}{Logical scalar. If \code{TRUE}, allow template files added by the
-component to be refreshed.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, allow template files added by
+the component to replace existing files where supported.}
 
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned amended project
-plan without writing files.}
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned project
+amendment without writing files or modifying the registry.}
 }
 \value{
-A scaffold result object.
+A scaffold result object produced by the component-addition helper. The object
+records the files, folders, registry entries, and checks associated with the
+requested component. With \code{dry_run = TRUE}, the returned object describes
+the planned amendment without applying it.
 }
 \description{
-Add a component to an existing project
+\code{new_component()} extends an existing \pkg{projflow} project with one
+additional analytical or organisational component.
+}
+\details{
+A component is a standard project capability, such as tables, figures,
+reporting, dashboards, Shiny applications, project management, data
+governance, validation, or a specific analysis phase. Adding a component may
+create folders, template scripts, reports, registry entries, expected outputs,
+and package suggestions.
+
+Component dependencies are handled by the lower-level project planning logic.
+For example, adding a report-related component may require report folders and
+deliverables; adding table or figure components may require output folders.
+Unknown components are rejected to avoid inconsistent project registries.
+
+This function modifies an existing project unless \code{dry_run = TRUE}.
+Use \code{\link{plan_project}()} to preview a complete new project scaffold
+before creating a project.
 }
 \examples{
 \dontrun{
-new_component("tables", open = FALSE)
+root <- tempfile("projflow-component-")
+new_project(path = root, infrastructure = character())
+
+new_component("tables", root = root, open = FALSE)
+new_component("project_management", root = root, dry_run = TRUE)
 }
+
+}
+\seealso{
+\code{\link{plan_project}()}, \code{\link{new_script}()},
+\code{\link{new_report}()}, \code{\link{new_app}()}
 }
 \author{
 Thiago de Paula Oliveira

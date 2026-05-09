@@ -2,10 +2,10 @@
 % Please edit documentation in R/create_analysis_project.R
 \name{new_project}
 \alias{new_project}
-\title{Create a component-driven project}
+\title{Create a project from a project plan or scaffold arguments}
 \usage{
 new_project(
-  path,
+  path = NULL,
   title = NULL,
   components = c("statistical_analysis", "report"),
   deliverables = NULL,
@@ -14,6 +14,7 @@ new_project(
   component_specs = NULL,
   use_internal_data_dirs = FALSE,
   include_example = FALSE,
+  plan = NULL,
   open = interactive(),
   overwrite = FALSE,
   repair = FALSE,
@@ -21,70 +22,137 @@ new_project(
 )
 }
 \arguments{
-\item{path}{Target project path. The directory is created if needed and then
-populated with the scaffold selected by the remaining arguments.}
+\item{path}{Character scalar. Target project directory used when
+\code{plan = NULL}. The directory is created if needed and then populated
+with the scaffold described by the computed project plan. If \code{plan} is
+supplied, the target path is taken from \code{plan$path} and \code{path}
+must be omitted.}
 
-\item{title}{Optional human-readable project title written into project
-metadata. If omitted, the project folder name is used.}
+\item{title}{Optional character scalar. Human-readable project title written
+into project metadata when \code{plan = NULL}. If omitted, the project
+folder name is used. Ignored when a plan is supplied.}
 
-\item{components}{Character vector of project components to include, such as
-\code{"statistical_analysis"}, \code{"report"}, \code{"tables"}, or
-\code{"project_management"}.}
+\item{components}{Character vector. Project components to include when
+\code{plan = NULL}, for example \code{"data_preparation"},
+\code{"statistical_analysis"}, \code{"report"}, \code{"tables"},
+or \code{"project_management"}. Components are validated by
+\code{\link{plan_project}()} before any files are written.}
 
-\item{deliverables}{Optional character vector of deliverables to prepare,
-such as \code{"html_report"}, \code{"tables"}, or \code{"dashboard"}. When \code{NULL},
-deliverables are inferred from components.}
+\item{deliverables}{Optional character vector. Deliverables to prepare when
+\code{plan = NULL}, for example \code{"html_report"},
+\code{"tables"}, \code{"figures"}, or \code{"dashboard"}. When
+\code{NULL}, deliverables are inferred from the selected components and
+preset.}
 
-\item{infrastructure}{Optional character vector of technical features to
-enable, such as \code{"git"}, \code{"tests"}, \code{"quarto"}, or \code{"renv"}. Use
-\code{NULL} to accept default infrastructure or \code{character()} to disable
-inferred infrastructure.}
+\item{infrastructure}{Optional character vector. Technical infrastructure to
+enable when \code{plan = NULL}, for example \code{"git"},
+\code{"renv"}, \code{"quarto"}, \code{"tests"}, or
+\code{"github_actions"}. Use \code{NULL} to accept package defaults and
+\code{character()} to request no optional infrastructure.}
 
-\item{preset}{Optional preset name that expands to a predefined combination
-of components, deliverables, and infrastructure before explicit arguments
-are merged in.}
+\item{preset}{Optional character scalar. Preset name used when
+\code{plan = NULL}. A preset expands to a predefined combination of
+components, deliverables, and infrastructure before explicit arguments are
+merged.}
 
-\item{component_specs}{Optional custom component spec path, a single spec
-list, or a list of spec objects used to extend the built-in component
-registry for this project.}
+\item{component_specs}{Optional custom component specification used when
+\code{plan = NULL}. This may be a YAML file path, a single
+component-specification list, or a list of component-specification objects.}
 
-\item{use_internal_data_dirs}{Logical scalar. If \code{TRUE}, create internal
-\verb{data/raw/} and \verb{data/processed/} folders. The default \code{FALSE} keeps the
-package's external-data-first behavior.}
+\item{use_internal_data_dirs}{Logical scalar. If \code{TRUE} and
+\code{plan = NULL}, create internal \file{data/raw/} and
+\file{data/processed/} directories. The default \code{FALSE} reflects the
+package preference for external data roots.}
 
-\item{include_example}{Logical scalar. If \code{TRUE}, include the built-in
-\code{analysis/example_analysis.R} example script. The default \code{FALSE} keeps the
-scaffold minimal and avoids generating starter artefacts unless requested.}
+\item{include_example}{Logical scalar. If \code{TRUE} and \code{plan = NULL},
+include the built-in \file{analysis/example_analysis.R} script.}
 
-\item{open}{Logical scalar kept for API compatibility. \code{projflow} does not
-automatically open the project in an IDE or editor.}
+\item{plan}{Optional object of class \code{"project_plan"}, usually created
+by \code{\link{plan_project}()}. When supplied, \code{new_project()}
+applies this exact plan to disk and does not recompute the scaffold from
+separate component arguments.}
 
-\item{overwrite}{Logical scalar indicating whether an existing non-empty
-target directory may be populated or updated.}
+\item{open}{Logical scalar. Kept for API compatibility. \pkg{projflow} does
+not automatically open the project in an IDE or editor. If \code{TRUE}, a
+warning is added to the returned scaffold object.}
 
-\item{repair}{Logical scalar. If \code{TRUE}, allow \code{projflow} to populate or
-register missing standard files in an existing project directory without
-overwriting files already present.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, existing scaffold files may
+be overwritten where the underlying writer supports overwriting. The default
+\code{FALSE} is safer for existing directories.}
 
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the computed project plan
-without writing any files.}
+\item{repair}{Logical scalar. If \code{TRUE}, allow \pkg{projflow} to
+populate or register missing standard files in an existing project
+directory without overwriting files already present. This argument is
+relevant only when \code{plan = NULL}; a supplied plan is assumed to be the
+explicit creation contract.}
+
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the project plan without
+writing files. This is primarily useful for compatibility with direct
+\code{new_project()} calls; for new code, prefer
+\code{\link{plan_project}()}.}
 }
 \value{
-An object of class \code{"analysis_project_scaffold"}.
+If \code{dry_run = TRUE}, an object of class \code{"project_plan"}. Otherwise,
+an object of class \code{"analysis_project_scaffold"} describing the project
+that was created or updated, including created directories, created files,
+skipped files, selected infrastructure, package suggestions, and warnings.
 }
 \description{
-Create a component-driven project
+\code{new_project()} materialises a \pkg{projflow} project on disk. The
+recommended workflow is to first call \code{\link{plan_project}()} to
+create and inspect a \code{"project_plan"} object, and then pass that object
+to \code{new_project()} with the \code{plan} argument.
+}
+\details{
+\code{new_project()} supports two equivalent user workflows:
+\itemize{
+\item \strong{Planned workflow}: call \code{\link{plan_project}()} first,
+inspect the returned plan, and then call \code{new_project(plan = plan)}.
+\item \strong{Shortcut workflow}: call \code{new_project()} directly with
+scaffold arguments such as \code{path}, \code{components},
+\code{deliverables}, and \code{infrastructure}. In this case,
+\code{new_project()} constructs the plan internally and then applies it.
+}
+
+The planned workflow is the clearest and safest interface for substantial
+analytical projects because it separates project design from file creation.
+The shortcut workflow is retained for convenience and backwards
+compatibility.
+
+When \code{plan} is supplied, the scaffold-design arguments
+\code{path}, \code{title}, \code{components}, \code{deliverables},
+\code{infrastructure}, \code{preset}, \code{component_specs},
+\code{use_internal_data_dirs}, and \code{include_example} must not be
+supplied. This rule prevents accidental divergence between an inspected plan
+and the project that is created.
 }
 \examples{
 \dontrun{
-new_project(
+plan <- plan_project(
   path = "demo-project",
-  preset = "basic_analysis",
+  components = c("data_preparation", "statistical_analysis", "report"),
+  infrastructure = character()
+)
+
+plot(plan)
+new_project(plan = plan, open = FALSE)
+
+# Convenience shortcut: this computes the same type of plan internally and
+# then creates the project.
+new_project(
+  path = "demo-project-shortcut",
   components = c("statistical_analysis", "report"),
   infrastructure = character(),
   open = FALSE
 )
 }
+
+}
+\seealso{
+\code{\link{plan_project}()}, \code{\link{plot.project_plan}()},
+\code{\link{project_plan_network_data}()}, \code{\link{new_component}()},
+\code{\link{new_script}()}, \code{\link{new_report}()},
+\code{\link{new_output}()}
 }
 \author{
 Thiago de Paula Oliveira

@@ -78,8 +78,9 @@ component_aliases <- function() {
     cleaning = "data_preparation",
     clean_data = "data_preparation",
     qc = "quality_control",
-    validation = "quality_control",
     data_validation = "quality_control",
+    validate = "validation",
+    project_validation = "validation",
     eda = "exploratory_analysis",
     exploration = "exploratory_analysis",
     analysis = "statistical_analysis",
@@ -309,15 +310,112 @@ registered_project_components <- function() {
   as.list(.projflow_component_registry, all.names = TRUE)
 }
 
+#' List project planning keywords
+#'
+#' These helpers return the controlled vocabularies accepted by
+#' [plan_project()] and [new_project()]. They are primarily intended for
+#' interactive use, documentation examples, validation messages, and tests.
+#'
+#' @return A character vector of valid keyword values.
+#'
+#' @examples
+#' available_project_components()
+#' available_project_deliverables()
+#' available_project_infrastructure()
+#' available_project_presets()
+#' @name project_plan_keywords
+NULL
+
+#' @rdname project_plan_keywords
+#' @export
 available_project_components <- function() {
   order_keywords(
     c(canonical_component_order(), names(registered_project_components())),
     canonical_component_order()
   )
 }
+
+#' @rdname project_plan_keywords
+#' @export
 available_project_deliverables <- function() canonical_deliverable_order()
+
+#' @rdname project_plan_keywords
+#' @export
 available_project_infrastructure <- function() canonical_infrastructure_order()
+
+#' @rdname project_plan_keywords
+#' @export
 available_project_presets <- function() names(project_presets())
+
+code_values <- function(values) {
+  paste0("`", values, "`")
+}
+
+suggest_project_keywords <- function(values, candidates, max_suggestions = 3L) {
+  candidates <- unique(candidates)
+
+  stats::setNames(
+    lapply(values, function(value) {
+      distances <- utils::adist(value, candidates, ignore.case = TRUE)
+      candidates[order(as.vector(distances))][seq_len(min(max_suggestions, length(candidates)))]
+    }),
+    values
+  )
+}
+
+project_keyword_helper <- function(label) {
+  switch(
+    label,
+    components = "available_project_components()",
+    deliverables = "available_project_deliverables()",
+    infrastructure = "available_project_infrastructure()",
+    presets = "available_project_presets()",
+    NULL
+  )
+}
+
+unknown_project_keyword_message <- function(invalid, label, available, aliases) {
+  helper <- project_keyword_helper(label)
+  candidates <- unique(c(available, names(aliases)))
+  suggestions <- suggest_project_keywords(invalid, candidates)
+
+  suggestion_lines <- vapply(
+    names(suggestions),
+    function(value) {
+      paste0(
+        "For ", code_values(value), ", did you mean ",
+        paste(code_values(suggestions[[value]]), collapse = ", "),
+        "?"
+      )
+    },
+    character(1)
+  )
+
+  message <- paste0(
+    "Unknown ", label, ": ", paste(code_values(invalid), collapse = ", "), ".\n",
+    "Valid ", label, " are: ", paste(code_values(available), collapse = ", "), "."
+  )
+
+  if (!is.null(helper)) {
+    message <- paste0(message, "\nUse `", helper, "` to list valid values.")
+  }
+
+  if (length(suggestion_lines) > 0L) {
+    message <- paste0(message, "\n", paste(suggestion_lines, collapse = "\n"))
+  }
+
+  if (length(aliases) > 0L) {
+    shown_aliases <- names(aliases)[seq_len(min(10L, length(aliases)))]
+    message <- paste0(
+      message,
+      "\nCommon aliases include: ",
+      paste(paste0(code_values(shown_aliases), " = ", code_values(unname(aliases[shown_aliases]))), collapse = ", "),
+      "."
+    )
+  }
+
+  message
+}
 
 normalise_keyword_vector <- function(values, aliases, available, label) {
   if (is.null(values)) {
@@ -332,11 +430,14 @@ normalise_keyword_vector <- function(values, aliases, available, label) {
   invalid <- setdiff(values, available)
   if (length(invalid) > 0L) {
     rlang::abort(
-      paste0(
-        "Unknown ", label, ": ",
-        paste(invalid, collapse = ", "),
-        "."
-      )
+      unknown_project_keyword_message(
+        invalid = invalid,
+        label = label,
+        available = available,
+        aliases = aliases
+      ),
+      invalid = invalid,
+      available = available
     )
   }
 
@@ -1082,3 +1183,491 @@ build_project_plan <- function(
 project_components <- function(root = ".") read_project_registry(root)$components %||% character()
 project_deliverables <- function(root = ".") read_project_registry(root)$deliverables %||% character()
 project_infrastructure <- function(root = ".") read_project_registry(root)$infrastructure %||% character()
+
+is_project_plan <- function(x) {
+  inherits(x, "project_plan")
+}
+
+validate_project_plan <- function(plan, arg = "plan") {
+  if (!is_project_plan(plan)) {
+    rlang::abort(paste0("`", arg, "` must be an object of class \"project_plan\", usually created by `plan_project()`."))
+  }
+
+  required <- c(
+    "path", "title", "components", "deliverables", "infrastructure",
+    "folders", "files", "scripts", "reports", "packages", "registry",
+    "tasks", "checks"
+  )
+  missing_fields <- setdiff(required, names(plan))
+  if (length(missing_fields) > 0L) {
+    rlang::abort(paste0(
+      "`", arg, "` is missing required project-plan fields: ",
+      paste(missing_fields, collapse = ", "),
+      ". Recreate the plan with `plan_project()`."
+    ))
+  }
+
+  validate_character_vector(plan$path, paste0(arg, "$path"))
+  validate_character_vector(plan$components, paste0(arg, "$components"))
+  validate_character_vector(plan$deliverables, paste0(arg, "$deliverables"))
+  validate_character_vector(plan$infrastructure, paste0(arg, "$infrastructure"))
+  validate_character_vector(plan$folders, paste0(arg, "$folders"))
+  validate_character_vector(plan$files, paste0(arg, "$files"))
+
+  invisible(TRUE)
+}
+
+#' Convert a project plan into network data
+#'
+#' @description
+#' \code{project_plan_network_data()} converts a \code{"project_plan"} object
+#' into node and edge tables. The result can be inspected directly, used by
+#' plotting methods, or passed to optional network packages such as
+#' \pkg{visNetwork}.
+#'
+#' @details
+#' The network is intended to help users understand the first project plan before
+#' any files are created. It represents the proposed project as relationships
+#' among project components, deliverables, infrastructure, scripts, reports,
+#' outputs, and, optionally, folders, files, checks, and tasks.
+#'
+#' The function does not require external graph packages. It returns ordinary
+#' data frames so that downstream code can use base R, \pkg{visNetwork},
+#' \pkg{igraph}, \pkg{ggraph}, or any other graphing system if those packages
+#' are available.
+#'
+#' @param plan Object of class \code{"project_plan"}, usually created by
+#'   \code{\link{plan_project}()}.
+#' @param include_folders Logical scalar. If \code{TRUE}, include proposed
+#'   project folders as nodes connected to the project node. The default is
+#'   \code{FALSE} because folders can make the first plot crowded.
+#' @param include_files Logical scalar. If \code{TRUE}, include proposed project
+#'   files as nodes connected to the project node. The default is \code{FALSE}
+#'   because files can make the first plot crowded.
+#' @param include_checks Logical scalar. If \code{TRUE}, include planning checks
+#'   and automatic dependency additions as diagnostic nodes.
+#' @param include_tasks Logical scalar. If \code{TRUE}, include task nodes when
+#'   the plan contains project-management tasks.
+#'
+#' @return
+#' A list with two data frames:
+#' \describe{
+#'   \item{\code{nodes}}{Node table with columns \code{id}, \code{label},
+#'     \code{type}, \code{status}, and \code{path}.}
+#'   \item{\code{edges}}{Edge table with columns \code{from}, \code{to}, and
+#'     \code{relationship}.}
+#' }
+#'
+#' @seealso
+#' \code{\link{plan_project}()}, \code{\link{new_project}()},
+#' \code{\link{plot.project_plan}()}, \code{\link{project_network_data}()}
+#'
+#' @examples
+#' plan <- plan_project(
+#'   path = file.path(tempdir(), "demo-project"),
+#'   components = c("data_preparation", "statistical_analysis", "report"),
+#'   infrastructure = character()
+#' )
+#'
+#' network <- project_plan_network_data(plan)
+#' names(network)
+#' head(network$nodes)
+#' head(network$edges)
+#'
+#' @author Thiago de Paula Oliveira
+#' @export
+project_plan_network_data <- function(
+    plan,
+    include_folders = FALSE,
+    include_files = FALSE,
+    include_checks = FALSE,
+    include_tasks = TRUE) {
+  validate_project_plan(plan)
+  validate_logical_scalar(include_folders, "include_folders")
+  validate_logical_scalar(include_files, "include_files")
+  validate_logical_scalar(include_checks, "include_checks")
+  validate_logical_scalar(include_tasks, "include_tasks")
+
+  nodes <- list()
+  edges <- list()
+
+  add_node <- function(id, label, type, status = NA_character_, path = NA_character_) {
+    nodes[[id]] <<- data.frame(
+      id = id,
+      label = as.character(label),
+      type = as.character(type),
+      status = as.character(status),
+      path = as.character(path),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  add_edge <- function(from, to, relationship) {
+    edges[[length(edges) + 1L]] <<- data.frame(
+      from = as.character(from),
+      to = as.character(to),
+      relationship = as.character(relationship),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  project_id <- "project:root"
+  project_label <- if (!is.null(plan$title) && length(plan$title) == 1L && !is.na(plan$title) && nzchar(plan$title)) {
+    plan$title
+  } else {
+    safe_basename(plan$path)
+  }
+  add_node(project_id, project_label, "project", plan$scaffold_level %||% NA_character_, plan$path)
+
+  for (component in plan$components %||% character()) {
+    id <- paste0("component:", component)
+    add_node(id, component, "component")
+    add_edge(project_id, id, "project_to_component")
+  }
+
+  component_dependency_map <- component_dependencies()
+  for (component in intersect(names(component_dependency_map), plan$components %||% character())) {
+    for (dependency in component_dependency_map[[component]]) {
+      if (dependency %in% (plan$components %||% character())) {
+        add_edge(paste0("component:", dependency), paste0("component:", component), "required_component")
+      }
+    }
+  }
+
+  for (deliverable in plan$deliverables %||% character()) {
+    id <- paste0("deliverable:", deliverable)
+    add_node(id, deliverable, "deliverable")
+    add_edge(project_id, id, "project_to_deliverable")
+  }
+
+  deliverable_dependency_map <- deliverable_dependencies()
+  for (deliverable in intersect(names(deliverable_dependency_map), plan$deliverables %||% character())) {
+    for (component in deliverable_dependency_map[[deliverable]]) {
+      if (component %in% (plan$components %||% character())) {
+        add_edge(paste0("component:", component), paste0("deliverable:", deliverable), "component_to_deliverable")
+      }
+    }
+  }
+
+  for (item in plan$infrastructure %||% character()) {
+    id <- paste0("infrastructure:", item)
+    add_node(id, item, "infrastructure")
+    add_edge(project_id, id, "project_to_infrastructure")
+  }
+
+  infrastructure_dependency_map <- infrastructure_dependencies()
+  for (item in intersect(names(infrastructure_dependency_map), plan$infrastructure %||% character())) {
+    for (dependency in infrastructure_dependency_map[[item]]) {
+      if (dependency %in% (plan$infrastructure %||% character())) {
+        add_edge(paste0("infrastructure:", dependency), paste0("infrastructure:", item), "required_infrastructure")
+      }
+    }
+  }
+
+  for (script in plan$scripts %||% list()) {
+    id <- paste0("script:", script$name)
+    add_node(id, script$name, "script", script$type %||% NA_character_, script$path %||% NA_character_)
+    if (!is.null(script$type) && script$type %in% (plan$components %||% character())) {
+      add_edge(paste0("component:", script$type), id, "component_to_script")
+    } else {
+      add_edge(project_id, id, "project_to_script")
+    }
+    for (output_name in script$outputs %||% character()) {
+      output_id <- paste0("output:", output_name)
+      if (is.null(nodes[[output_id]])) {
+        add_node(output_id, output_name, "output")
+      }
+      add_edge(id, output_id, "script_to_output")
+    }
+  }
+
+  for (report in plan$reports %||% list()) {
+    id <- paste0("report:", report$name)
+    add_node(id, report$name, "report", report$type %||% NA_character_, report$path %||% NA_character_)
+    if (!is.null(report$type) && report$type %in% (plan$components %||% character())) {
+      add_edge(paste0("component:", report$type), id, "component_to_report")
+    } else {
+      add_edge(project_id, id, "project_to_report")
+    }
+    deliverable <- report$deliverable %||% NA_character_
+    if (!is.na(deliverable) && nzchar(deliverable)) {
+      deliverable_id <- paste0("deliverable:", deliverable)
+      if (is.null(nodes[[deliverable_id]])) {
+        add_node(deliverable_id, deliverable, "deliverable")
+      }
+      add_edge(id, deliverable_id, "report_to_deliverable")
+    }
+    for (input_name in report$inputs %||% character()) {
+      output_id <- paste0("output:", input_name)
+      if (is.null(nodes[[output_id]])) {
+        add_node(output_id, input_name, "output")
+      }
+      add_edge(output_id, id, "output_to_report")
+    }
+  }
+
+  for (name in names(plan$registry$outputs %||% list())) {
+    entry <- plan$registry$outputs[[name]]
+    id <- paste0("output:", name)
+    add_node(id, name, entry$type %||% "output", "planned", entry$path %||% NA_character_)
+    if (!is.null(entry$generated_by) && nzchar(entry$generated_by)) {
+      add_edge(paste0("script:", entry$generated_by), id, "script_to_output")
+    }
+  }
+
+  if (isTRUE(include_folders)) {
+    for (folder in plan$folders %||% character()) {
+      id <- paste0("folder:", folder)
+      add_node(id, folder, "folder", "planned", folder)
+      add_edge(project_id, id, "project_to_folder")
+    }
+  }
+
+  if (isTRUE(include_files)) {
+    for (file in plan$files %||% character()) {
+      id <- paste0("file:", file)
+      add_node(id, file, "file", "planned", file)
+      add_edge(project_id, id, "project_to_file")
+    }
+  }
+
+  if (isTRUE(include_checks)) {
+    for (i in seq_along(plan$checks %||% character())) {
+      check_id <- paste0("check:", i)
+      add_node(check_id, paste0("check ", i), "check", plan$checks[[i]])
+      add_edge(project_id, check_id, "project_to_check")
+    }
+  }
+
+  if (isTRUE(include_tasks)) {
+    task_list <- plan$tasks$tasks %||% list()
+    for (name in names(task_list)) {
+      task <- task_list[[name]]
+      task_id <- paste0("task:", name)
+      add_node(task_id, task$title %||% name, "task", task$status %||% NA_character_)
+      add_edge(project_id, task_id, "project_to_task")
+      related_component <- task$related_component %||% NA_character_
+      if (!is.na(related_component) && related_component %in% (plan$components %||% character())) {
+        add_edge(task_id, paste0("component:", related_component), "task_to_component")
+      }
+      related_script <- task$related_script %||% NA_character_
+      if (!is.na(related_script) && nzchar(related_script)) {
+        script_name <- tools::file_path_sans_ext(basename(related_script))
+        add_edge(task_id, paste0("script:", script_name), "task_to_script")
+      }
+      related_report <- task$related_report %||% NA_character_
+      if (!is.na(related_report) && nzchar(related_report)) {
+        report_name <- tools::file_path_sans_ext(basename(related_report))
+        add_edge(task_id, paste0("report:", report_name), "task_to_report")
+      }
+    }
+  }
+
+  nodes_df <- if (length(nodes) == 0L) {
+    data.frame(
+      id = character(),
+      label = character(),
+      type = character(),
+      status = character(),
+      path = character(),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    unique(do.call(rbind, unname(nodes)))
+  }
+
+  edges_df <- if (length(edges) == 0L) {
+    data.frame(from = character(), to = character(), relationship = character(), stringsAsFactors = FALSE)
+  } else {
+    unique(do.call(rbind, edges))
+  }
+
+  valid_ids <- nodes_df$id
+  edges_df <- edges_df[edges_df$from %in% valid_ids & edges_df$to %in% valid_ids, , drop = FALSE]
+
+  list(nodes = nodes_df, edges = edges_df)
+}
+
+#' Plot a project plan
+#'
+#' @description
+#' \code{plot.project_plan()} draws a lightweight network view of a project
+#' plan. It is intended for the first planning step, before the project is
+#' created on disk.
+#'
+#' @details
+#' The plot is deliberately implemented with base R graphics so that
+#' \code{plot(plan)} works without adding mandatory plotting dependencies. The
+#' plot is a management view rather than a statistical graph: it shows how the
+#' proposed project root connects to components, scripts, reports, outputs,
+#' deliverables, and infrastructure.
+#'
+#' For interactive displays, use \code{project_plan_network_data()} and pass the
+#' returned node and edge tables to an optional graph package such as
+#' \pkg{visNetwork}.
+#'
+#' @param x Object of class \code{"project_plan"}, usually created by
+#'   \code{\link{plan_project}()}.
+#' @param ... Additional arguments passed to or reserved for future plotting
+#'   methods. Currently ignored.
+#' @param include_folders Logical scalar. If \code{TRUE}, include proposed
+#'   folders in the network plot.
+#' @param include_files Logical scalar. If \code{TRUE}, include proposed files in
+#'   the network plot.
+#' @param include_checks Logical scalar. If \code{TRUE}, include planning checks
+#'   in the network plot.
+#' @param include_tasks Logical scalar. If \code{TRUE}, include project-management
+#'   tasks when available in the plan.
+#' @param label_cex Numeric scalar. Character expansion factor for node labels.
+#' @param node_cex Numeric scalar. Expansion factor for node symbols.
+#' @param main Optional plot title. If \code{NULL}, a default title is used.
+#'
+#' @return
+#' Invisibly returns the network data produced by
+#' \code{\link{project_plan_network_data}()}.
+#'
+#' @seealso
+#' \code{\link{plan_project}()}, \code{\link{new_project}()},
+#' \code{\link{project_plan_network_data}()}
+#'
+#' @examples
+#' plan <- plan_project(
+#'   path = file.path(tempdir(), "demo-project"),
+#'   components = c("data_preparation", "statistical_analysis", "report"),
+#'   infrastructure = character()
+#' )
+#'
+#' plot(plan)
+#'
+#' @author Thiago de Paula Oliveira
+#' @export
+plot.project_plan <- function(
+    x,
+    ...,
+    include_folders = FALSE,
+    include_files = FALSE,
+    include_checks = FALSE,
+    include_tasks = TRUE,
+    label_cex = 0.7,
+    node_cex = 2,
+    main = NULL) {
+  network <- project_plan_network_data(
+    x,
+    include_folders = include_folders,
+    include_files = include_files,
+    include_checks = include_checks,
+    include_tasks = include_tasks
+  )
+
+  nodes <- network$nodes
+  edges <- network$edges
+
+  if (nrow(nodes) == 0L) {
+    graphics::plot.new()
+    graphics::title(main = main %||% "Empty projflow project plan")
+    return(invisible(network))
+  }
+
+  type_level <- c(
+    project = 1,
+    infrastructure = 2,
+    component = 2,
+    script = 3,
+    report = 3,
+    output = 4,
+    table = 4,
+    figure = 4,
+    model = 4,
+    deliverable = 5,
+    task = 6,
+    folder = 6,
+    file = 7,
+    check = 7
+  )
+  node_level <- unname(type_level[nodes$type])
+  node_level[is.na(node_level)] <- 4
+  nodes$level <- node_level
+
+  x_coord <- numeric(nrow(nodes))
+  y_coord <- -nodes$level
+  for (level in sort(unique(nodes$level))) {
+    idx <- which(nodes$level == level)
+    if (length(idx) == 1L) {
+      x_coord[idx] <- 0
+    } else {
+      x_coord[idx] <- seq(-1, 1, length.out = length(idx))
+    }
+  }
+  nodes$x <- x_coord
+  nodes$y <- y_coord
+
+  type_values <- sort(unique(nodes$type))
+  type_colours <- stats::setNames(grDevices::hcl.colors(length(type_values), "Dark 3"), type_values)
+  node_colours <- unname(type_colours[nodes$type])
+
+  x_range <- range(nodes$x, finite = TRUE)
+  y_range <- range(nodes$y, finite = TRUE)
+  x_pad <- max(0.25, diff(x_range) * 0.20)
+  y_pad <- max(0.50, diff(y_range) * 0.12)
+
+  old_par <- graphics::par(no.readonly = TRUE)
+  on.exit(graphics::par(old_par), add = TRUE)
+  graphics::par(mar = c(1, 1, 3, 1))
+  graphics::plot(
+    x = NA_real_,
+    y = NA_real_,
+    xlim = x_range + c(-x_pad, x_pad),
+    ylim = y_range + c(-y_pad, y_pad),
+    xlab = "",
+    ylab = "",
+    axes = FALSE,
+    type = "n",
+    main = main %||% "projflow project plan"
+  )
+
+  if (nrow(edges) > 0L) {
+    from_idx <- match(edges$from, nodes$id)
+    to_idx <- match(edges$to, nodes$id)
+    keep <- !is.na(from_idx) & !is.na(to_idx)
+    from_idx <- from_idx[keep]
+    to_idx <- to_idx[keep]
+    if (length(from_idx) > 0L) {
+      graphics::arrows(
+        x0 = nodes$x[from_idx],
+        y0 = nodes$y[from_idx],
+        x1 = nodes$x[to_idx],
+        y1 = nodes$y[to_idx],
+        length = 0.06,
+        col = "grey70"
+      )
+    }
+  }
+
+  graphics::points(
+    nodes$x,
+    nodes$y,
+    pch = 21,
+    bg = node_colours,
+    col = "grey20",
+    cex = node_cex
+  )
+  graphics::text(
+    nodes$x,
+    nodes$y - 0.12,
+    labels = nodes$label,
+    cex = label_cex,
+    xpd = TRUE
+  )
+
+  graphics::legend(
+    "topright",
+    legend = type_values,
+    pt.bg = unname(type_colours[type_values]),
+    pch = 21,
+    pt.cex = 1.5,
+    bty = "n",
+    cex = 0.75
+  )
+
+  invisible(network)
+}

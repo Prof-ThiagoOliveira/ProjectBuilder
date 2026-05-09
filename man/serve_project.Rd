@@ -2,7 +2,7 @@
 % Please edit documentation in R/high_level_api.R
 \name{serve_project}
 \alias{serve_project}
-\title{Serve a project for interactive development}
+\title{Serve or preview a project interactively}
 \usage{
 serve_project(
   root = ".",
@@ -12,28 +12,74 @@ serve_project(
 )
 }
 \arguments{
-\item{root}{Existing project root to preview or serve.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before any target is served or rendered.}
 
-\item{target}{Target to serve. \code{"auto"} chooses between reports, dashboard,
-Shiny app, or the full project based on the files present.}
+\item{target}{Character scalar. Target to serve or preview. Use
+\code{"auto"} to let the function choose from the project contents,
+\code{"reports"} to render or return report information,
+\code{"shiny_app"} to launch \file{app/app.R}, \code{"dashboard"} to
+render or return the dashboard path, or \code{"project"} to run a one-shot
+build.}
 
-\item{watch}{Logical scalar kept for API compatibility. Continuous watch mode
-is not currently implemented, so the function performs a one-shot preview.}
+\item{watch}{Logical scalar. Retained for future interactive workflows.
+Continuous watching is not currently implemented; when \code{TRUE}, the
+function performs a single preview or build and reports that watch mode is
+unavailable.}
 
-\item{render}{Logical scalar indicating whether reports or dashboards should
-be rendered as part of the preview step.}
+\item{render}{Logical scalar. If \code{TRUE}, reports or dashboards are
+rendered as part of the preview step. If \code{FALSE}, the function returns
+the relevant path or project status without rendering where supported.}
 }
 \value{
-Invisibly returns the launched target or build result.
+Invisibly returns the launched target path, rendered report result, project
+status object, or build result, depending on the resolved target:
+\itemize{
+\item \code{"shiny_app"}: path to \file{app/app.R};
+\item \code{"dashboard"}: dashboard render result or dashboard path;
+\item \code{"reports"}: report-rendering result or project status;
+\item \code{"project"}: result from \code{\link{build_project}()}.
+}
 }
 \description{
-Serve a project for interactive development
+\code{serve_project()} launches or previews the most appropriate interactive
+target for an existing \pkg{projflow} project. Depending on \code{target}
+and the files present in the project, it can launch a Shiny application,
+render a Quarto dashboard, render reports, or run a one-shot project build.
+}
+\details{
+The function resolves \code{target = "auto"} using the following priority:
+\itemize{
+\item if \file{app/app.R} exists, serve the Shiny application;
+\item otherwise, if \file{dashboard/dashboard.qmd} exists, preview the
+dashboard;
+\item otherwise, if registered or discoverable report files exist, render or
+return the report target;
+\item otherwise, run a one-shot project build.
+}
+
+Continuous watch mode is not currently implemented. If \code{watch = TRUE},
+the function emits an informational message and performs a single preview or
+build action.
+
+For Shiny applications, the \pkg{shiny} package must be installed because the
+app is launched using \code{\link[shiny:runApp]{shiny::runApp}()}. For
+Quarto dashboards and reports, rendering depends on the package's Quarto
+rendering helpers and on a working Quarto installation where required by the
+project.
 }
 \examples{
 \dontrun{
-serve_project(target = "reports", render = TRUE)
-serve_project(target = "shiny_app", render = FALSE)
+serve_project(root = ".", target = "reports", render = TRUE)
+serve_project(root = ".", target = "dashboard", render = FALSE)
+serve_project(root = ".", target = "shiny_app", render = FALSE)
 }
+
+}
+\seealso{
+\code{\link{build_project}()}, \code{\link{new_app}()},
+\code{\link{new_report}()},
+\code{\link[shiny:runApp]{shiny::runApp}()}
 }
 \author{
 Thiago de Paula Oliveira

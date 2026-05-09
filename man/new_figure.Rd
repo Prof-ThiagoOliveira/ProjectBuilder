@@ -2,7 +2,7 @@
 % Please edit documentation in R/high_level_api.R
 \name{new_figure}
 \alias{new_figure}
-\title{Register a lightweight figure output}
+\title{Register a figure output}
 \usage{
 new_figure(
   name,
@@ -14,33 +14,56 @@ new_figure(
 )
 }
 \arguments{
-\item{name}{Output object name used as the registry key and default filename
-stem.}
+\item{name}{Character scalar. Output name to store in the project registry.
+The value should be stable, descriptive, and suitable for use as a
+project-object identifier.}
 
-\item{path}{Optional explicit project-relative path for the output. When
-omitted, \code{projflow} uses the default location for the selected \code{type}.}
+\item{path}{Optional character scalar. Explicit project-relative output path.
+If \code{NULL}, a default path is inferred for a figure output.}
 
-\item{root}{Existing project root to update.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before the output is registered.}
 
-\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing registry
-entry for the same output name.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, allow an existing output
+registration with the same name to be replaced where supported.}
 
-\item{repair}{Logical scalar. If \code{TRUE}, register an existing output file
-without overwriting it.}
+\item{repair}{Logical scalar. If \code{TRUE}, register an existing output path
+without attempting to create or overwrite the file.}
 
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
-modifying the project.}
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned registry
+change without modifying the project.}
 }
 \value{
-Invisibly returns the registered output path, or a dry-run plan.
+Invisibly returns the registered figure-output path, or returns a dry-run plan
+when \code{dry_run = TRUE}.
 }
 \description{
-Register a lightweight figure output
+\code{new_figure()} registers a figure output in an existing \pkg{projflow}
+project. It is a convenience wrapper around \code{\link{new_output}()} with
+\code{type = "figure"}.
+}
+\details{
+Registered figure outputs make graphical products explicit in the project
+registry. This is useful for report generation, project diagnostics, quality
+control, and reproducibility review.
+
+If \code{path = NULL}, the package chooses the default figure-output
+location for the project. If \code{path} is supplied, it should usually be
+project-relative so that the registry remains portable across machines.
 }
 \examples{
 \dontrun{
-new_figure("heritability_plot")
+root <- tempfile("projflow-figure-")
+new_project(path = root, components = "figures", infrastructure = character())
+
+new_figure("heritability_plot", root = root)
+new_figure("diagnostic_plot", path = "outputs/figures/diagnostic_plot.png", root = root)
 }
+
+}
+\seealso{
+\code{\link{new_table}()}, \code{\link{new_output}()},
+\code{\link{new_script}()}
 }
 \author{
 Thiago de Paula Oliveira

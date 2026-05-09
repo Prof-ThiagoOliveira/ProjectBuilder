@@ -2,7 +2,7 @@
 % Please edit documentation in R/high_level_api.R
 \name{new_report}
 \alias{new_report}
-\title{Create a new report}
+\title{Create and register a new project report}
 \usage{
 new_report(
   name = "main_report",
@@ -15,37 +15,82 @@ new_report(
 )
 }
 \arguments{
-\item{name}{Report name. This is used as the filename stem unless the helper
-is returning an existing built-in report such as \code{main_report}.}
+\item{name}{Character scalar. Report name. The value is used as the filename
+stem for non-default reports. For example, \code{name = "analysis_report"}
+creates \file{reports/analysis_report.qmd} unless a built-in report path is
+returned.}
 
-\item{type}{Report type shortcut. This determines which components or
+\item{type}{Character scalar. Report type shortcut. One of
+\code{"html_report"}, \code{"client_report"}, or
+\code{"scientific_report"}. The type determines which components or
 deliverables are added before the report file is created.}
 
-\item{root}{Existing project root where the report should be added.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before the report is added.}
 
-\item{open}{Logical scalar kept for API compatibility. The report is written
-to disk but not opened automatically.}
+\item{open}{Logical scalar. Retained for user-interface compatibility. In the
+current implementation, the report is written or registered but is not opened
+automatically by this wrapper.}
 
-\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing report file
-and registry entry with the same name.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, an existing report file and
+corresponding registry entry may be replaced where supported.}
 
 \item{repair}{Logical scalar. If \code{TRUE}, register an existing report file
-without overwriting it.}
+without overwriting it. This is useful when a report exists on disk but is
+missing from the registry.}
 
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
-modifying the project.}
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change
+without writing files or modifying the registry.}
 }
 \value{
-Invisibly returns the created report path.
+Invisibly returns the path to the created, existing, or registered report file.
+When \code{dry_run = TRUE}, returns the dry-run object produced by the
+lower-level report or deliverable helper.
 }
 \description{
-Create a new report
+\code{new_report()} adds a Quarto report to an existing \pkg{projflow}
+project and records it in the project registry. It is the high-level report
+creation helper for analysis reports, client-facing reports, and scientific
+reports.
+}
+\details{
+The function combines report-file creation with any registry updates required
+by the selected report type.
+
+Supported report types are:
+\itemize{
+\item \code{"html_report"}: creates or ensures an HTML-oriented report
+workflow. If the project does not already include the report component or
+HTML report deliverable, they are added.
+\item \code{"client_report"}: creates or ensures a client-report
+deliverable. The built-in \file{reports/client_report.qmd} file is used
+when the default name is requested.
+\item \code{"scientific_report"}: creates a scientific report scaffold and
+ensures that table and figure components are available, because scientific
+reports usually depend on structured tabular and graphical outputs.
+}
+
+Reports are written as \file{.qmd} files. Rendering is handled separately by
+\code{\link{build_project}()} or \code{\link{serve_project}()}, depending
+on whether the user wants a full build or an interactive preview.
 }
 \examples{
 \dontrun{
-new_report("main_report", type = "html_report", open = FALSE)
-new_report("client_report", type = "client_report", open = FALSE)
+root <- tempfile("projflow-report-")
+new_project(
+  path = root,
+  components = c("statistical_analysis", "report"),
+  infrastructure = character()
+)
+
+new_report("main_report", type = "html_report", root = root, open = FALSE)
+new_report("scientific_summary", type = "scientific_report", root = root)
 }
+
+}
+\seealso{
+\code{\link{new_script}()}, \code{\link{new_app}()},
+\code{\link{build_project}()}, \code{\link{serve_project}()}
 }
 \author{
 Thiago de Paula Oliveira

@@ -2,7 +2,7 @@
 % Please edit documentation in R/high_level_api.R
 \name{plan_project}
 \alias{plan_project}
-\title{Preview a project plan without writing files}
+\title{Preview a project plan without creating files}
 \usage{
 plan_project(
   path = ".",
@@ -17,48 +17,171 @@ plan_project(
 )
 }
 \arguments{
-\item{path}{Target project path. No files are written; the path is used only
-to construct the proposed plan.}
+\item{path}{Character scalar. Target project directory. The directory is not
+created by \code{plan_project()}. The value is normalised and used to derive
+the proposed project name, root path, and project-relative paths shown in
+the returned plan.}
 
-\item{title}{Optional project title to include in the plan metadata.}
+\item{title}{Optional character scalar. Human-readable project title stored in
+the proposed project metadata. If \code{NULL}, the title is inferred from
+\code{path} where possible.}
 
-\item{components}{Character vector of components to include in the proposed
+\item{components}{Character vector. Analytical components to include in the
+proposed scaffold. Values must be recognised component names or supported
+aliases. Components control which directories, scripts, reports, registry
+objects, outputs, package suggestions, and dependency checks are included.
+Use \code{available_project_components()} to inspect the accepted values in
+the installed package version.}
+
+\item{deliverables}{Optional character vector. Deliverables to prepare. If
+\code{NULL}, deliverables are inferred from \code{components} and
+\code{preset}. If supplied, values must be recognised deliverable names or
+supported aliases. Use \code{available_project_deliverables()} to inspect
+the accepted values in the installed package version.}
+
+\item{infrastructure}{Optional character vector. Technical infrastructure to
+enable. If \code{NULL}, package defaults are used. Use \code{character()}
+to request no infrastructure. Use
+\code{available_project_infrastructure()} to inspect the accepted values in
+the installed package version.}
+
+\item{preset}{Optional character scalar. Name of a predefined scaffold
+configuration. A preset can contribute components, deliverables, and
+infrastructure before explicitly supplied values are normalised and merged.
+Explicit arguments may extend the preset. Use
+\code{available_project_presets()} to inspect the accepted preset names in
+the installed package version.}
+
+\item{component_specs}{Optional custom component specification. This may be a
+YAML file path, a single component-specification list, or a list of
+component-specification objects. Custom specifications are merged into the
+available component map for the current plan, allowing package users to add
+project-specific components without changing the built-in component map.}
+
+\item{use_internal_data_dirs}{Logical scalar. If \code{TRUE}, include
+internal \file{data/raw/} and \file{data/processed/} directories in the
+proposed folder layout. The default is \code{FALSE}, reflecting the package
+design preference for external data roots in reproducible analytical
+projects.}
+
+\item{include_example}{Logical scalar. If \code{TRUE}, include the built-in
+example analysis script and any related placeholder outputs in the proposed
 scaffold.}
-
-\item{deliverables}{Optional character vector of deliverables to prepare. If
-\code{NULL}, deliverables are inferred from the selected components.}
-
-\item{infrastructure}{Optional character vector of technical features to
-enable, such as \code{git}, \code{quarto}, or \code{tests}.}
-
-\item{preset}{Optional preset name used as a shorthand for a predefined
-scaffold configuration.}
-
-\item{component_specs}{Optional custom component spec path, a single spec
-list, or a list of spec objects merged into the available component map for
-this plan.}
-
-\item{use_internal_data_dirs}{Logical scalar indicating whether internal
-\verb{data/raw/} and \verb{data/processed/} directories should be included in the
-plan.}
-
-\item{include_example}{Logical scalar indicating whether the built-in example
-script should be included in the plan.}
 }
 \value{
-A structured project plan.
+An object of class \code{"project_plan"}. It is a structured list intended
+for printing, inspection, and downstream use by \code{\link{new_project}()}.
+The exact structure may evolve, but the object commonly contains:
+\describe{
+\item{\code{path}}{Resolved target project path.}
+\item{\code{title}}{Project title used in the proposed metadata.}
+\item{\code{components}}{Normalised components after alias resolution and
+dependency expansion.}
+\item{\code{deliverables}}{Normalised deliverables, either supplied by the
+user or inferred from components and presets.}
+\item{\code{infrastructure}}{Normalised infrastructure values, including
+any infrastructure dependencies added during planning.}
+\item{\code{folders}}{Project-relative folders proposed for creation.}
+\item{\code{files}}{Project-relative files proposed for creation.}
+\item{\code{scripts}}{Script registry entries proposed for creation.}
+\item{\code{reports}}{Report, dashboard, or document registry entries
+proposed for creation.}
+\item{\code{outputs}}{Registered output objects proposed for creation.}
+\item{\code{packages}}{R packages suggested by the requested scaffold.}
+\item{\code{checks}}{Planning diagnostics, including automatically added
+components, deliverables, or infrastructure dependencies.}
+}
 }
 \description{
-Preview a project plan without writing files
+\code{plan_project()} constructs the scaffold specification that can be
+inspected, plotted with \code{\link{plot.project_plan}()}, and then passed
+directly to \code{\link{new_project}()} through the \code{plan}
+argument. It does not create, modify, or delete files. The function is
+intended for inspection, validation, teaching, reproducibility review, and
+interactive project design before committing a scaffold to disk.
+}
+\details{
+A \pkg{projflow} project is assembled from controlled vocabularies rather
+than free-text labels. This is deliberate: the registry, folder layout,
+execution order, outputs, and package suggestions are easier to validate when
+common project objects have standard names.
+
+The returned plan is the creation contract used by
+\code{\link{new_project}()}. A typical workflow is
+\code{plan <- plan_project(...)}, \code{plot(plan)}, and
+\code{new_project(plan = plan)}. In particular, the plan describes:
+\itemize{
+\item the target project path and project metadata;
+\item selected analytical components, after alias normalisation and
+dependency expansion;
+\item inferred or explicitly requested deliverables;
+\item requested technical infrastructure, such as Git, Quarto, renv,
+tests, GitHub Actions, or targets support;
+\item project-relative folders and files that would be created;
+\item analysis scripts, reports, dashboards, applications, and registered
+outputs that would be added to the project registry;
+\item R packages suggested by the selected components and infrastructure;
+\item checks, warnings, and dependency additions made during planning.
+}
+
+Components are analytical work areas. Examples include
+\code{"data_preparation"}, \code{"quality_control"},
+\code{"exploratory_analysis"}, \code{"statistical_analysis"},
+\code{"model_diagnostics"}, \code{"tables"}, \code{"figures"},
+\code{"report"}, \code{"manuscript"}, \code{"dashboard"},
+\code{"shiny_app"}, \code{"project_management"},
+\code{"data_governance"}, \code{"communication"}, and
+\code{"validation"}. The authoritative list should be obtained with
+\code{available_project_components()} if that helper is exported in the
+installed version of the package.
+
+Deliverables are user-facing or analysis-facing outputs. Examples may include
+HTML reports, client reports, scientific reports, dashboards, Shiny
+applications, tables, figures, and project documentation. If
+\code{deliverables = NULL}, deliverables are inferred from the selected
+components. For example, requesting \code{"report"} usually implies a report
+deliverable, while requesting \code{"tables"} or \code{"figures"} may add
+the corresponding output directories and registry entries.
+
+Infrastructure values describe technical project support. Typical values are
+\code{"git"}, \code{"renv"}, \code{"quarto"},
+\code{"github_actions"}, \code{"targets"}, and \code{"tests"}. Use
+\code{NULL} to request the package default infrastructure and
+\code{character()} to request no infrastructure.
+
+Common aliases are accepted and normalised before the plan is built. For
+example, \code{"eda"} is interpreted as \code{"exploratory_analysis"},
+\code{"stats"} as \code{"statistical_analysis"}, and \code{"shiny"} as
+\code{"shiny_app"}. Unknown values are rejected. This protects the registry
+from misspellings and unstandardised project-object names.
 }
 \examples{
-\dontrun{
-plan_project(
-  path = "demo-project",
-  components = c("statistical_analysis", "report"),
+plan <- plan_project(
+  path = file.path(tempdir(), "demo-project"),
+  components = c("data_preparation", "statistical_analysis", "report"),
   infrastructure = character()
 )
+
+plan$components
+plan$deliverables
+plan$files
+
+# Visualise the proposed plan before creating files.
+plot(plan)
+
+# Create the inspected plan on disk.
+# new_project(plan = plan, open = FALSE)
+
+# The function validates controlled vocabularies. This call would fail
+# because "unknown_component" is not a recognised component name.
+# plan_project(components = c("statistical_analysis", "unknown_component"))
+
 }
+\seealso{
+\code{\link{new_project}()}, \code{\link{plot.project_plan}()},
+\code{\link{project_plan_network_data}()}, \code{\link{new_component}()},
+\code{\link{new_script}()}, \code{\link{new_report}()},
+\code{\link{new_output}()}
 }
 \author{
 Thiago de Paula Oliveira

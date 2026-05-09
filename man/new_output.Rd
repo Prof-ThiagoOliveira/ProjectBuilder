@@ -15,36 +15,66 @@ new_output(
 )
 }
 \arguments{
-\item{name}{Output object name used as the registry key and default filename
-stem.}
+\item{name}{Character scalar. Output name to store in the project registry.
+The value should be stable, descriptive, and suitable for use as a
+project-object identifier.}
 
-\item{type}{Output type such as \code{"table"}, \code{"figure"}, \code{"model"}, or
-\code{"output"}.}
+\item{type}{Character scalar. Output type recorded in the registry. The
+default, \code{"output"}, is generic. Use more specific values such as
+\code{"table"}, \code{"figure"}, \code{"dataset"}, or \code{"model"}
+when appropriate.}
 
-\item{path}{Optional explicit project-relative path for the output. When
-omitted, \code{projflow} uses the default location for the selected \code{type}.}
+\item{path}{Optional character scalar. Explicit project-relative output path.
+If \code{NULL}, a default path is inferred from \code{name} and
+\code{type}.}
 
-\item{root}{Existing project root to update.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before the output is registered.}
 
-\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing registry
-entry for the same output name.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, allow an existing output
+registration with the same name to be replaced where supported.}
 
-\item{repair}{Logical scalar. If \code{TRUE}, register an existing output file
-without overwriting it.}
+\item{repair}{Logical scalar. If \code{TRUE}, register an existing output path
+without attempting to create or overwrite the file.}
 
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
-modifying the project.}
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned registry
+change without modifying the project.}
 }
 \value{
-Invisibly returns the registered output path, or a dry-run plan.
+Invisibly returns the registered output path, or returns a dry-run plan when
+\code{dry_run = TRUE}.
 }
 \description{
-Register a project output
+\code{new_output()} registers a named output object in an existing
+\pkg{projflow} project. It is the general output-registration helper used by
+\code{\link{new_table}()} and \code{\link{new_figure}()}.
+}
+\details{
+Outputs are expected products of the analysis workflow. Registering them makes
+the project structure explicit: the registry can record what should be
+produced, where it should be located, and which object type it represents.
+
+The \code{type} argument should describe the output class. Common values
+include \code{"output"}, \code{"table"}, \code{"figure"},
+\code{"dataset"}, \code{"model"}, and \code{"report"}. Package-level
+validation may restrict the accepted set.
+
+Prefer project-relative paths for \code{path}. Absolute paths make the
+registry harder to share across operating systems and collaborators.
 }
 \examples{
 \dontrun{
-new_output("model_fit", type = "model")
+root <- tempfile("projflow-output-")
+new_project(path = root, components = "statistical_analysis", infrastructure = character())
+
+new_output("model_fit", type = "model", root = root)
+new_output("clean_dataset", type = "dataset", path = "outputs/data/clean_dataset.rds", root = root)
 }
+
+}
+\seealso{
+\code{\link{new_table}()}, \code{\link{new_figure}()},
+\code{\link{new_script}()}
 }
 \author{
 Thiago de Paula Oliveira

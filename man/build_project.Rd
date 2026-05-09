@@ -2,30 +2,64 @@
 % Please edit documentation in R/high_level_api.R
 \name{build_project}
 \alias{build_project}
-\title{Build a project}
+\title{Build a project workflow}
 \usage{
 build_project(root = ".", render_reports = TRUE, run_apps = FALSE)
 }
 \arguments{
-\item{root}{Existing project root to build.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before the workflow is run.}
 
-\item{render_reports}{Logical scalar. If \code{TRUE}, render registered reports
-after running registered scripts.}
+\item{render_reports}{Logical scalar. If \code{TRUE}, render registered
+reports after registered scripts have been executed. If \code{FALSE}, only
+the registered scripts are run.}
 
-\item{run_apps}{Logical scalar. If \code{TRUE}, launch the project app or
-dashboard after the build completes.}
+\item{run_apps}{Logical scalar. If \code{TRUE}, call
+\code{\link{serve_project}()} after the build completes. This can launch a
+Shiny application or preview a dashboard, depending on the project contents.}
 }
 \value{
-Structured build results.
+Invisibly returns a list with build results:
+\describe{
+\item{\code{root}}{Resolved project root.}
+\item{\code{rendered}}{Report-rendering results, or \code{NULL} when
+\code{render_reports = FALSE}.}
+\item{\code{status}}{Project-management status data, or \code{NULL} when
+the project does not contain the project-management component.}
+}
 }
 \description{
-Build a project
+\code{build_project()} executes the registered project workflow and, if
+requested, renders registered reports. It is the high-level build command for
+an existing \pkg{projflow} project.
+}
+\details{
+A build has up to three phases:
+\itemize{
+\item registered scripts are run in the order stored in the project
+registry;
+\item registered reports are rendered when \code{render_reports = TRUE};
+\item an interactive app or dashboard is launched when
+\code{run_apps = TRUE}.
+}
+
+If the project contains the \code{"project_management"} component, the
+function also collects a structured status report after the workflow has run.
+
+This function is intended for reproducible project execution. It may run user
+analysis code and may overwrite outputs created by those scripts. Review the
+project registry and scripts before using it in important directories.
 }
 \examples{
 \dontrun{
-build_project(render_reports = FALSE)
-build_project(render_reports = TRUE)
+build_project(root = ".", render_reports = FALSE)
+build_project(root = ".", render_reports = TRUE, run_apps = FALSE)
 }
+
+}
+\seealso{
+\code{\link{serve_project}()}, \code{\link{new_script}()},
+\code{\link{new_report}()}, \code{\link{new_app}()}
 }
 \author{
 Thiago de Paula Oliveira

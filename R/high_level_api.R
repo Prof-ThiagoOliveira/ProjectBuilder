@@ -1,34 +1,162 @@
-#' Preview a project plan without writing files
+#' Preview a project plan without creating files
 #'
-#' @param path Target project path. No files are written; the path is used only
-#'   to construct the proposed plan.
-#' @param title Optional project title to include in the plan metadata.
-#' @param components Character vector of components to include in the proposed
+#' @description
+#' \code{plan_project()} constructs the scaffold specification that can be
+#' inspected, plotted with \code{\link{plot.project_plan}()}, and then passed
+#' directly to \code{\link{new_project}()} through the \code{plan}
+#' argument. It does not create, modify, or delete files. The function is
+#' intended for inspection, validation, teaching, reproducibility review, and
+#' interactive project design before committing a scaffold to disk.
+#'
+#' @details
+#' A \pkg{projflow} project is assembled from controlled vocabularies rather
+#' than free-text labels. This is deliberate: the registry, folder layout,
+#' execution order, outputs, and package suggestions are easier to validate when
+#' common project objects have standard names.
+#'
+#' The returned plan is the creation contract used by
+#' \code{\link{new_project}()}. A typical workflow is
+#' \code{plan <- plan_project(...)}, \code{plot(plan)}, and
+#' \code{new_project(plan = plan)}. In particular, the plan describes:
+#' \itemize{
+#'   \item the target project path and project metadata;
+#'   \item selected analytical components, after alias normalisation and
+#'     dependency expansion;
+#'   \item inferred or explicitly requested deliverables;
+#'   \item requested technical infrastructure, such as Git, Quarto, renv,
+#'     tests, GitHub Actions, or targets support;
+#'   \item project-relative folders and files that would be created;
+#'   \item analysis scripts, reports, dashboards, applications, and registered
+#'     outputs that would be added to the project registry;
+#'   \item R packages suggested by the selected components and infrastructure;
+#'   \item checks, warnings, and dependency additions made during planning.
+#' }
+#'
+#' Components are analytical work areas. Examples include
+#' \code{"data_preparation"}, \code{"quality_control"},
+#' \code{"exploratory_analysis"}, \code{"statistical_analysis"},
+#' \code{"model_diagnostics"}, \code{"tables"}, \code{"figures"},
+#' \code{"report"}, \code{"manuscript"}, \code{"dashboard"},
+#' \code{"shiny_app"}, \code{"project_management"},
+#' \code{"data_governance"}, \code{"communication"}, and
+#' \code{"validation"}. The authoritative list should be obtained with
+#' \code{available_project_components()} if that helper is exported in the
+#' installed version of the package.
+#'
+#' Deliverables are user-facing or analysis-facing outputs. Examples may include
+#' HTML reports, client reports, scientific reports, dashboards, Shiny
+#' applications, tables, figures, and project documentation. If
+#' \code{deliverables = NULL}, deliverables are inferred from the selected
+#' components. For example, requesting \code{"report"} usually implies a report
+#' deliverable, while requesting \code{"tables"} or \code{"figures"} may add
+#' the corresponding output directories and registry entries.
+#'
+#' Infrastructure values describe technical project support. Typical values are
+#' \code{"git"}, \code{"renv"}, \code{"quarto"},
+#' \code{"github_actions"}, \code{"targets"}, and \code{"tests"}. Use
+#' \code{NULL} to request the package default infrastructure and
+#' \code{character()} to request no infrastructure.
+#'
+#' Common aliases are accepted and normalised before the plan is built. For
+#' example, \code{"eda"} is interpreted as \code{"exploratory_analysis"},
+#' \code{"stats"} as \code{"statistical_analysis"}, and \code{"shiny"} as
+#' \code{"shiny_app"}. Unknown values are rejected. This protects the registry
+#' from misspellings and unstandardised project-object names.
+#'
+#' @param path Character scalar. Target project directory. The directory is not
+#'   created by \code{plan_project()}. The value is normalised and used to derive
+#'   the proposed project name, root path, and project-relative paths shown in
+#'   the returned plan.
+#' @param title Optional character scalar. Human-readable project title stored in
+#'   the proposed project metadata. If \code{NULL}, the title is inferred from
+#'   \code{path} where possible.
+#' @param components Character vector. Analytical components to include in the
+#'   proposed scaffold. Values must be recognised component names or supported
+#'   aliases. Components control which directories, scripts, reports, registry
+#'   objects, outputs, package suggestions, and dependency checks are included.
+#'   Use \code{available_project_components()} to inspect the accepted values in
+#'   the installed package version.
+#' @param deliverables Optional character vector. Deliverables to prepare. If
+#'   \code{NULL}, deliverables are inferred from \code{components} and
+#'   \code{preset}. If supplied, values must be recognised deliverable names or
+#'   supported aliases. Use \code{available_project_deliverables()} to inspect
+#'   the accepted values in the installed package version.
+#' @param infrastructure Optional character vector. Technical infrastructure to
+#'   enable. If \code{NULL}, package defaults are used. Use \code{character()}
+#'   to request no infrastructure. Use
+#'   \code{available_project_infrastructure()} to inspect the accepted values in
+#'   the installed package version.
+#' @param preset Optional character scalar. Name of a predefined scaffold
+#'   configuration. A preset can contribute components, deliverables, and
+#'   infrastructure before explicitly supplied values are normalised and merged.
+#'   Explicit arguments may extend the preset. Use
+#'   \code{available_project_presets()} to inspect the accepted preset names in
+#'   the installed package version.
+#' @param component_specs Optional custom component specification. This may be a
+#'   YAML file path, a single component-specification list, or a list of
+#'   component-specification objects. Custom specifications are merged into the
+#'   available component map for the current plan, allowing package users to add
+#'   project-specific components without changing the built-in component map.
+#' @param use_internal_data_dirs Logical scalar. If \code{TRUE}, include
+#'   internal \file{data/raw/} and \file{data/processed/} directories in the
+#'   proposed folder layout. The default is \code{FALSE}, reflecting the package
+#'   design preference for external data roots in reproducible analytical
+#'   projects.
+#' @param include_example Logical scalar. If \code{TRUE}, include the built-in
+#'   example analysis script and any related placeholder outputs in the proposed
 #'   scaffold.
-#' @param deliverables Optional character vector of deliverables to prepare. If
-#'   `NULL`, deliverables are inferred from the selected components.
-#' @param infrastructure Optional character vector of technical features to
-#'   enable, such as `git`, `quarto`, or `tests`.
-#' @param preset Optional preset name used as a shorthand for a predefined
-#'   scaffold configuration.
-#' @param component_specs Optional custom component spec path, a single spec
-#'   list, or a list of spec objects merged into the available component map for
-#'   this plan.
-#' @param use_internal_data_dirs Logical scalar indicating whether internal
-#'   `data/raw/` and `data/processed/` directories should be included in the
-#'   plan.
-#' @param include_example Logical scalar indicating whether the built-in example
-#'   script should be included in the plan.
 #'
-#' @return A structured project plan.
+#' @return
+#' An object of class \code{"project_plan"}. It is a structured list intended
+#' for printing, inspection, and downstream use by \code{\link{new_project}()}.
+#' The exact structure may evolve, but the object commonly contains:
+#' \describe{
+#'   \item{\code{path}}{Resolved target project path.}
+#'   \item{\code{title}}{Project title used in the proposed metadata.}
+#'   \item{\code{components}}{Normalised components after alias resolution and
+#'     dependency expansion.}
+#'   \item{\code{deliverables}}{Normalised deliverables, either supplied by the
+#'     user or inferred from components and presets.}
+#'   \item{\code{infrastructure}}{Normalised infrastructure values, including
+#'     any infrastructure dependencies added during planning.}
+#'   \item{\code{folders}}{Project-relative folders proposed for creation.}
+#'   \item{\code{files}}{Project-relative files proposed for creation.}
+#'   \item{\code{scripts}}{Script registry entries proposed for creation.}
+#'   \item{\code{reports}}{Report, dashboard, or document registry entries
+#'     proposed for creation.}
+#'   \item{\code{outputs}}{Registered output objects proposed for creation.}
+#'   \item{\code{packages}}{R packages suggested by the requested scaffold.}
+#'   \item{\code{checks}}{Planning diagnostics, including automatically added
+#'     components, deliverables, or infrastructure dependencies.}
+#' }
+#'
+#' @seealso
+#' \code{\link{new_project}()}, \code{\link{plot.project_plan}()},
+#' \code{\link{project_plan_network_data}()}, \code{\link{new_component}()},
+#' \code{\link{new_script}()}, \code{\link{new_report}()},
+#' \code{\link{new_output}()}
+#'
 #' @examples
-#' \dontrun{
-#' plan_project(
-#'   path = "demo-project",
-#'   components = c("statistical_analysis", "report"),
+#' plan <- plan_project(
+#'   path = file.path(tempdir(), "demo-project"),
+#'   components = c("data_preparation", "statistical_analysis", "report"),
 #'   infrastructure = character()
 #' )
-#' }
+#'
+#' plan$components
+#' plan$deliverables
+#' plan$files
+#'
+#' # Visualise the proposed plan before creating files.
+#' plot(plan)
+#'
+#' # Create the inspected plan on disk.
+#' # new_project(plan = plan, open = FALSE)
+#'
+#' # The function validates controlled vocabularies. This call would fail
+#' # because "unknown_component" is not a recognised component name.
+#' # plan_project(components = c("statistical_analysis", "unknown_component"))
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 plan_project <- function(
@@ -54,44 +182,101 @@ plan_project <- function(
   )
 }
 
-#' Create a new project script
+#' Create and register a new project script
 #'
-#' @param name Script name. The value is normalised to a safe snake_case object
-#'   name before the file and registry entry are created.
-#' @param type Script type recorded in the registry and used to infer default
-#'   output locations when `outputs` are supplied.
-#' @param root Existing project root where the script should be added.
-#' @param order Optional numeric execution order. If omitted, the script is
-#'   placed after the highest existing script order.
-#' @param outputs Optional character vector of output names to register for the
-#'   script. If `NULL`, the script is created without registered outputs.
-#' @param output Optional explicit project-relative output path to register for
-#'   the script.
-#' @param template Template style used for the generated script. `"minimal"`
-#'   creates a bare scaffold; `"example"` adds placeholder analysis code and
-#'   save calls for any explicit outputs.
-#' @param open Logical scalar kept for API compatibility. The script is created
-#'   on disk but not opened automatically.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing script file
-#'   and registry entry with the same name.
-#' @param repair Logical scalar. If `TRUE`, register an existing script file
-#'   without overwriting it.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
-#'   modifying the project.
+#' @description
+#' \code{new_script()} adds a script to an existing \pkg{projflow} project. It
+#' is a high-level wrapper around the lower-level project-script creation logic
+#' and is intended for day-to-day use when a user wants to extend an existing
+#' project with a new analysis, cleaning, modelling, simulation, visualisation,
+#' or export step.
 #'
-#' @return Invisibly returns the created script path.
+#' @details
+#' The function performs two related operations:
+#' \itemize{
+#'   \item it creates, repairs, overwrites, or previews a project-relative script
+#'     file according to the selected template;
+#'   \item it records the script in the project registry so that project status,
+#'     project builds, dependency checks, and diagnostic tools can recognise the
+#'     script as part of the project workflow.
+#' }
+#'
+#' The \code{type} argument should be a standard project script type. Common
+#' values include \code{"import"}, \code{"data_preparation"},
+#' \code{"data_cleaning"}, \code{"quality_control"},
+#' \code{"exploratory_analysis"}, \code{"statistical_analysis"},
+#' \code{"model"}, \code{"model_diagnostics"}, \code{"simulation"},
+#' \code{"forecasting"}, \code{"optimisation"}, \code{"causal_inference"},
+#' \code{"visualisation"}, \code{"summary"}, \code{"export"}, and
+#' \code{"analysis"}. The exact accepted values are defined by the installed
+#' package version.
+#'
+#' When \code{outputs} or \code{output} is supplied, the output is also
+#' registered in the project registry. This allows later calls to project status,
+#' build, reporting, and diagnostic functions to identify expected products of
+#' the script.
+#'
+#' @param name Character scalar. Human-readable script name. The value is
+#'   normalised to a safe project-object name, typically a snake_case stem, before
+#'   the file path and registry entry are created.
+#' @param type Character scalar. Script type recorded in the registry. The type
+#'   is used to group workflow steps and may be used to infer default output
+#'   locations when \code{outputs} is supplied.
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the script is added. Use \code{"."} for
+#'   the current working directory.
+#' @param order Optional numeric scalar. Execution order recorded in the
+#'   registry. If \code{NULL}, the script is placed after the highest existing
+#'   script order.
+#' @param outputs Optional character vector. Names of outputs to register for the
+#'   script. These are converted into registry output entries using package
+#'   defaults for the selected script type.
+#' @param output Optional character scalar. Explicit project-relative output path
+#'   to register for the script. This is useful when the output path should not be
+#'   inferred from \code{outputs} or \code{type}.
+#' @param template Character scalar. Template style used for the generated script.
+#'   \code{"minimal"} creates a compact script scaffold. \code{"example"} adds
+#'   placeholder analysis code and output-writing calls where appropriate.
+#' @param open Logical scalar. Retained for user-interface compatibility. In the
+#'   current implementation, the script is created or registered but is not opened
+#'   automatically by this wrapper.
+#' @param overwrite Logical scalar. If \code{TRUE}, an existing script file and
+#'   registry entry with the same normalised name may be replaced.
+#' @param repair Logical scalar. If \code{TRUE}, register an existing script file
+#'   without overwriting the file. This is useful when a file exists on disk but
+#'   is missing from the project registry.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned registry and
+#'   file changes without modifying the project.
+#'
+#' @return
+#' In normal use, invisibly returns the created or registered script path. When
+#' \code{dry_run = TRUE}, returns the planned change object generated by the
+#' lower-level project-script helper. The return value is primarily intended for
+#' programmatic inspection and testing.
+#'
+#' @seealso
+#' \code{\link{plan_project}()}, \code{\link{new_component}()},
+#' \code{\link{new_report}()}, \code{\link{new_output}()}
+#'
 #' @examples
 #' \dontrun{
-#' new_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+#' root <- tempfile("projflow-script-")
+#' new_project(
+#'   path = root,
+#'   components = c("statistical_analysis"),
+#'   infrastructure = character()
+#' )
 #'
 #' new_script(
-#'   "fit_model",
+#'   name = "fit_model",
 #'   type = "model",
-#'   outputs = "heritability_model",
+#'   root = root,
+#'   outputs = "model_fit",
 #'   template = "example",
 #'   open = FALSE
 #' )
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_script <- function(name,
@@ -120,28 +305,78 @@ new_script <- function(name,
   )
 }
 
-#' Create a new report
+#' Create and register a new project report
 #'
-#' @param name Report name. This is used as the filename stem unless the helper
-#'   is returning an existing built-in report such as `main_report`.
-#' @param type Report type shortcut. This determines which components or
+#' @description
+#' \code{new_report()} adds a Quarto report to an existing \pkg{projflow}
+#' project and records it in the project registry. It is the high-level report
+#' creation helper for analysis reports, client-facing reports, and scientific
+#' reports.
+#'
+#' @details
+#' The function combines report-file creation with any registry updates required
+#' by the selected report type.
+#'
+#' Supported report types are:
+#' \itemize{
+#'   \item \code{"html_report"}: creates or ensures an HTML-oriented report
+#'     workflow. If the project does not already include the report component or
+#'     HTML report deliverable, they are added.
+#'   \item \code{"client_report"}: creates or ensures a client-report
+#'     deliverable. The built-in \file{reports/client_report.qmd} file is used
+#'     when the default name is requested.
+#'   \item \code{"scientific_report"}: creates a scientific report scaffold and
+#'     ensures that table and figure components are available, because scientific
+#'     reports usually depend on structured tabular and graphical outputs.
+#' }
+#'
+#' Reports are written as \file{.qmd} files. Rendering is handled separately by
+#' \code{\link{build_project}()} or \code{\link{serve_project}()}, depending
+#' on whether the user wants a full build or an interactive preview.
+#'
+#' @param name Character scalar. Report name. The value is used as the filename
+#'   stem for non-default reports. For example, \code{name = "analysis_report"}
+#'   creates \file{reports/analysis_report.qmd} unless a built-in report path is
+#'   returned.
+#' @param type Character scalar. Report type shortcut. One of
+#'   \code{"html_report"}, \code{"client_report"}, or
+#'   \code{"scientific_report"}. The type determines which components or
 #'   deliverables are added before the report file is created.
-#' @param root Existing project root where the report should be added.
-#' @param open Logical scalar kept for API compatibility. The report is written
-#'   to disk but not opened automatically.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing report file
-#'   and registry entry with the same name.
-#' @param repair Logical scalar. If `TRUE`, register an existing report file
-#'   without overwriting it.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
-#'   modifying the project.
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the report is added.
+#' @param open Logical scalar. Retained for user-interface compatibility. In the
+#'   current implementation, the report is written or registered but is not opened
+#'   automatically by this wrapper.
+#' @param overwrite Logical scalar. If \code{TRUE}, an existing report file and
+#'   corresponding registry entry may be replaced where supported.
+#' @param repair Logical scalar. If \code{TRUE}, register an existing report file
+#'   without overwriting it. This is useful when a report exists on disk but is
+#'   missing from the registry.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned change
+#'   without writing files or modifying the registry.
 #'
-#' @return Invisibly returns the created report path.
+#' @return
+#' Invisibly returns the path to the created, existing, or registered report file.
+#' When \code{dry_run = TRUE}, returns the dry-run object produced by the
+#' lower-level report or deliverable helper.
+#'
+#' @seealso
+#' \code{\link{new_script}()}, \code{\link{new_app}()},
+#' \code{\link{build_project}()}, \code{\link{serve_project}()}
+#'
 #' @examples
 #' \dontrun{
-#' new_report("main_report", type = "html_report", open = FALSE)
-#' new_report("client_report", type = "client_report", open = FALSE)
+#' root <- tempfile("projflow-report-")
+#' new_project(
+#'   path = root,
+#'   components = c("statistical_analysis", "report"),
+#'   infrastructure = character()
+#' )
+#'
+#' new_report("main_report", type = "html_report", root = root, open = FALSE)
+#' new_report("scientific_summary", type = "scientific_report", root = root)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_report <- function(
@@ -186,26 +421,69 @@ new_report <- function(
   new_project_report(name = name, format = "qmd", root = root, open = open, overwrite = overwrite, repair = repair, dry_run = dry_run)
 }
 
-#' Create a new app or dashboard
+#' Create a project Shiny application or Quarto dashboard
 #'
-#' @param name App or dashboard name. For dashboards, non-default names are used
-#'   as the `.qmd` filename stem.
-#' @param type App type to create. `"shiny"` adds the Shiny app scaffold,
-#'   whereas `"quarto_dashboard"` adds a Quarto dashboard deliverable.
-#' @param root Existing project root where the app or dashboard should be added.
-#' @param open Logical scalar kept for API compatibility. The created file is
-#'   not opened automatically.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing dashboard or
-#'   app scaffold when supported.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
-#'   modifying the project.
+#' @description
+#' \code{new_app()} adds an interactive project interface to an existing
+#' \pkg{projflow} project. The interface can be a Shiny application or a Quarto
+#' dashboard, depending on the requested \code{type}.
 #'
-#' @return Invisibly returns the created app or dashboard path.
+#' @details
+#' Interactive interfaces are useful for project diagnostics, operational
+#' monitoring, reporting, and communication with collaborators. This function
+#' creates only the scaffold and registry entries. It does not launch the
+#' application or render the dashboard; use \code{\link{serve_project}()} for
+#' previewing and \code{\link{build_project}()} for full project execution.
+#'
+#' Supported application types are:
+#' \itemize{
+#'   \item \code{"shiny"}: adds the \code{"shiny_app"} project component and
+#'     returns the expected \file{app/app.R} path. The application can later be
+#'     launched through \code{\link[shiny:runApp]{shiny::runApp}()} by
+#'     \code{\link{serve_project}()}.
+#'   \item \code{"quarto_dashboard"}: adds the dashboard deliverable and creates
+#'     a \file{.qmd} dashboard file when a non-default dashboard name is
+#'     requested.
+#' }
+#'
+#' @param name Character scalar. Application or dashboard name. For Quarto
+#'   dashboards, non-default names are used as the \file{.qmd} filename stem.
+#'   For Shiny applications, the standard application path is \file{app/app.R}.
+#' @param type Character scalar. Type of interactive interface to create. Use
+#'   \code{"shiny"} for a Shiny application or \code{"quarto_dashboard"} for a
+#'   Quarto dashboard.
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the application or dashboard is added.
+#' @param open Logical scalar. Retained for user-interface compatibility. In the
+#'   current implementation, the created file is not opened automatically by this
+#'   wrapper.
+#' @param overwrite Logical scalar. If \code{TRUE}, allow an existing dashboard
+#'   or application scaffold to be replaced where supported.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned change
+#'   without writing files or modifying the registry.
+#'
+#' @return
+#' Invisibly returns the expected or created path for the Shiny application or
+#' Quarto dashboard. With \code{dry_run = TRUE}, returns a dry-run registry
+#' action or project-plan object where supported.
+#'
+#' @seealso
+#' \code{\link{new_report}()}, \code{\link{new_component}()},
+#' \code{\link{serve_project}()}, \code{\link{build_project}()}
+#'
 #' @examples
 #' \dontrun{
-#' new_app(type = "shiny", open = FALSE)
-#' new_app(name = "operations_dashboard", type = "quarto_dashboard", open = FALSE)
+#' root <- tempfile("projflow-app-")
+#' new_project(
+#'   path = root,
+#'   components = c("statistical_analysis"),
+#'   infrastructure = character()
+#' )
+#'
+#' new_app(type = "shiny", root = root, open = FALSE)
+#' new_app(name = "operations_dashboard", type = "quarto_dashboard", root = root)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_app <- function(
@@ -242,51 +520,166 @@ new_app <- function(
 
 #' Add a component to an existing project
 #'
-#' @param component Component name to add, such as `"tables"`,
-#'   `"figures"`, or `"project_management"`.
-#' @param root Existing project root to update.
-#' @param open Logical scalar kept for API compatibility. Added files are not
-#'   opened automatically.
-#' @param overwrite Logical scalar. If `TRUE`, allow template files added by the
-#'   component to be refreshed.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned amended project
-#'   plan without writing files.
+#' @description
+#' \code{new_component()} extends an existing \pkg{projflow} project with one
+#' additional analytical or organisational component.
 #'
-#' @return A scaffold result object.
+#' @details
+#' A component is a standard project capability, such as tables, figures,
+#' reporting, dashboards, Shiny applications, project management, data
+#' governance, validation, or a specific analysis phase. Adding a component may
+#' create folders, template scripts, reports, registry entries, expected outputs,
+#' and package suggestions.
+#'
+#' Component dependencies are handled by the lower-level project planning logic.
+#' For example, adding a report-related component may require report folders and
+#' deliverables; adding table or figure components may require output folders.
+#' Unknown components are rejected to avoid inconsistent project registries.
+#'
+#' This function modifies an existing project unless \code{dry_run = TRUE}.
+#' Use \code{\link{plan_project}()} to preview a complete new project scaffold
+#' before creating a project.
+#'
+#' @param component Character scalar. Component name to add. Examples include
+#'   \code{"tables"}, \code{"figures"}, \code{"report"},
+#'   \code{"dashboard"}, \code{"shiny_app"},
+#'   \code{"project_management"}, \code{"data_governance"}, and
+#'   \code{"validation"}. The exact accepted values are defined by the installed
+#'   package version.
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the component is added.
+#' @param open Logical scalar. Retained for user-interface compatibility. Added
+#'   files are not opened automatically by this wrapper.
+#' @param overwrite Logical scalar. If \code{TRUE}, allow template files added by
+#'   the component to replace existing files where supported.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned project
+#'   amendment without writing files or modifying the registry.
+#'
+#' @return
+#' A scaffold result object produced by the component-addition helper. The object
+#' records the files, folders, registry entries, and checks associated with the
+#' requested component. With \code{dry_run = TRUE}, the returned object describes
+#' the planned amendment without applying it.
+#'
+#' @seealso
+#' \code{\link{plan_project}()}, \code{\link{new_script}()},
+#' \code{\link{new_report}()}, \code{\link{new_app}()}
+#'
 #' @examples
 #' \dontrun{
-#' new_component("tables", open = FALSE)
+#' root <- tempfile("projflow-component-")
+#' new_project(path = root, infrastructure = character())
+#'
+#' new_component("tables", root = root, open = FALSE)
+#' new_component("project_management", root = root, dry_run = TRUE)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_component <- function(component, root = ".", open = interactive(), overwrite = FALSE, dry_run = FALSE) {
   add_project_component(component = component, root = root, open = open, overwrite = overwrite, dry_run = dry_run)
 }
 
-#' Register a lightweight table output
+#' Register a table output
 #'
-#' @inheritParams new_project_output
+#' @description
+#' \code{new_table()} registers a table output in an existing \pkg{projflow}
+#' project. It is a convenience wrapper around \code{\link{new_output}()} with
+#' \code{type = "table"}.
 #'
-#' @return Invisibly returns the registered output path, or a dry-run plan.
+#' @details
+#' Registered table outputs make expected analysis products explicit. They can be
+#' used by project diagnostics, project status summaries, reports, and build
+#' workflows to distinguish expected tabular outputs from incidental files.
+#'
+#' If \code{path = NULL}, the package chooses the default table-output location
+#' for the project. If \code{path} is supplied, it should usually be
+#' project-relative so that the registry remains portable across machines.
+#'
+#' @param name Character scalar. Output name to store in the project registry.
+#'   The value should be stable, descriptive, and suitable for use as a
+#'   project-object identifier.
+#' @param path Optional character scalar. Explicit project-relative output path.
+#'   If \code{NULL}, a default path is inferred for a table output.
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the output is registered.
+#' @param overwrite Logical scalar. If \code{TRUE}, allow an existing output
+#'   registration with the same name to be replaced where supported.
+#' @param repair Logical scalar. If \code{TRUE}, register an existing output path
+#'   without attempting to create or overwrite the file.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned registry
+#'   change without modifying the project.
+#'
+#' @return
+#' Invisibly returns the registered table-output path, or returns a dry-run plan
+#' when \code{dry_run = TRUE}.
+#'
+#' @seealso
+#' \code{\link{new_figure}()}, \code{\link{new_output}()},
+#' \code{\link{new_script}()}
+#'
 #' @examples
 #' \dontrun{
-#' new_table("summary_statistics")
+#' root <- tempfile("projflow-table-")
+#' new_project(path = root, components = "tables", infrastructure = character())
+#'
+#' new_table("summary_statistics", root = root)
+#' new_table("model_coefficients", path = "outputs/tables/model_coefficients.csv", root = root)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_table <- function(name, path = NULL, root = ".", overwrite = FALSE, repair = FALSE, dry_run = FALSE) {
   new_project_output(name = name, type = "table", path = path, root = root, overwrite = overwrite, repair = repair, dry_run = dry_run)
 }
 
-#' Register a lightweight figure output
+#' Register a figure output
 #'
-#' @inheritParams new_project_output
+#' @description
+#' \code{new_figure()} registers a figure output in an existing \pkg{projflow}
+#' project. It is a convenience wrapper around \code{\link{new_output}()} with
+#' \code{type = "figure"}.
 #'
-#' @return Invisibly returns the registered output path, or a dry-run plan.
+#' @details
+#' Registered figure outputs make graphical products explicit in the project
+#' registry. This is useful for report generation, project diagnostics, quality
+#' control, and reproducibility review.
+#'
+#' If \code{path = NULL}, the package chooses the default figure-output
+#' location for the project. If \code{path} is supplied, it should usually be
+#' project-relative so that the registry remains portable across machines.
+#'
+#' @param name Character scalar. Output name to store in the project registry.
+#'   The value should be stable, descriptive, and suitable for use as a
+#'   project-object identifier.
+#' @param path Optional character scalar. Explicit project-relative output path.
+#'   If \code{NULL}, a default path is inferred for a figure output.
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the output is registered.
+#' @param overwrite Logical scalar. If \code{TRUE}, allow an existing output
+#'   registration with the same name to be replaced where supported.
+#' @param repair Logical scalar. If \code{TRUE}, register an existing output path
+#'   without attempting to create or overwrite the file.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned registry
+#'   change without modifying the project.
+#'
+#' @return
+#' Invisibly returns the registered figure-output path, or returns a dry-run plan
+#' when \code{dry_run = TRUE}.
+#'
+#' @seealso
+#' \code{\link{new_table}()}, \code{\link{new_output}()},
+#' \code{\link{new_script}()}
+#'
 #' @examples
 #' \dontrun{
-#' new_figure("heritability_plot")
+#' root <- tempfile("projflow-figure-")
+#' new_project(path = root, components = "figures", infrastructure = character())
+#'
+#' new_figure("heritability_plot", root = root)
+#' new_figure("diagnostic_plot", path = "outputs/figures/diagnostic_plot.png", root = root)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_figure <- function(name, path = NULL, root = ".", overwrite = FALSE, repair = FALSE, dry_run = FALSE) {
@@ -295,33 +688,119 @@ new_figure <- function(name, path = NULL, root = ".", overwrite = FALSE, repair 
 
 #' Register a project output
 #'
-#' @inheritParams new_project_output
+#' @description
+#' \code{new_output()} registers a named output object in an existing
+#' \pkg{projflow} project. It is the general output-registration helper used by
+#' \code{\link{new_table}()} and \code{\link{new_figure}()}.
 #'
-#' @return Invisibly returns the registered output path, or a dry-run plan.
+#' @details
+#' Outputs are expected products of the analysis workflow. Registering them makes
+#' the project structure explicit: the registry can record what should be
+#' produced, where it should be located, and which object type it represents.
+#'
+#' The \code{type} argument should describe the output class. Common values
+#' include \code{"output"}, \code{"table"}, \code{"figure"},
+#' \code{"dataset"}, \code{"model"}, and \code{"report"}. Package-level
+#' validation may restrict the accepted set.
+#'
+#' Prefer project-relative paths for \code{path}. Absolute paths make the
+#' registry harder to share across operating systems and collaborators.
+#'
+#' @param name Character scalar. Output name to store in the project registry.
+#'   The value should be stable, descriptive, and suitable for use as a
+#'   project-object identifier.
+#' @param type Character scalar. Output type recorded in the registry. The
+#'   default, \code{"output"}, is generic. Use more specific values such as
+#'   \code{"table"}, \code{"figure"}, \code{"dataset"}, or \code{"model"}
+#'   when appropriate.
+#' @param path Optional character scalar. Explicit project-relative output path.
+#'   If \code{NULL}, a default path is inferred from \code{name} and
+#'   \code{type}.
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the output is registered.
+#' @param overwrite Logical scalar. If \code{TRUE}, allow an existing output
+#'   registration with the same name to be replaced where supported.
+#' @param repair Logical scalar. If \code{TRUE}, register an existing output path
+#'   without attempting to create or overwrite the file.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned registry
+#'   change without modifying the project.
+#'
+#' @return
+#' Invisibly returns the registered output path, or returns a dry-run plan when
+#' \code{dry_run = TRUE}.
+#'
+#' @seealso
+#' \code{\link{new_table}()}, \code{\link{new_figure}()},
+#' \code{\link{new_script}()}
+#'
 #' @examples
 #' \dontrun{
-#' new_output("model_fit", type = "model")
+#' root <- tempfile("projflow-output-")
+#' new_project(path = root, components = "statistical_analysis", infrastructure = character())
+#'
+#' new_output("model_fit", type = "model", root = root)
+#' new_output("clean_dataset", type = "dataset", path = "outputs/data/clean_dataset.rds", root = root)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_output <- function(name, type = "output", path = NULL, root = ".", overwrite = FALSE, repair = FALSE, dry_run = FALSE) {
   new_project_output(name = name, type = type, path = path, root = root, overwrite = overwrite, repair = repair, dry_run = dry_run)
 }
 
-#' Build a project
+#' Build a project workflow
 #'
-#' @param root Existing project root to build.
-#' @param render_reports Logical scalar. If `TRUE`, render registered reports
-#'   after running registered scripts.
-#' @param run_apps Logical scalar. If `TRUE`, launch the project app or
-#'   dashboard after the build completes.
+#' @description
+#' \code{build_project()} executes the registered project workflow and, if
+#' requested, renders registered reports. It is the high-level build command for
+#' an existing \pkg{projflow} project.
 #'
-#' @return Structured build results.
+#' @details
+#' A build has up to three phases:
+#' \itemize{
+#'   \item registered scripts are run in the order stored in the project
+#'     registry;
+#'   \item registered reports are rendered when \code{render_reports = TRUE};
+#'   \item an interactive app or dashboard is launched when
+#'     \code{run_apps = TRUE}.
+#' }
+#'
+#' If the project contains the \code{"project_management"} component, the
+#' function also collects a structured status report after the workflow has run.
+#'
+#' This function is intended for reproducible project execution. It may run user
+#' analysis code and may overwrite outputs created by those scripts. Review the
+#' project registry and scripts before using it in important directories.
+#'
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before the workflow is run.
+#' @param render_reports Logical scalar. If \code{TRUE}, render registered
+#'   reports after registered scripts have been executed. If \code{FALSE}, only
+#'   the registered scripts are run.
+#' @param run_apps Logical scalar. If \code{TRUE}, call
+#'   \code{\link{serve_project}()} after the build completes. This can launch a
+#'   Shiny application or preview a dashboard, depending on the project contents.
+#'
+#' @return
+#' Invisibly returns a list with build results:
+#' \describe{
+#'   \item{\code{root}}{Resolved project root.}
+#'   \item{\code{rendered}}{Report-rendering results, or \code{NULL} when
+#'     \code{render_reports = FALSE}.}
+#'   \item{\code{status}}{Project-management status data, or \code{NULL} when
+#'     the project does not contain the project-management component.}
+#' }
+#'
+#' @seealso
+#' \code{\link{serve_project}()}, \code{\link{new_script}()},
+#' \code{\link{new_report}()}, \code{\link{new_app}()}
+#'
 #' @examples
 #' \dontrun{
-#' build_project(render_reports = FALSE)
-#' build_project(render_reports = TRUE)
+#' build_project(root = ".", render_reports = FALSE)
+#' build_project(root = ".", render_reports = TRUE, run_apps = FALSE)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 build_project <- function(root = ".", render_reports = TRUE, run_apps = FALSE) {
@@ -348,22 +827,73 @@ build_project <- function(root = ".", render_reports = TRUE, run_apps = FALSE) {
   invisible(list(root = root, rendered = rendered, status = status))
 }
 
-#' Serve a project for interactive development
+#' Serve or preview a project interactively
 #'
-#' @param root Existing project root to preview or serve.
-#' @param target Target to serve. `"auto"` chooses between reports, dashboard,
-#'   Shiny app, or the full project based on the files present.
-#' @param watch Logical scalar kept for API compatibility. Continuous watch mode
-#'   is not currently implemented, so the function performs a one-shot preview.
-#' @param render Logical scalar indicating whether reports or dashboards should
-#'   be rendered as part of the preview step.
+#' @description
+#' \code{serve_project()} launches or previews the most appropriate interactive
+#' target for an existing \pkg{projflow} project. Depending on \code{target}
+#' and the files present in the project, it can launch a Shiny application,
+#' render a Quarto dashboard, render reports, or run a one-shot project build.
 #'
-#' @return Invisibly returns the launched target or build result.
+#' @details
+#' The function resolves \code{target = "auto"} using the following priority:
+#' \itemize{
+#'   \item if \file{app/app.R} exists, serve the Shiny application;
+#'   \item otherwise, if \file{dashboard/dashboard.qmd} exists, preview the
+#'     dashboard;
+#'   \item otherwise, if registered or discoverable report files exist, render or
+#'     return the report target;
+#'   \item otherwise, run a one-shot project build.
+#' }
+#'
+#' Continuous watch mode is not currently implemented. If \code{watch = TRUE},
+#' the function emits an informational message and performs a single preview or
+#' build action.
+#'
+#' For Shiny applications, the \pkg{shiny} package must be installed because the
+#' app is launched using \code{\link[shiny:runApp]{shiny::runApp}()}. For
+#' Quarto dashboards and reports, rendering depends on the package's Quarto
+#' rendering helpers and on a working Quarto installation where required by the
+#' project.
+#'
+#' @param root Character scalar. Path inside an existing \pkg{projflow} project.
+#'   The project root is located before any target is served or rendered.
+#' @param target Character scalar. Target to serve or preview. Use
+#'   \code{"auto"} to let the function choose from the project contents,
+#'   \code{"reports"} to render or return report information,
+#'   \code{"shiny_app"} to launch \file{app/app.R}, \code{"dashboard"} to
+#'   render or return the dashboard path, or \code{"project"} to run a one-shot
+#'   build.
+#' @param watch Logical scalar. Retained for future interactive workflows.
+#'   Continuous watching is not currently implemented; when \code{TRUE}, the
+#'   function performs a single preview or build and reports that watch mode is
+#'   unavailable.
+#' @param render Logical scalar. If \code{TRUE}, reports or dashboards are
+#'   rendered as part of the preview step. If \code{FALSE}, the function returns
+#'   the relevant path or project status without rendering where supported.
+#'
+#' @return
+#' Invisibly returns the launched target path, rendered report result, project
+#' status object, or build result, depending on the resolved target:
+#' \itemize{
+#'   \item \code{"shiny_app"}: path to \file{app/app.R};
+#'   \item \code{"dashboard"}: dashboard render result or dashboard path;
+#'   \item \code{"reports"}: report-rendering result or project status;
+#'   \item \code{"project"}: result from \code{\link{build_project}()}.
+#' }
+#'
+#' @seealso
+#' \code{\link{build_project}()}, \code{\link{new_app}()},
+#' \code{\link{new_report}()},
+#' \code{\link[shiny:runApp]{shiny::runApp}()}
+#'
 #' @examples
 #' \dontrun{
-#' serve_project(target = "reports", render = TRUE)
-#' serve_project(target = "shiny_app", render = FALSE)
+#' serve_project(root = ".", target = "reports", render = TRUE)
+#' serve_project(root = ".", target = "dashboard", render = FALSE)
+#' serve_project(root = ".", target = "shiny_app", render = FALSE)
 #' }
+#'
 #' @author Thiago de Paula Oliveira
 #' @export
 serve_project <- function(

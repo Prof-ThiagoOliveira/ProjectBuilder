@@ -2,7 +2,7 @@
 % Please edit documentation in R/high_level_api.R
 \name{new_app}
 \alias{new_app}
-\title{Create a new app or dashboard}
+\title{Create a project Shiny application or Quarto dashboard}
 \usage{
 new_app(
   name = "app",
@@ -14,34 +14,72 @@ new_app(
 )
 }
 \arguments{
-\item{name}{App or dashboard name. For dashboards, non-default names are used
-as the \code{.qmd} filename stem.}
+\item{name}{Character scalar. Application or dashboard name. For Quarto
+dashboards, non-default names are used as the \file{.qmd} filename stem.
+For Shiny applications, the standard application path is \file{app/app.R}.}
 
-\item{type}{App type to create. \code{"shiny"} adds the Shiny app scaffold,
-whereas \code{"quarto_dashboard"} adds a Quarto dashboard deliverable.}
+\item{type}{Character scalar. Type of interactive interface to create. Use
+\code{"shiny"} for a Shiny application or \code{"quarto_dashboard"} for a
+Quarto dashboard.}
 
-\item{root}{Existing project root where the app or dashboard should be added.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before the application or dashboard is added.}
 
-\item{open}{Logical scalar kept for API compatibility. The created file is
-not opened automatically.}
+\item{open}{Logical scalar. Retained for user-interface compatibility. In the
+current implementation, the created file is not opened automatically by this
+wrapper.}
 
-\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing dashboard or
-app scaffold when supported.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, allow an existing dashboard
+or application scaffold to be replaced where supported.}
 
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
-modifying the project.}
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change
+without writing files or modifying the registry.}
 }
 \value{
-Invisibly returns the created app or dashboard path.
+Invisibly returns the expected or created path for the Shiny application or
+Quarto dashboard. With \code{dry_run = TRUE}, returns a dry-run registry
+action or project-plan object where supported.
 }
 \description{
-Create a new app or dashboard
+\code{new_app()} adds an interactive project interface to an existing
+\pkg{projflow} project. The interface can be a Shiny application or a Quarto
+dashboard, depending on the requested \code{type}.
+}
+\details{
+Interactive interfaces are useful for project diagnostics, operational
+monitoring, reporting, and communication with collaborators. This function
+creates only the scaffold and registry entries. It does not launch the
+application or render the dashboard; use \code{\link{serve_project}()} for
+previewing and \code{\link{build_project}()} for full project execution.
+
+Supported application types are:
+\itemize{
+\item \code{"shiny"}: adds the \code{"shiny_app"} project component and
+returns the expected \file{app/app.R} path. The application can later be
+launched through \code{\link[shiny:runApp]{shiny::runApp}()} by
+\code{\link{serve_project}()}.
+\item \code{"quarto_dashboard"}: adds the dashboard deliverable and creates
+a \file{.qmd} dashboard file when a non-default dashboard name is
+requested.
+}
 }
 \examples{
 \dontrun{
-new_app(type = "shiny", open = FALSE)
-new_app(name = "operations_dashboard", type = "quarto_dashboard", open = FALSE)
+root <- tempfile("projflow-app-")
+new_project(
+  path = root,
+  components = c("statistical_analysis"),
+  infrastructure = character()
+)
+
+new_app(type = "shiny", root = root, open = FALSE)
+new_app(name = "operations_dashboard", type = "quarto_dashboard", root = root)
 }
+
+}
+\seealso{
+\code{\link{new_report}()}, \code{\link{new_component}()},
+\code{\link{serve_project}()}, \code{\link{build_project}()}
 }
 \author{
 Thiago de Paula Oliveira

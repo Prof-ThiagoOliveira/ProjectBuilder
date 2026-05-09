@@ -2,7 +2,7 @@
 % Please edit documentation in R/high_level_api.R
 \name{new_table}
 \alias{new_table}
-\title{Register a lightweight table output}
+\title{Register a table output}
 \usage{
 new_table(
   name,
@@ -14,33 +14,56 @@ new_table(
 )
 }
 \arguments{
-\item{name}{Output object name used as the registry key and default filename
-stem.}
+\item{name}{Character scalar. Output name to store in the project registry.
+The value should be stable, descriptive, and suitable for use as a
+project-object identifier.}
 
-\item{path}{Optional explicit project-relative path for the output. When
-omitted, \code{projflow} uses the default location for the selected \code{type}.}
+\item{path}{Optional character scalar. Explicit project-relative output path.
+If \code{NULL}, a default path is inferred for a table output.}
 
-\item{root}{Existing project root to update.}
+\item{root}{Character scalar. Path inside an existing \pkg{projflow} project.
+The project root is located before the output is registered.}
 
-\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing registry
-entry for the same output name.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, allow an existing output
+registration with the same name to be replaced where supported.}
 
-\item{repair}{Logical scalar. If \code{TRUE}, register an existing output file
-without overwriting it.}
+\item{repair}{Logical scalar. If \code{TRUE}, register an existing output path
+without attempting to create or overwrite the file.}
 
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
-modifying the project.}
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned registry
+change without modifying the project.}
 }
 \value{
-Invisibly returns the registered output path, or a dry-run plan.
+Invisibly returns the registered table-output path, or returns a dry-run plan
+when \code{dry_run = TRUE}.
 }
 \description{
-Register a lightweight table output
+\code{new_table()} registers a table output in an existing \pkg{projflow}
+project. It is a convenience wrapper around \code{\link{new_output}()} with
+\code{type = "table"}.
+}
+\details{
+Registered table outputs make expected analysis products explicit. They can be
+used by project diagnostics, project status summaries, reports, and build
+workflows to distinguish expected tabular outputs from incidental files.
+
+If \code{path = NULL}, the package chooses the default table-output location
+for the project. If \code{path} is supplied, it should usually be
+project-relative so that the registry remains portable across machines.
 }
 \examples{
 \dontrun{
-new_table("summary_statistics")
+root <- tempfile("projflow-table-")
+new_project(path = root, components = "tables", infrastructure = character())
+
+new_table("summary_statistics", root = root)
+new_table("model_coefficients", path = "outputs/tables/model_coefficients.csv", root = root)
 }
+
+}
+\seealso{
+\code{\link{new_figure}()}, \code{\link{new_output}()},
+\code{\link{new_script}()}
 }
 \author{
 Thiago de Paula Oliveira
