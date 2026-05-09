@@ -13,40 +13,79 @@ new_project(
   preset = NULL,
   component_specs = NULL,
   use_internal_data_dirs = FALSE,
-  include_example = TRUE,
+  include_example = FALSE,
   open = interactive(),
-  overwrite = FALSE
+  overwrite = FALSE,
+  repair = FALSE,
+  dry_run = FALSE
 )
 }
 \arguments{
-\item{path}{Target project path.}
+\item{path}{Target project path. The directory is created if needed and then
+populated with the scaffold selected by the remaining arguments.}
 
-\item{title}{Optional project title.}
+\item{title}{Optional human-readable project title written into project
+metadata. If omitted, the project folder name is used.}
 
-\item{components}{Project components to include.}
+\item{components}{Character vector of project components to include, such as
+\code{"statistical_analysis"}, \code{"report"}, \code{"tables"}, or
+\code{"project_management"}.}
 
-\item{deliverables}{Deliverables to prepare.}
+\item{deliverables}{Optional character vector of deliverables to prepare,
+such as \code{"html_report"}, \code{"tables"}, or \code{"dashboard"}. When \code{NULL},
+deliverables are inferred from components.}
 
-\item{infrastructure}{Technical support features to enable.}
+\item{infrastructure}{Optional character vector of technical features to
+enable, such as \code{"git"}, \code{"tests"}, \code{"quarto"}, or \code{"renv"}. Use
+\code{NULL} to accept default infrastructure or \code{character()} to disable
+inferred infrastructure.}
 
-\item{preset}{Optional preset shortcut.}
+\item{preset}{Optional preset name that expands to a predefined combination
+of components, deliverables, and infrastructure before explicit arguments
+are merged in.}
 
-\item{component_specs}{Optional custom component spec path, spec list, or
-list of specs.}
+\item{component_specs}{Optional custom component spec path, a single spec
+list, or a list of spec objects used to extend the built-in component
+registry for this project.}
 
-\item{use_internal_data_dirs}{Should internal \verb{data/raw/} and
-\verb{data/processed/} folders be created? Defaults to \code{FALSE}.}
+\item{use_internal_data_dirs}{Logical scalar. If \code{TRUE}, create internal
+\verb{data/raw/} and \verb{data/processed/} folders. The default \code{FALSE} keeps the
+package's external-data-first behavior.}
 
-\item{include_example}{Should example files be created?}
+\item{include_example}{Logical scalar. If \code{TRUE}, include the built-in
+\code{analysis/example_analysis.R} example script. The default \code{FALSE} keeps the
+scaffold minimal and avoids generating starter artefacts unless requested.}
 
-\item{open}{Included for API compatibility. Project opening is not
-automated.}
+\item{open}{Logical scalar kept for API compatibility. \code{projflow} does not
+automatically open the project in an IDE or editor.}
 
-\item{overwrite}{Should existing files be overwritten?}
+\item{overwrite}{Logical scalar indicating whether an existing non-empty
+target directory may be populated or updated.}
+
+\item{repair}{Logical scalar. If \code{TRUE}, allow \code{projflow} to populate or
+register missing standard files in an existing project directory without
+overwriting files already present.}
+
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the computed project plan
+without writing any files.}
 }
 \value{
 An object of class \code{"analysis_project_scaffold"}.
 }
 \description{
 Create a component-driven project
+}
+\examples{
+\dontrun{
+new_project(
+  path = "demo-project",
+  preset = "basic_analysis",
+  components = c("statistical_analysis", "report"),
+  infrastructure = character(),
+  open = FALSE
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

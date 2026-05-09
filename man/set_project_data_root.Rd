@@ -7,15 +7,26 @@
 set_project_data_root(path, name = "default", root = ".")
 }
 \arguments{
-\item{path}{External data root path.}
+\item{path}{Path to the external data directory for the current machine. The
+stored value is normalised to an absolute path.}
 
-\item{name}{Data source name.}
+\item{name}{Data source name, such as \code{"default"} or \code{"reference"}.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose \code{.projflow/local.yml} file should be
+updated.}
 }
 \value{
 Invisibly returns the stored absolute path.
 }
 \description{
 Configure a local external data root
+}
+\examples{
+\dontrun{
+set_project_data_root("/mnt/project_data", name = "default")
+set_project_data_root("/mnt/reference_data", name = "reference")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

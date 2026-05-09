@@ -7,13 +7,25 @@
 init_git_repo(path, strict = FALSE)
 }
 \arguments{
-\item{path}{Project root path.}
+\item{path}{Project root path where a Git repository should be initialised if
+one does not already exist.}
 
-\item{strict}{Logical. Should failures error instead of warning?}
+\item{strict}{Logical scalar. If \code{TRUE}, Git initialisation failures raise an
+error; otherwise a warning-style message is returned.}
 }
 \value{
 \code{NULL} on success or a warning message when Git was not initialised.
 }
 \description{
 Initialise a Git repository when available
+}
+\examples{
+\dontrun{
+tmp <- tempfile("projflow-git-init-")
+dir.create(tmp)
+projflow:::init_git_repo(tmp)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

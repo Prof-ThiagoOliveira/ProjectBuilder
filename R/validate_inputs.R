@@ -1,8 +1,13 @@
 #' Validate a project path
 #'
-#' @param path Target project path.
+#' @param path Target project path supplied by the user. This may be relative,
+#'   contain `~`, or include redundant whitespace; the function normalises it to
+#'   an absolute path representation.
 #'
 #' @return A normalized project path.
+#' @examples
+#' projflow:::resolve_project_path(".")
+#' @author Thiago de Paula Oliveira
 resolve_project_path <- function(path) {
   normalizePath(path.expand(trimws(path)), winslash = "/", mustWork = FALSE)
 }
@@ -36,10 +41,18 @@ detect_path_construction_warning <- function(raw_path, resolved_path) {
 
 #' Validate whether a project path can be used
 #'
-#' @param path Target project path.
-#' @param overwrite Logical. Should existing files be overwritten?
+#' @param path Target project path after normalisation.
+#' @param overwrite Logical scalar. If `TRUE`, existing non-empty directories
+#'   are accepted; if `FALSE`, `projflow` refuses to write into a non-empty
+#'   target directory.
 #'
 #' @return Invisibly returns the validated path.
+#' @examples
+#' \dontrun{
+#' tmp <- tempfile("projflow-path-")
+#' projflow:::validate_project_path(tmp, overwrite = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 validate_project_path <- function(path, overwrite = FALSE) {
   if (!is.character(path) || length(path) != 1L || is.na(path) || !nzchar(path)) {
     rlang::abort("`path` must be a non-empty character scalar.")
@@ -68,9 +81,13 @@ validate_project_path <- function(path, overwrite = FALSE) {
 
 #' Validate a project name
 #'
-#' @param project_name Project name supplied by the user.
+#' @param project_name Project name supplied by the user, usually derived from a
+#'   folder name or explicit project title field.
 #'
 #' @return A validated project name.
+#' @examples
+#' projflow:::validate_project_name("My analysis project")
+#' @author Thiago de Paula Oliveira
 validate_project_name <- function(project_name) {
   if (!is.character(project_name) ||
       length(project_name) != 1L ||
@@ -91,10 +108,13 @@ validate_project_name <- function(project_name) {
 
 #' Validate a logical scalar
 #'
-#' @param x Object to validate.
-#' @param arg Argument name.
+#' @param x Object to validate as a single non-missing logical value.
+#' @param arg Argument name used in the error message when validation fails.
 #'
 #' @return Invisibly returns `TRUE`.
+#' @examples
+#' projflow:::validate_logical_scalar(TRUE, "overwrite")
+#' @author Thiago de Paula Oliveira
 validate_logical_scalar <- function(x, arg) {
   if (!is.logical(x) || length(x) != 1L || is.na(x)) {
     rlang::abort(paste0("`", arg, "` must be TRUE or FALSE."))
@@ -105,11 +125,15 @@ validate_logical_scalar <- function(x, arg) {
 
 #' Validate a character vector
 #'
-#' @param x Object to validate.
-#' @param arg Argument name.
-#' @param allow_null Logical. Whether `NULL` is allowed.
+#' @param x Object to validate as a character vector without `NA` or empty
+#'   entries.
+#' @param arg Argument name used in the error message when validation fails.
+#' @param allow_null Logical scalar indicating whether `NULL` is accepted.
 #'
 #' @return Invisibly returns `TRUE`.
+#' @examples
+#' projflow:::validate_character_vector(c("analysis", "report"), "components")
+#' @author Thiago de Paula Oliveira
 validate_character_vector <- function(x, arg, allow_null = FALSE) {
   if (isTRUE(allow_null) && is.null(x)) {
     return(invisible(TRUE))
@@ -134,10 +158,13 @@ validate_character_vector <- function(x, arg, allow_null = FALSE) {
 
 #' Validate package names
 #'
-#' @param packages Package vector.
-#' @param allow_null Logical. Whether `NULL` is allowed.
+#' @param packages Character vector of package names to validate and clean.
+#' @param allow_null Logical scalar indicating whether `NULL` is accepted.
 #'
 #' @return Cleaned package names.
+#' @examples
+#' projflow:::validate_package_names(c("fs", "yaml", "fs"))
+#' @author Thiago de Paula Oliveira
 validate_package_names <- function(packages, allow_null = TRUE) {
   validate_character_vector(packages, "packages", allow_null = allow_null)
 
@@ -163,11 +190,14 @@ validate_package_names <- function(packages, allow_null = TRUE) {
 
 #' Validate a single choice
 #'
-#' @param x Choice to validate.
-#' @param choices Allowed choices.
-#' @param arg Argument name.
+#' @param x Single character value to match against `choices`.
+#' @param choices Character vector of allowed values.
+#' @param arg Argument name used in the error message when validation fails.
 #'
 #' @return The validated choice.
+#' @examples
+#' projflow:::validate_choice("analysis", c("analysis", "report"), "type")
+#' @author Thiago de Paula Oliveira
 validate_choice <- function(x, choices, arg) {
   if (!is.character(x) || length(x) != 1L || is.na(x)) {
     rlang::abort(paste0("`", arg, "` must be a character scalar."))

@@ -37,15 +37,20 @@ test_that("projects with only project.yml are recognised", {
   expect_identical(find_project_root(nested), normalizePath(project_path, winslash = "/", mustWork = TRUE))
 })
 
-test_that("projects with .projectSetupR registry are recognised", {
-  project_path <- make_project_path("registry-only")
-  dir.create(file.path(project_path, ".projectSetupR"), recursive = TRUE)
-  yaml::write_yaml(default_project_registry("registry_only"), file.path(project_path, ".projectSetupR", "project_registry.yml"))
+test_that("new projects use .projflow metadata by default", {
+  project_path <- make_project_path("new-metadata-dir")
 
-  nested <- file.path(project_path, "analysis", "subdir")
-  dir.create(nested, recursive = TRUE)
+  new_project(
+    path = project_path,
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
 
-  expect_identical(find_project_root(nested), normalizePath(project_path, winslash = "/", mustWork = TRUE))
+  expect_true(dir.exists(file.path(project_path, ".projflow")))
+  expect_true(file.exists(file.path(project_path, ".projflow", "project_registry.yml")))
+  expect_true(file.exists(file.path(project_path, ".projflow", "local.yml")))
+  expect_false(dir.exists(file.path(project_path, ".projectSetupR")))
 })
 
 test_that("new_script creates a parseable script and registers it", {
@@ -64,8 +69,10 @@ test_that("new_script creates a parseable script and registers it", {
   expect_true(file.exists("analysis/clean_phenotypes.R"))
   expect_no_error(parse(file = "analysis/clean_phenotypes.R"))
 
-  registry <- yaml::read_yaml(".projectSetupR/project_registry.yml")
+  registry <- yaml::read_yaml(".projflow/project_registry.yml")
   expect_true("clean_phenotypes" %in% names(registry$scripts))
   expect_identical(registry$scripts$clean_phenotypes$type, "data_cleaning")
-  expect_match(paste(readLines("analysis/clean_phenotypes.R", warn = FALSE), collapse = "\n"), 'type = "data_cleaning"', fixed = TRUE)
+  expect_length(registry$scripts$clean_phenotypes$outputs, 0L)
+  expect_false("clean_phenotypes" %in% names(registry$outputs))
+  expect_false(any(grepl("save_project_object", readLines("analysis/clean_phenotypes.R", warn = FALSE), fixed = TRUE)))
 })

@@ -8,21 +8,45 @@ new_report(
   name = "main_report",
   type = c("html_report", "client_report", "scientific_report"),
   root = ".",
-  open = interactive()
+  open = interactive(),
+  overwrite = FALSE,
+  repair = FALSE,
+  dry_run = FALSE
 )
 }
 \arguments{
-\item{name}{Report name.}
+\item{name}{Report name. This is used as the filename stem unless the helper
+is returning an existing built-in report such as \code{main_report}.}
 
-\item{type}{Report type.}
+\item{type}{Report type shortcut. This determines which components or
+deliverables are added before the report file is created.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root where the report should be added.}
 
-\item{open}{Included for API compatibility.}
+\item{open}{Logical scalar kept for API compatibility. The report is written
+to disk but not opened automatically.}
+
+\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing report file
+and registry entry with the same name.}
+
+\item{repair}{Logical scalar. If \code{TRUE}, register an existing report file
+without overwriting it.}
+
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
+modifying the project.}
 }
 \value{
 Invisibly returns the created report path.
 }
 \description{
 Create a new report
+}
+\examples{
+\dontrun{
+new_report("main_report", type = "html_report", open = FALSE)
+new_report("client_report", type = "client_report", open = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

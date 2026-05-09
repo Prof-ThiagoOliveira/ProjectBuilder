@@ -12,19 +12,37 @@ create_git_files(
 )
 }
 \arguments{
-\item{path}{Project root path.}
+\item{path}{Project root path where \code{.gitignore}, \code{.Rbuildignore}, and
+\code{.gitattributes} should be written.}
 
-\item{overwrite}{Should existing files be overwritten?}
+\item{overwrite}{Logical scalar. If \code{TRUE}, existing Git support files are
+replaced; if \code{FALSE}, existing files are preserved.}
 
-\item{use_internal_data_dirs}{Should internal data directories be ignored
-explicitly?}
+\item{use_internal_data_dirs}{Logical scalar indicating whether the scaffold
+includes internal \verb{data/} folders that should be ignored explicitly in the
+generated \code{.gitignore}.}
 
-\item{deliverables}{Project deliverables used to shape allow-lists for final
-tracked outputs.}
+\item{deliverables}{Character vector of project deliverables. This is used to
+decide whether output tables should remain ignored broadly or whether
+selected \verb{outputs/tables/} files should be allow-listed for tracking.}
 }
 \value{
 A list with created and skipped file paths.
 }
 \description{
 Create Git support files
+}
+\examples{
+\dontrun{
+tmp <- tempfile("projflow-git-")
+dir.create(tmp)
+projflow:::create_git_files(
+  path = tmp,
+  use_internal_data_dirs = FALSE,
+  deliverables = c("html_report", "tables")
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

@@ -7,11 +7,19 @@
 project_status(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root to inspect.}
 }
 \value{
 Structured project-check result.
 }
 \description{
 Project status alias
+}
+\examples{
+\dontrun{
+project_status()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

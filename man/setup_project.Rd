@@ -12,17 +12,29 @@ setup_project(
 )
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root to initialise for the current R session.}
 
-\item{install_missing}{Should missing packages be installed?}
+\item{install_missing}{Logical scalar. If \code{TRUE}, missing packages declared
+in the project configuration are installed automatically.}
 
-\item{check_paths}{Should key directories be created if absent?}
+\item{check_paths}{Logical scalar. If \code{TRUE}, key project directories are
+created if they are missing.}
 
-\item{set_seed}{Should the configured random seed be set?}
+\item{set_seed}{Logical scalar. If \code{TRUE}, set the configured project random
+seed when one is defined in \code{project.yml}.}
 }
 \value{
 Project metadata, paths, registry, and package status.
 }
 \description{
 Set up a project for use
+}
+\examples{
+\dontrun{
+setup_project()
+setup_project(install_missing = FALSE, check_paths = TRUE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

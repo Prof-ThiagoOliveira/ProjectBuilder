@@ -7,11 +7,19 @@
 list_project_objects(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose registry should be listed.}
 }
 \value{
 Data frame with scripts, reports, and outputs.
 }
 \description{
 List registered project entities
+}
+\examples{
+\dontrun{
+list_project_objects()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

@@ -4,18 +4,40 @@
 \alias{new_component}
 \title{Add a component to an existing project}
 \usage{
-new_component(component, root = ".", open = interactive())
+new_component(
+  component,
+  root = ".",
+  open = interactive(),
+  overwrite = FALSE,
+  dry_run = FALSE
+)
 }
 \arguments{
-\item{component}{Component name.}
+\item{component}{Component name to add, such as \code{"tables"},
+\code{"figures"}, or \code{"project_management"}.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root to update.}
 
-\item{open}{Included for API compatibility.}
+\item{open}{Logical scalar kept for API compatibility. Added files are not
+opened automatically.}
+
+\item{overwrite}{Logical scalar. If \code{TRUE}, allow template files added by the
+component to be refreshed.}
+
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned amended project
+plan without writing files.}
 }
 \value{
 A scaffold result object.
 }
 \description{
 Add a component to an existing project
+}
+\examples{
+\dontrun{
+new_component("tables", open = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

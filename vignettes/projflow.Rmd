@@ -1,0 +1,733 @@
+---
+title: "Using projflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using projflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Overview
+
+`projflow` creates analysis project scaffolds that are intentionally lightweight:
+
+- code, reports, and small derived artefacts live in the repository;
+- raw, large, and machine-specific data live outside the repository by default;
+- a project registry links scripts, reports, and outputs;
+- projects can be planned, built, checked, and extended incrementally.
+
+The package is designed for analysis projects that need useful defaults without
+forcing a large folder tree or unnecessary placeholder files.
+
+# Core concepts
+
+Most of the public API is easier to understand if you keep four concepts
+separate:
+
+- **component**: a project capability, such as `statistical_analysis`,
+  `report`, `tables`, `figures`, `project_management`, or `shiny_app`;
+- **deliverable**: an intended end product, such as `html_report`, `tables`,
+  `dashboard`, or `status_report`;
+- **infrastructure**: supporting tooling, such as `git`, `quarto`, `tests`,
+  `github_actions`, or `renv`;
+- **registry object**: a script, report, or output entry recorded in
+  `.projflow/project_registry.yml`.
+
+The distinction between **scripts**, **reports**, and **outputs** matters:
+
+- a **script** is source code to execute;
+- a **report** is a `qmd` or `Rmd` document to render;
+- an **output** is an artefact created by a script, such as an `.rds`, `.csv`,
+  `.png`, or rendered report file.
+
+# Typical workflow
+
+The normal lifecycle looks like this:
+
+1. Inspect a scaffold with `plan_project()`.
+2. Create a project with `new_project()`.
+3. Configure external data roots with `set_project_data_root()`.
+4. Add scripts and reports with `new_script()`, `new_report()`, `new_app()`, or
+   `new_component()`.
+5. Save artefacts explicitly with `save_project_object()`.
+6. Run and render with `build_project()`.
+7. Inspect project health with `check_project()` and `project_status()`.
+
+```{r, eval = FALSE}
+library(projflow)
+
+plan <- plan_project(
+  path = "my_analysis",
+  components = c("data_preparation", "statistical_analysis", "report"),
+  infrastructure = character()
+)
+
+new_project(
+  path = "my_analysis",
+  components = c("data_preparation", "statistical_analysis", "report"),
+  infrastructure = character(),
+  open = FALSE
+)
+
+set_project_data_root("D:/shared/my_analysis_data")
+
+new_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+
+build_project(render_reports = TRUE)
+check_project()
+```
+
+# Planning a project before writing files
+
+`plan_project()` previews what `new_project()` would create.
+
+```{r, eval = FALSE}
+plan <- plan_project(
+  path = "demo-project",
+  title = "Demo Project",
+  components = c("statistical_analysis", "report"),
+  infrastructure = c("git", "tests"),
+  include_example = TRUE
+)
+```
+
+The returned plan contains:
+
+- `plan$components`, `plan$deliverables`, `plan$infrastructure`;
+- `plan$folders` and `plan$files`;
+- `plan$scripts` and `plan$reports`;
+- `plan$registry`, which shows the script/report/output entries that will be
+  written;
+- `plan$checks`, which includes dependency-resolution messages.
+
+This is especially useful when presets, deliverables, or dependencies would
+expand the scaffold.
+
+## Components, deliverables, and infrastructure
+
+Use components to describe the analytical workflow:
+
+```{r, eval = FALSE}
+plan_project(
+  path = "analysis-only",
+  components = c("data_preparation", "quality_control", "statistical_analysis"),
+  infrastructure = character()
+)
+```
+
+Use deliverables when you care about outputs rather than only upstream steps:
+
+```{r, eval = FALSE}
+plan_project(
+  path = "reporting-project",
+  components = "statistical_analysis",
+  deliverables = c("html_report", "tables"),
+  infrastructure = character()
+)
+```
+
+Use infrastructure to add reproducibility or automation support:
+
+```{r, eval = FALSE}
+plan_project(
+  path = "tested-project",
+  components = c("statistical_analysis", "report"),
+  infrastructure = c("git", "tests", "github_actions")
+)
+```
+
+## Presets and explicit arguments
+
+If you use a preset, `projflow` merges it with explicit arguments rather than
+replacing them.
+
+```{r, eval = FALSE}
+plan_project(
+  path = "preset-project",
+  preset = "basic_analysis",
+  deliverables = "tables",
+  infrastructure = c("git", "tests")
+)
+```
+
+## Internal versus external data directories
+
+By default, `projflow` assumes project data are external. If you explicitly want
+internal `data/raw/` and `data/processed/` folders, set
+`use_internal_data_dirs = TRUE`.
+
+```{r, eval = FALSE}
+new_project(
+  path = "internal-data-project",
+  components = c("statistical_analysis", "report"),
+  use_internal_data_dirs = TRUE,
+  infrastructure = character()
+)
+```
+
+# Creating a new project
+
+`new_project()` writes the scaffold to disk.
+
+```{r, eval = FALSE}
+new_project(
+  path = "livestock-study",
+  title = "Livestock Study",
+  components = c("statistical_analysis", "report"),
+  infrastructure = character(),
+  include_example = TRUE,
+  open = FALSE
+)
+```
+
+For a minimal report-oriented project, the default scaffold usually includes:
+
+- `README.md`;
+- `run_project.R`;
+- `project.yml`;
+- `.projflow/project_registry.yml`;
+- `.projflow/local.yml`;
+- `analysis/`;
+- `reports/`;
+- `outputs/`;
+- `<project>.Rproj`.
+
+If `include_example = TRUE`, the scaffold also includes
+`analysis/example_analysis.R`. This is the only default script intended to
+create a placeholder output automatically.
+
+## Minimal report scaffolds
+
+The `report` component is intentionally minimal:
+
+- it implies `html_report`;
+- it creates `reports/main_report.qmd`;
+- it does **not** imply `tables` or `figures`;
+- it does **not** add a default summary script by itself.
+
+That means you only get tables or figure scripts if you request those
+components or deliverables explicitly.
+
+# Configuring external data
+
+External data roots are stored in `.projflow/local.yml`, which is intended
+to stay machine-local and should not be committed.
+
+## Set and read data roots
+
+```{r, eval = FALSE}
+set_project_data_root("/mnt/project_data", name = "default")
+set_project_data_root("/mnt/reference_data", name = "reference")
+
+project_data_root()
+project_data_root("reference")
+```
+
+## Build data paths reproducibly
+
+```{r, eval = FALSE}
+phenotypes <- utils::read.csv(
+  project_data_path("phenotypes.csv")
+)
+
+field_map <- project_data_path(
+  "maps",
+  "field_map.gpkg",
+  source = "reference"
+)
+```
+
+## Inspect and remove configured sources
+
+```{r, eval = FALSE}
+list_project_data_sources()
+check_project_data_access()
+remove_project_data_source("reference")
+```
+
+# Adding scripts, reports, apps, and components
+
+## New scripts
+
+`new_script()` is the main high-level helper for user-created scripts.
+
+```{r, eval = FALSE}
+new_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+```
+
+By default, this:
+
+- creates `analysis/clean_phenotypes.R`;
+- registers the script in the project registry;
+- does **not** register an output;
+- does **not** create a placeholder `.rds`.
+
+### Minimal versus example templates
+
+Use `template = "minimal"` for a bare scaffold:
+
+```{r, eval = FALSE}
+new_script(
+  name = "merge_datasets",
+  type = "data_preparation",
+  template = "minimal",
+  open = FALSE
+)
+```
+
+Use `template = "example"` if you want placeholder saving code. Saving code is
+added only if you explicitly provide `outputs`.
+
+```{r, eval = FALSE}
+new_script(
+  name = "fit_model",
+  type = "model",
+  outputs = "heritability_model",
+  template = "example",
+  open = FALSE
+)
+```
+
+### Full script constructor
+
+`new_project_script()` exposes the same behavior directly:
+
+```{r, eval = FALSE}
+new_project_script(
+  name = "quality_summary",
+  type = "quality_control",
+  outputs = "qc_summary",
+  template = "example",
+  open = FALSE
+)
+```
+
+## Convenience script helpers
+
+These are wrappers around `new_project_script()` with preset types:
+
+```{r, eval = FALSE}
+new_project_model("genomic_model", open = FALSE)
+new_project_table("export_tables", open = FALSE)
+new_project_figure("plot_results", open = FALSE)
+```
+
+## Reports
+
+Create or extend reports with `new_report()` or `new_project_report()`.
+
+```{r, eval = FALSE}
+new_report("main_report", type = "html_report", open = FALSE)
+new_report("client_report", type = "client_report", open = FALSE)
+
+new_project_report("supplementary_note", format = "qmd", open = FALSE)
+```
+
+`new_report()` is a higher-level verb that can add required components or
+deliverables. `new_project_report()` just writes and registers a report file.
+
+## Components
+
+Add capabilities to an existing project with `new_component()`.
+
+```{r, eval = FALSE}
+new_component("tables", open = FALSE)
+new_component("figures", open = FALSE)
+new_component("project_management", open = FALSE)
+```
+
+## Apps and dashboards
+
+```{r, eval = FALSE}
+new_app(type = "shiny", open = FALSE)
+new_app(type = "quarto_dashboard", open = FALSE)
+```
+
+`new_app()` adds the corresponding component or deliverable and writes the
+expected entry-point file when needed.
+
+# Outputs and the project registry
+
+The registry is the backbone of the package.
+
+Use these functions when you want explicit control over outputs.
+
+## Register, update, and remove outputs
+
+```{r, eval = FALSE}
+register_project_object(
+  name = "weekly_summary",
+  path = "outputs/tables/weekly_summary.csv",
+  type = "table"
+)
+
+update_project_object(
+  "weekly_summary",
+  generated_by = "summarise_weekly"
+)
+
+unregister_project_object("weekly_summary")
+```
+
+## Save and load outputs
+
+`save_project_object()` writes a file to the appropriate output location and
+records it in the registry if needed.
+
+```{r, eval = FALSE}
+result <- data.frame(id = 1:3, value = c(4.2, 4.8, 5.1))
+
+save_project_object(
+  result,
+  name = "analysis_results",
+  type = "analysis"
+)
+
+load_project_object("analysis_results")
+```
+
+Supported output families include:
+
+- RDS-style outputs for `analysis`, `data_cleaning`, `dataset`, and generic
+  `output`;
+- `.csv` outputs for `table`, `summary`, and `export`;
+- `.png` outputs for `figure` and `visualisation`;
+- report outputs under `outputs/reports/`.
+
+## Saving outside the repository
+
+If you want to save derived artefacts under a configured external data root
+instead of the project repository:
+
+```{r, eval = FALSE}
+save_external_project_object(
+  result,
+  name = "analysis_results_backup",
+  type = "analysis",
+  source = "default"
+)
+```
+
+## Inspect registered objects and outputs
+
+```{r, eval = FALSE}
+list_project_objects()
+list_project_outputs()
+missing_project_outputs()
+stale_project_outputs()
+```
+
+These helpers are useful for understanding what the registry expects, what has
+actually been created, and which outputs are older than their generating
+scripts.
+
+# Running scripts and building the project
+
+## Setup inside scripts
+
+Analysis scripts should normally start with:
+
+```{r, eval = FALSE}
+projflow::setup_project()
+```
+
+This loads project metadata, locates the root, ensures key directories exist,
+and reports missing package requirements.
+
+## Run individual objects or steps
+
+```{r, eval = FALSE}
+run_project_object("analysis_results")
+run_project_step("analysis_core")
+```
+
+## Run all registered scripts
+
+```{r, eval = FALSE}
+run_project()
+```
+
+`run_project()` executes registered scripts in order using the registry.
+
+## Build the full project
+
+```{r, eval = FALSE}
+build_project(render_reports = FALSE)
+build_project(render_reports = TRUE)
+```
+
+`build_project()` runs registered scripts and then optionally renders reports.
+
+## Render only reports
+
+```{r, eval = FALSE}
+render_project_reports()
+```
+
+Quarto reports require Quarto to be installed and available. R Markdown reports
+require `rmarkdown`.
+
+# Serving reports and apps interactively
+
+Use `serve_project()` when you want a lightweight preview entry point.
+
+```{r, eval = FALSE}
+serve_project(target = "project", render = FALSE)
+serve_project(target = "reports", render = TRUE)
+serve_project(target = "dashboard", render = TRUE)
+serve_project(target = "shiny_app", render = FALSE)
+```
+
+With `target = "auto"`, `projflow` chooses a sensible default based on the
+files present in the project.
+
+# Checking project health
+
+`check_project()` is a health check, not a full build.
+
+```{r, eval = FALSE}
+check_project()
+check_project(deep = TRUE)
+check_project(render_reports = TRUE)
+check_project(strict = TRUE)
+check_project(repair = TRUE)
+```
+
+Important behavior:
+
+- `deep = TRUE` performs deeper static checks;
+- `render_reports = TRUE` opts into rendering reports during the check;
+- `strict = TRUE` raises an error on critical failures;
+- `repair = TRUE` can recreate safe missing project files and directories.
+
+Use `project_status()` for a lightweight status object with a dedicated print
+method:
+
+```{r, eval = FALSE}
+status <- project_status()
+status
+```
+
+## Git and GitHub Actions checks
+
+```{r, eval = FALSE}
+check_git_status()
+check_github_actions()
+use_github_actions(workflow = "check-project")
+use_github_actions(workflow = "render-reports")
+```
+
+# Project management helpers
+
+If you include the `project_management` component, `projflow` creates
+`.projflow/tasks.yml` and governance files under `docs/`.
+
+## Tasks
+
+```{r, eval = FALSE}
+add_project_task(
+  "Review model outputs",
+  status = "todo",
+  priority = "high"
+)
+
+project_tasks()
+
+update_project_task(
+  "review_model_outputs",
+  status = "blocked",
+  notes = "Waiting for external data access"
+)
+
+complete_project_task("review_model_outputs")
+remove_project_task("review_model_outputs")
+```
+
+## Milestones
+
+```{r, eval = FALSE}
+add_project_milestone("Draft report", due = "2026-06-01")
+project_milestones()
+update_project_milestone("draft_report", status = "done")
+```
+
+## Decisions and risks
+
+```{r, eval = FALSE}
+add_project_decision(
+  title = "Use external data roots",
+  decision = "Keep raw data outside the repository",
+  rationale = "Avoid tracking large and machine-specific files"
+)
+
+project_decisions()
+
+add_project_risk(
+  title = "Missing external data",
+  mitigation = "Confirm access before first analysis run"
+)
+
+project_risks()
+```
+
+## Status reports
+
+```{r, eval = FALSE}
+project_status_report(output = "data")
+project_status_report(output = "markdown")
+project_status_report(output = "html")
+```
+
+# Lower-level constructors
+
+Most users will work with `new_project()`, `new_script()`, `new_report()`, and
+`new_component()`, but the package also exports lower-level helpers:
+
+```{r, eval = FALSE}
+new_project_object("custom_table", type = "table")
+new_project_idea("future_analysis", create_script = TRUE)
+```
+
+These are useful when you want direct control over exactly what gets written and
+registered.
+
+# End-to-end example
+
+The following example shows a realistic minimal workflow.
+
+```{r, eval = FALSE}
+library(projflow)
+
+new_project(
+  path = "animal-breeding-study",
+  components = c("data_preparation", "statistical_analysis", "report"),
+  infrastructure = c("git", "tests"),
+  include_example = TRUE,
+  open = FALSE
+)
+
+set_project_data_root("D:/project_data/animal-breeding-study")
+
+new_script(
+  name = "clean_phenotypes",
+  type = "data_cleaning",
+  template = "minimal",
+  open = FALSE
+)
+
+new_script(
+  name = "fit_heritability_model",
+  type = "model",
+  outputs = "heritability_model",
+  template = "example",
+  open = FALSE
+)
+
+new_component("tables", open = FALSE)
+new_component("figures", open = FALSE)
+
+add_project_task("Check pedigree completeness", priority = "high")
+
+build_project(render_reports = TRUE)
+
+list_project_outputs()
+project_status_report(output = "markdown")
+check_project(deep = TRUE)
+```
+
+# Function map
+
+The exported API can be grouped as follows.
+
+## Project creation and planning
+
+- `plan_project()`
+- `new_project()`
+- `new_component()`
+- `new_report()`
+- `new_app()`
+
+## Data location helpers
+
+- `set_project_data_root()`
+- `project_data_root()`
+- `project_data_path()`
+- `list_project_data_sources()`
+- `check_project_data_access()`
+- `remove_project_data_source()`
+
+## Scripts, reports, and outputs
+
+- `new_script()`
+- `new_project_script()`
+- `new_project_report()`
+- `new_project_model()`
+- `new_project_table()`
+- `new_project_figure()`
+- `new_project_idea()`
+- `new_project_object()`
+- `register_project_object()`
+- `update_project_object()`
+- `unregister_project_object()`
+- `save_project_object()`
+- `save_external_project_object()`
+- `load_project_object()`
+- `list_project_objects()`
+- `list_project_outputs()`
+- `missing_project_outputs()`
+- `stale_project_outputs()`
+
+## Running and rendering
+
+- `setup_project()`
+- `run_project()`
+- `run_project_object()`
+- `run_project_step()`
+- `build_project()`
+- `render_project_reports()`
+- `serve_project()`
+
+## Checks and automation
+
+- `check_project()`
+- `project_status()`
+- `check_git_status()`
+- `check_github_actions()`
+- `use_github_actions()`
+
+## Project management
+
+- `project_tasks()`
+- `add_project_task()`
+- `update_project_task()`
+- `complete_project_task()`
+- `remove_project_task()`
+- `project_milestones()`
+- `add_project_milestone()`
+- `update_project_milestone()`
+- `project_decisions()`
+- `add_project_decision()`
+- `project_risks()`
+- `add_project_risk()`
+- `project_status_report()`
+
+# Summary
+
+`projflow` is most effective when you use it as a thin project orchestration
+layer:
+
+- keep the scaffold minimal;
+- keep raw and large data external by default;
+- register scripts, reports, and outputs intentionally;
+- save outputs explicitly rather than relying on placeholders;
+- use `build_project()` for execution and `check_project()` for health checks.
+
+That workflow keeps projects reproducible without forcing unnecessary structure
+or repository clutter.

@@ -7,11 +7,20 @@
 list_project_data_sources(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose local data-source configuration should
+be listed.}
 }
 \value{
 Data frame of configured sources.
 }
 \description{
 List configured external data sources
+}
+\examples{
+\dontrun{
+list_project_data_sources()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

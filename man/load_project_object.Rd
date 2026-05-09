@@ -7,13 +7,21 @@
 load_project_object(name, root = ".")
 }
 \arguments{
-\item{name}{Object name.}
+\item{name}{Output object name to load from the registry.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose registry should be consulted.}
 }
 \value{
 Loaded object.
 }
 \description{
 Load a saved project object
+}
+\examples{
+\dontrun{
+load_project_object("analysis_results")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

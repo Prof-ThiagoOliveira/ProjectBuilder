@@ -7,13 +7,21 @@
 run_project_object(name, root = ".")
 }
 \arguments{
-\item{name}{Object name.}
+\item{name}{Registered script, report, or output name to resolve and run.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose registry should be consulted.}
 }
 \value{
 Invisibly returns the executed path.
 }
 \description{
 Run a registered project object
+}
+\examples{
+\dontrun{
+run_project_object("analysis_core")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

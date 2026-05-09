@@ -1,8 +1,10 @@
 Package: projflow
-Title: Component-Driven Scaffolding for Reproducible Analysis Projects
+Title: Component-driven scaffolding for reproducible analysis projects
 Version: 0.0.1
 Authors@R:
-    person("Thiago", "Oliveira", email = "thiago@example.com", role = c("aut", "cre"))
+    person("Thiago", "Oliveira", email = "thiago.paula.oliveira@gmail.com", role = c("aut", "cre"))
+Author: Thiago Oliveira [aut, cre]
+Maintainer: Thiago Oliveira <thiago.paula.oliveira@gmail.com>
 Description: Creates lightweight, component-driven analysis project
     scaffolds with external-data-aware defaults, project registries,
     governance helpers, and optional reproducibility infrastructure.
@@ -16,13 +18,20 @@ Imports:
     yaml,
     rlang
 Suggests:
-    testthat (>= 3.0.0),
-    withr,
-    renv,
-    quarto,
-    rmarkdown,
+    bslib,
+    DT,
     gert,
     ggplot2,
+    htmltools,
+    knitr,
     pak,
-    shiny
+    quarto,
+    renv,
+    rmarkdown,
+    shiny,
+    targets,
+    testthat (>= 3.0.0),
+    visNetwork,
+    withr
+VignetteBuilder: knitr, rmarkdown
 Config/testthat/edition: 3

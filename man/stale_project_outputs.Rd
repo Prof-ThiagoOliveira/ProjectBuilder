@@ -7,11 +7,20 @@
 stale_project_outputs(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose registered outputs should be compared
+against their generating scripts.}
 }
 \value{
 Character vector of stale output paths.
 }
 \description{
 Report stale project outputs
+}
+\examples{
+\dontrun{
+stale_project_outputs()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

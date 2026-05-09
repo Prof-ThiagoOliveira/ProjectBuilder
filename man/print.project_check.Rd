@@ -7,13 +7,23 @@
 \method{print}{project_check}(x, ...)
 }
 \arguments{
-\item{x}{A project check result.}
+\item{x}{A \code{"project_check"} object, usually created by \code{\link[=check_project]{check_project()}}.}
 
-\item{...}{Unused.}
+\item{...}{Additional arguments accepted for S3 compatibility but ignored by
+this method.}
 }
 \value{
 \code{x}, invisibly.
 }
 \description{
 Print a project check summary
+}
+\examples{
+\dontrun{
+x <- check_project()
+print(x)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

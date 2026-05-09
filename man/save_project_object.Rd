@@ -14,21 +14,33 @@ save_project_object(
 )
 }
 \arguments{
-\item{object}{Object to save.}
+\item{object}{R object to save. Supported output formats depend on \code{type} and
+the inferred file extension.}
 
-\item{name}{Object name.}
+\item{name}{Output object name recorded in the registry.}
 
-\item{type}{Object type.}
+\item{type}{Output object type, used to infer the default output file path.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root where the output should be registered or
+resolved.}
 
-\item{location}{Save inside \verb{outputs/} or under an external data source.}
+\item{location}{Save either inside the project \verb{outputs/} directory or under
+a configured external data source.}
 
-\item{source}{External data source name when \code{location = "external"}.}
+\item{source}{External data source name to use when \code{location = "external"}.}
 }
 \value{
 Invisibly returns the saved path.
 }
 \description{
 Save a project object
+}
+\examples{
+\dontrun{
+result <- data.frame(id = 1:3, value = c(4.2, 4.8, 5.1))
+save_project_object(result, name = "analysis_results", type = "analysis")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

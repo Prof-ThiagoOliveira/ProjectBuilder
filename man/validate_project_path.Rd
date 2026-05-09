@@ -7,13 +7,24 @@
 validate_project_path(path, overwrite = FALSE)
 }
 \arguments{
-\item{path}{Target project path.}
+\item{path}{Target project path after normalisation.}
 
-\item{overwrite}{Logical. Should existing files be overwritten?}
+\item{overwrite}{Logical scalar. If \code{TRUE}, existing non-empty directories
+are accepted; if \code{FALSE}, \code{projflow} refuses to write into a non-empty
+target directory.}
 }
 \value{
 Invisibly returns the validated path.
 }
 \description{
 Validate whether a project path can be used
+}
+\examples{
+\dontrun{
+tmp <- tempfile("projflow-path-")
+projflow:::validate_project_path(tmp, overwrite = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

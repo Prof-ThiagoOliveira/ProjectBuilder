@@ -7,15 +7,24 @@
 project_data_path(..., source = "default", root = ".")
 }
 \arguments{
-\item{...}{Path components.}
+\item{...}{Path components appended below the selected external data root.}
 
-\item{source}{Data source name.}
+\item{source}{Data source name to use when resolving the root directory.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root.}
 }
 \value{
 Absolute file path under the external data root.
 }
 \description{
 Build a path under a configured external data root
+}
+\examples{
+\dontrun{
+project_data_path("phenotypes.csv")
+project_data_path("maps", "field_map.gpkg", source = "reference")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

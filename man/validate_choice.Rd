@@ -7,15 +7,21 @@
 validate_choice(x, choices, arg)
 }
 \arguments{
-\item{x}{Choice to validate.}
+\item{x}{Single character value to match against \code{choices}.}
 
-\item{choices}{Allowed choices.}
+\item{choices}{Character vector of allowed values.}
 
-\item{arg}{Argument name.}
+\item{arg}{Argument name used in the error message when validation fails.}
 }
 \value{
 The validated choice.
 }
 \description{
 Validate a single choice
+}
+\examples{
+projflow:::validate_choice("analysis", c("analysis", "report"), "type")
+}
+\author{
+Thiago de Paula Oliveira
 }

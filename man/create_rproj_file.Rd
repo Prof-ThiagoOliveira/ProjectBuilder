@@ -7,15 +7,26 @@
 create_rproj_file(path, project_name, overwrite = FALSE)
 }
 \arguments{
-\item{path}{Project root path.}
+\item{path}{Project root path where the \code{.Rproj} file should be written.}
 
-\item{project_name}{Project name.}
+\item{project_name}{Project name used as the \code{.Rproj} filename stem.}
 
-\item{overwrite}{Logical. Should an existing file be overwritten?}
+\item{overwrite}{Logical scalar. If \code{TRUE}, an existing \code{.Rproj} file with
+the same name is replaced.}
 }
 \value{
 A list describing the write outcome.
 }
 \description{
 Create an RStudio project file
+}
+\examples{
+\dontrun{
+tmp <- tempfile("projflow-rproj-")
+dir.create(tmp)
+projflow:::create_rproj_file(tmp, "demo_project")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

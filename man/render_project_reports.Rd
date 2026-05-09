@@ -7,11 +7,20 @@
 render_project_reports(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose registered reports should be
+rendered.}
 }
 \value{
 Invisibly returns rendered report paths.
 }
 \description{
 Render project reports
+}
+\examples{
+\dontrun{
+render_project_reports()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

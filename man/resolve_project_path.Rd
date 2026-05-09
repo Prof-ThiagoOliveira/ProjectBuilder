@@ -7,11 +7,19 @@
 resolve_project_path(path)
 }
 \arguments{
-\item{path}{Target project path.}
+\item{path}{Target project path supplied by the user. This may be relative,
+contain \code{~}, or include redundant whitespace; the function normalises it to
+an absolute path representation.}
 }
 \value{
 A normalized project path.
 }
 \description{
 Validate a project path
+}
+\examples{
+projflow:::resolve_project_path(".")
+}
+\author{
+Thiago de Paula Oliveira
 }

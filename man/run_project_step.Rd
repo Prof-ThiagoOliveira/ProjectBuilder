@@ -7,13 +7,22 @@
 run_project_step(name, root = ".")
 }
 \arguments{
-\item{name}{Step name.}
+\item{name}{Registered step name. This is an alias for
+\code{\link[=run_project_object]{run_project_object()}} kept for workflow readability.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose registry should be consulted.}
 }
 \value{
 Invisibly returns the executed path.
 }
 \description{
 Run a registered project step
+}
+\examples{
+\dontrun{
+run_project_step("analysis_core")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

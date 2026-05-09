@@ -7,15 +7,23 @@
 new_project_table(name, root = ".", open = interactive())
 }
 \arguments{
-\item{name}{Script name.}
+\item{name}{Script name for the new export step.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root where the script should be added.}
 
-\item{open}{Included for API compatibility.}
+\item{open}{Logical scalar kept for API compatibility.}
 }
 \value{
 Invisibly returns the created script path.
 }
 \description{
 Create a new table-export script
+}
+\examples{
+\dontrun{
+new_project_table("export_tables", open = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

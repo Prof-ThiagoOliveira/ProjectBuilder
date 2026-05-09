@@ -72,8 +72,71 @@ normalize_absolute_path <- function(path) {
   normalizePath(path.expand(path), winslash = "/", mustWork = FALSE)
 }
 
+default_project_metadata_dir <- function() {
+  ".projflow"
+}
+
+project_metadata_dir_names <- function() {
+  default_project_metadata_dir()
+}
+
+project_metadata_dir_candidates <- function(root = ".") {
+  root <- resolve_project_path(root)
+  fs::path(root, project_metadata_dir_names())
+}
+
+existing_project_metadata_dir <- function(root = ".") {
+  candidates <- project_metadata_dir_candidates(root)
+  existing <- candidates[fs::dir_exists(candidates)]
+  if (length(existing) == 0L) {
+    return(NULL)
+  }
+
+  existing[[1]]
+}
+
+project_metadata_dir <- function(root = ".", create = FALSE, prefer_existing = TRUE) {
+  root <- resolve_project_path(root)
+  existing <- if (isTRUE(prefer_existing)) existing_project_metadata_dir(root) else NULL
+
+  if (!is.null(existing)) {
+    return(existing)
+  }
+
+  path <- fs::path(root, default_project_metadata_dir())
+  if (isTRUE(create)) {
+    fs::dir_create(path, recurse = TRUE)
+  }
+
+  path
+}
+
+project_metadata_relative_dir <- function(root = ".", prefer_existing = TRUE) {
+  normalize_relative_path(fs::path_file(project_metadata_dir(root, prefer_existing = prefer_existing)))
+}
+
+project_metadata_path <- function(root = ".", ..., create_dir = FALSE, prefer_existing = TRUE) {
+  fs::path(project_metadata_dir(root, create = create_dir, prefer_existing = prefer_existing), ...)
+}
+
+project_metadata_relative_path <- function(..., root = ".", prefer_existing = TRUE) {
+  normalize_relative_path(fs::path(project_metadata_relative_dir(root, prefer_existing = prefer_existing), ...))
+}
+
+project_registry_relative_path <- function(root = ".", prefer_existing = TRUE) {
+  project_metadata_relative_path("project_registry.yml", root = root, prefer_existing = prefer_existing)
+}
+
+project_local_config_relative_path <- function(root = ".", prefer_existing = TRUE) {
+  project_metadata_relative_path("local.yml", root = root, prefer_existing = prefer_existing)
+}
+
+project_tasks_relative_path <- function(root = ".", prefer_existing = TRUE) {
+  project_metadata_relative_path("tasks.yml", root = root, prefer_existing = prefer_existing)
+}
+
 project_marker_path <- function(path) {
-  registry <- fs::path(path, ".projectSetupR", "project_registry.yml")
+  registry <- fs::path(path, default_project_metadata_dir(), "project_registry.yml")
   if (fs::file_exists(registry)) {
     return(registry)
   }
@@ -95,9 +158,16 @@ project_marker_path <- function(path) {
 
 #' Find a project root directory
 #'
-#' @param root Starting path.
+#' @param root Starting path from which `projflow` should search upwards for a
+#'   project marker such as `project.yml`, `.projflow/project_registry.yml`,
+#'   `.here`, or an `.Rproj` file.
 #'
 #' @return Absolute project root path.
+#' @examples
+#' \dontrun{
+#' projflow:::find_project_root(".")
+#' }
+#' @author Thiago de Paula Oliveira
 find_project_root <- function(root = ".") {
   current <- resolve_project_path(root)
 
@@ -112,7 +182,7 @@ find_project_root <- function(root = ".") {
         paste(
           "Could not find a project root.",
           "Expected one of:",
-          "`.projectSetupR/project_registry.yml`, `project.yml`, `config.yml`, `.here`, or a single `.Rproj` file."
+          "`.projflow/project_registry.yml`, `project.yml`, `config.yml`, `.here`, or a single `.Rproj` file."
         )
       )
     }
@@ -183,11 +253,11 @@ project_config_path <- function(root = ".") {
 }
 
 registry_path <- function(root = ".") {
-  fs::path(find_project_root(root), ".projectSetupR", "project_registry.yml")
+  project_metadata_path(find_project_root(root), "project_registry.yml", create_dir = FALSE, prefer_existing = FALSE)
 }
 
 local_config_path <- function(root = ".") {
-  fs::path(find_project_root(root), ".projectSetupR", "local.yml")
+  project_metadata_path(find_project_root(root), "local.yml", create_dir = FALSE, prefer_existing = FALSE)
 }
 
 write_yaml_file <- function(path, data, overwrite = FALSE) {
@@ -316,9 +386,9 @@ write_project_local_config <- function(config, root = ".", overwrite = TRUE) {
 
 ensure_registry_file <- function(root = ".", overwrite = FALSE) {
   root <- resolve_project_path(root)
-  fs::dir_create(fs::path(root, ".projectSetupR"), recurse = TRUE)
+  metadata_dir <- project_metadata_dir(root, create = TRUE, prefer_existing = TRUE)
 
-  registry_file <- fs::path(root, ".projectSetupR", "project_registry.yml")
+  registry_file <- fs::path(metadata_dir, "project_registry.yml")
   if (fs::file_exists(registry_file) && !isTRUE(overwrite)) {
     return(registry_file)
   }
@@ -334,9 +404,9 @@ ensure_registry_file <- function(root = ".", overwrite = FALSE) {
 
 ensure_local_config_file <- function(root = ".", overwrite = FALSE) {
   root <- resolve_project_path(root)
-  fs::dir_create(fs::path(root, ".projectSetupR"), recurse = TRUE)
+  metadata_dir <- project_metadata_dir(root, create = TRUE, prefer_existing = TRUE)
 
-  local_file <- fs::path(root, ".projectSetupR", "local.yml")
+  local_file <- fs::path(metadata_dir, "local.yml")
   if (fs::file_exists(local_file) && !isTRUE(overwrite)) {
     return(local_file)
   }
@@ -354,6 +424,7 @@ project_paths <- function(root = ".") {
   root <- find_project_root(root)
   config <- read_project_config(root)
   relative_paths <- config$paths
+  metadata_dir <- project_metadata_dir(root, create = FALSE, prefer_existing = FALSE)
 
   defaults <- list(
     analysis = "analysis",
@@ -369,7 +440,7 @@ project_paths <- function(root = ".") {
       project_config = project_config_path(root),
       registry = registry_path(root),
       local_config = local_config_path(root),
-      registry_dir = fs::path(root, ".projectSetupR")
+      registry_dir = metadata_dir
     )
   )
 
@@ -452,12 +523,21 @@ remove_project_package <- function(package, root = ".") {
 
 #' Set up a project for use
 #'
-#' @param root Project root.
-#' @param install_missing Should missing packages be installed?
-#' @param check_paths Should key directories be created if absent?
-#' @param set_seed Should the configured random seed be set?
+#' @param root Existing project root to initialise for the current R session.
+#' @param install_missing Logical scalar. If `TRUE`, missing packages declared
+#'   in the project configuration are installed automatically.
+#' @param check_paths Logical scalar. If `TRUE`, key project directories are
+#'   created if they are missing.
+#' @param set_seed Logical scalar. If `TRUE`, set the configured project random
+#'   seed when one is defined in `project.yml`.
 #'
 #' @return Project metadata, paths, registry, and package status.
+#' @examples
+#' \dontrun{
+#' setup_project()
+#' setup_project(install_missing = FALSE, check_paths = TRUE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 setup_project <- function(
     root = ".",
@@ -524,32 +604,55 @@ missing_data_root_message <- function() {
 
 #' Configure a local external data root
 #'
-#' @param path External data root path.
-#' @param name Data source name.
-#' @param root Project root.
+#' @param path Path to the external data directory for the current machine. The
+#'   stored value is normalised to an absolute path.
+#' @param name Data source name, such as `"default"` or `"reference"`.
+#' @param root Existing project root whose `.projflow/local.yml` file should be
+#'   updated.
 #'
 #' @return Invisibly returns the stored absolute path.
+#' @examples
+#' \dontrun{
+#' set_project_data_root("/mnt/project_data", name = "default")
+#' set_project_data_root("/mnt/reference_data", name = "reference")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 set_project_data_root <- function(path, name = "default", root = ".") {
   validate_character_vector(path, "path")
   name <- validate_project_object_name(name, repair = TRUE)
   root <- find_project_root(root)
 
+  backup_project_local_config(root)
   config <- read_project_local_config(root)
   config$data_sources[[name]] <- list(
     path = normalize_absolute_path(path)
   )
   write_project_local_config(config, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = "set_data_source",
+    object_type = "data_source",
+    object_id = name,
+    object_name = name,
+    details = list(path = config$data_sources[[name]]$path),
+    root = root
+  )
 
   invisible(config$data_sources[[name]]$path)
 }
 
 #' Read a configured external data root
 #'
-#' @param name Data source name.
-#' @param root Project root.
+#' @param name Data source name to retrieve from `.projflow/local.yml`.
+#' @param root Existing project root.
 #'
 #' @return Absolute path.
+#' @examples
+#' \dontrun{
+#' project_data_root()
+#' project_data_root("reference")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 project_data_root <- function(name = "default", root = ".") {
   name <- validate_project_object_name(name, repair = TRUE)
@@ -565,11 +668,17 @@ project_data_root <- function(name = "default", root = ".") {
 
 #' Build a path under a configured external data root
 #'
-#' @param ... Path components.
-#' @param source Data source name.
-#' @param root Project root.
+#' @param ... Path components appended below the selected external data root.
+#' @param source Data source name to use when resolving the root directory.
+#' @param root Existing project root.
 #'
 #' @return Absolute file path under the external data root.
+#' @examples
+#' \dontrun{
+#' project_data_path("phenotypes.csv")
+#' project_data_path("maps", "field_map.gpkg", source = "reference")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 project_data_path <- function(..., source = "default", root = ".") {
   as.character(fs::path(project_data_root(name = source, root = root), ...))
@@ -577,9 +686,15 @@ project_data_path <- function(..., source = "default", root = ".") {
 
 #' List configured external data sources
 #'
-#' @param root Project root.
+#' @param root Existing project root whose local data-source configuration should
+#'   be listed.
 #'
 #' @return Data frame of configured sources.
+#' @examples
+#' \dontrun{
+#' list_project_data_sources()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 list_project_data_sources <- function(root = ".") {
   config <- read_project_local_config(root)
@@ -617,24 +732,45 @@ list_project_data_sources <- function(root = ".") {
 
 #' Remove a configured external data source
 #'
-#' @param name Data source name.
-#' @param root Project root.
+#' @param name Data source name to remove from `.projflow/local.yml`.
+#' @param root Existing project root whose local data-source configuration
+#'   should be updated.
 #'
 #' @return Invisibly returns remaining data sources.
+#' @examples
+#' \dontrun{
+#' remove_project_data_source("reference")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 remove_project_data_source <- function(name = "default", root = ".") {
   name <- validate_project_object_name(name, repair = TRUE)
+  root <- find_project_root(root)
+  backup_project_local_config(root)
   config <- read_project_local_config(root)
   config$data_sources[[name]] <- NULL
   write_project_local_config(config, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = "remove_data_source",
+    object_type = "data_source",
+    object_id = name,
+    object_name = name,
+    root = root
+  )
   invisible(config$data_sources)
 }
 
 #' Check whether configured external data sources are accessible
 #'
-#' @param root Project root.
+#' @param root Existing project root whose configured data sources should be
+#'   checked for existence and readability.
 #'
 #' @return Data frame describing configured data sources.
+#' @examples
+#' \dontrun{
+#' check_project_data_access()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 check_project_data_access <- function(root = ".") {
   list_project_data_sources(root)
@@ -674,6 +810,38 @@ validate_project_object_type <- function(type) {
   validate_choice(type, project_object_types(), "type")
 }
 
+infer_output_type <- function(output_name, script_type = NULL) {
+  validate_character_vector(output_name, "output_name")
+  output_name <- output_name[[1]]
+
+  if (grepl("figure|plot|graph", output_name, ignore.case = TRUE) ||
+      identical(script_type, "visualisation")) {
+    return("figure")
+  }
+
+  if (grepl("table|summary", output_name, ignore.case = TRUE) ||
+      identical(script_type, "summary")) {
+    return("table")
+  }
+
+  if (grepl("model", output_name, ignore.case = TRUE) ||
+      identical(script_type, "model")) {
+    return("model")
+  }
+
+  if (grepl("diagnostic", output_name, ignore.case = TRUE) ||
+      identical(script_type, "model_diagnostics")) {
+    return("model_diagnostics")
+  }
+
+  if (grepl("qc|quality", output_name, ignore.case = TRUE) ||
+      identical(script_type, "quality_control")) {
+    return("quality_control")
+  }
+
+  "output"
+}
+
 default_output_path <- function(name, type) {
   type <- validate_project_object_type(type)
 
@@ -681,8 +849,12 @@ default_output_path <- function(name, type) {
     return(fs::path("outputs", paste0(name, ".rds")))
   }
 
-  if (type %in% c("model", "model_diagnostics")) {
+  if (identical(type, "model")) {
     return(fs::path("outputs", "models", paste0(name, ".rds")))
+  }
+
+  if (identical(type, "model_diagnostics")) {
+    return(fs::path("outputs", "diagnostics", paste0(name, ".rds")))
   }
 
   if (type %in% c("export", "table", "summary")) {
@@ -720,36 +892,65 @@ next_script_order <- function(registry) {
   max(orders) + 10
 }
 
-script_template <- function(name, type, title = NULL) {
+script_template <- function(name, type, outputs = NULL, template = c("minimal", "example"), title = NULL) {
+  template <- match.arg(template)
   title <- if (is.null(title)) name else title
-  paste(
+  outputs <- outputs %||% character()
+
+  header <- c(
     paste0("# ", title),
     paste0("# Created: ", as.character(Sys.Date())),
     "",
     "projflow::setup_project()",
     "",
-    "# External data are configured outside the repository.",
-    "# To configure the default data source, run once:",
+    "# Data are expected to live outside this repository.",
+    "# Configure the external data root once with:",
     '# projflow::set_project_data_root("path/to/external/data")',
-    "",
-    "# Example:",
+    "#",
+    "# Then access files with:",
     '# input_file <- projflow::project_data_path("input_file.csv")',
-    "# dat <- utils::read.csv(input_file)",
-    "",
-    "result <- data.frame(",
-    '  message = "Replace this example with your analysis.",',
-    "  created = Sys.time()",
-    ")",
-    "",
-    paste0(
-      'projflow::save_project_object(',
-      "result, ",
-      'name = "', name, '", ',
-      'type = "', type, '"',
-      ")"
-    ),
-    sep = "\n"
+    ""
   )
+
+  if (identical(template, "minimal")) {
+    return(paste(c(header, "# Add analysis code here."), collapse = "\n"))
+  }
+
+  example_lines <- c(
+    "result <- data.frame(",
+    '  message = "Replace this example with project-specific logic.",',
+    "  created = Sys.time(),",
+    "  stringsAsFactors = FALSE",
+    ")"
+  )
+
+  if (length(outputs) == 0L) {
+    return(paste(c(header, example_lines), collapse = "\n"))
+  }
+
+  save_lines <- character()
+  for (output_name in outputs) {
+    object_type <- infer_output_type(output_name, type)
+    if (identical(object_type, "figure")) {
+      save_lines <- c(
+        save_lines,
+        "",
+        "if (requireNamespace(\"ggplot2\", quietly = TRUE)) {",
+        "  figure <- ggplot2::ggplot(data.frame(x = 1:3, y = c(2, 5, 3)), ggplot2::aes(x, y)) +",
+        "    ggplot2::geom_col()",
+        paste0('  projflow::save_project_object(figure, name = "', output_name, '", type = "figure")'),
+        "}"
+      )
+    } else {
+      save_lines <- c(
+        save_lines,
+        "",
+        paste0('projflow::save_project_object(result, name = "', output_name, '", type = "', object_type, '")')
+      )
+    }
+  }
+
+  paste(c(header, example_lines, save_lines), collapse = "\n")
 }
 
 report_template <- function(title) {
@@ -819,9 +1020,14 @@ registry_rows <- function(section, entries) {
 
 #' List registered project entities
 #'
-#' @param root Project root.
+#' @param root Existing project root whose registry should be listed.
 #'
 #' @return Data frame with scripts, reports, and outputs.
+#' @examples
+#' \dontrun{
+#' list_project_objects()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 list_project_objects <- function(root = ".") {
   registry <- read_project_registry(root)
@@ -832,15 +1038,107 @@ list_project_objects <- function(root = ".") {
   )
 }
 
+#' Get one registered project object
+#'
+#' @param name Object name to retrieve.
+#' @param root Existing project root.
+#' @param section Optional section filter: `"script"`, `"report"`, or `"output"`.
+#'
+#' @return A named list describing the object.
+#' @examples
+#' \dontrun{
+#' get_project_object("main_report", section = "report")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+get_project_object <- function(name, root = ".", section = c("script", "report", "output", "any")) {
+  name <- validate_project_object_name(name, repair = TRUE)
+  section <- match.arg(section)
+  registry <- read_project_registry(root)
+
+  if (!identical(section, "any")) {
+    entry <- registry[[registry_section_for_type(section)]][[name]]
+    if (is.null(entry)) {
+      rlang::abort(paste0("No registered ", section, " named `", name, "`."))
+    }
+    return(entry)
+  }
+
+  for (candidate in c("scripts", "reports", "outputs")) {
+    entry <- registry[[candidate]][[name]]
+    if (!is.null(entry)) {
+      return(entry)
+    }
+  }
+
+  rlang::abort(paste0("No registered project object named `", name, "`."))
+}
+
+#' List registered project reports
+#'
+#' @param root Existing project root.
+#'
+#' @return Data frame of registered reports.
+#' @examples
+#' \dontrun{
+#' list_project_reports()
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+list_project_reports <- function(root = ".") {
+  registry <- read_project_registry(root)
+  if (length(registry$reports) == 0L) {
+    return(data.frame(
+      name = character(),
+      source = character(),
+      output = character(),
+      type = character(),
+      source_exists = logical(),
+      output_exists = logical(),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  root <- find_project_root(root)
+  do.call(
+    rbind,
+    lapply(names(registry$reports), function(name) {
+      entry <- registry$reports[[name]]
+      output_path <- default_output_path(name, "report")
+      data.frame(
+        name = name,
+        source = entry$path,
+        output = output_path,
+        type = entry$type %||% "report",
+        source_exists = file.exists(fs::path(root, entry$path)),
+        output_exists = file.exists(fs::path(root, output_path)),
+        stringsAsFactors = FALSE
+      )
+    })
+  )
+}
+
 #' Register an output object in the project registry
 #'
-#' @param name Object name.
-#' @param path Relative output path.
-#' @param type Object type.
-#' @param root Project root.
-#' @param overwrite Should an existing registry entry be overwritten?
+#' @param name Output object name to store in the registry.
+#' @param path Project-relative output path, typically somewhere under
+#'   `outputs/`.
+#' @param type Output object type, such as `"table"`, `"figure"`, or
+#'   `"analysis"`.
+#' @param root Existing project root whose registry should be updated.
+#' @param overwrite Logical scalar. If `TRUE`, replace an existing registry
+#'   entry with the same name.
 #'
 #' @return Invisibly returns the registry entry.
+#' @examples
+#' \dontrun{
+#' register_project_object(
+#'   name = "weekly_summary",
+#'   path = "outputs/tables/weekly_summary.csv",
+#'   type = "table"
+#' )
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 register_project_object <- function(name, path, type, root = ".", overwrite = FALSE) {
   name <- validate_project_object_name(name, repair = TRUE)
@@ -853,6 +1151,7 @@ register_project_object <- function(name, path, type, root = ".", overwrite = FA
   }
 
   root <- find_project_root(root)
+  backup_project_registry(root)
   registry <- read_project_registry(root)
 
   if (!is.null(registry$outputs[[name]]) && !isTRUE(overwrite)) {
@@ -865,36 +1164,66 @@ register_project_object <- function(name, path, type, root = ".", overwrite = FA
   )
   registry$outputs[[name]] <- entry
   write_project_registry(registry, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = "register_output",
+    object_type = "output",
+    object_id = name,
+    object_name = name,
+    details = list(path = entry$path, type = entry$type),
+    root = root
+  )
 
   invisible(entry)
 }
 
 #' Remove an output object from the project registry
 #'
-#' @param name Object name.
-#' @param root Project root.
+#' @param name Output object name to remove from the registry.
+#' @param root Existing project root whose registry should be updated.
 #'
 #' @return Invisibly returns the modified registry.
+#' @examples
+#' \dontrun{
+#' unregister_project_object("weekly_summary")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 unregister_project_object <- function(name, root = ".") {
   name <- validate_project_object_name(name, repair = TRUE)
+  root <- find_project_root(root)
+  backup_project_registry(root)
   registry <- read_project_registry(root)
   registry$outputs[[name]] <- NULL
   write_project_registry(registry, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = "unregister_output",
+    object_type = "output",
+    object_id = name,
+    object_name = name,
+    root = root
+  )
   invisible(registry)
 }
 
 #' Update an output object in the project registry
 #'
-#' @param name Object name.
-#' @param ... Named fields to update.
-#' @param root Project root.
+#' @param name Output object name to update.
+#' @param ... Named fields to merge into the existing registry entry, such as
+#'   `path`, `type`, or `generated_by`.
+#' @param root Existing project root whose registry should be updated.
 #'
 #' @return Invisibly returns the updated entry.
+#' @examples
+#' \dontrun{
+#' update_project_object("weekly_summary", generated_by = "summarise_weekly")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 update_project_object <- function(name, ..., root = ".") {
   name <- validate_project_object_name(name, repair = TRUE)
   updates <- list(...)
+  root <- find_project_root(root)
+  backup_project_registry(root)
   registry <- read_project_registry(root)
   entry <- registry$outputs[[name]]
 
@@ -909,7 +1238,97 @@ update_project_object <- function(name, ..., root = ".") {
 
   registry$outputs[[name]] <- entry
   write_project_registry(registry, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = "update_output",
+    object_type = "output",
+    object_id = name,
+    object_name = name,
+    details = updates,
+    root = root
+  )
   invisible(entry)
+}
+
+new_registry_action <- function(action, kind, name, path, root, dry_run, details = list()) {
+  structure(
+    utils::modifyList(
+      list(
+        action = action,
+        kind = kind,
+        name = name,
+        path = normalize_relative_path(path),
+        root = find_project_root(root),
+        dry_run = dry_run
+      ),
+      details
+    ),
+    class = "projflow_registry_action"
+  )
+}
+
+issue_table_with_severity <- function(x, severity) {
+  if (nrow(x) == 0L) {
+    x$severity <- character()
+    return(x[, c("severity", "check", "message", "path", "fix")])
+  }
+
+  cbind(
+    data.frame(severity = rep(severity, nrow(x)), stringsAsFactors = FALSE),
+    x,
+    stringsAsFactors = FALSE
+  )
+}
+
+project_relative_path_exists <- function(root, path) {
+  full_path <- fs::path(root, path)
+  fs::file_exists(full_path) || fs::dir_exists(full_path)
+}
+
+registry_section_for_type <- function(type) {
+  type <- match.arg(type, c("script", "report", "output"))
+  switch(
+    type,
+    script = "scripts",
+    report = "reports",
+    output = "outputs"
+  )
+}
+
+delete_project_relative_path <- function(root, path) {
+  full_path <- normalize_absolute_path(fs::path(root, path))
+  root <- normalize_absolute_path(root)
+
+  if (!startsWith(full_path, paste0(root, "/")) && !identical(full_path, root)) {
+    rlang::abort("Refusing to delete a path outside the project root.")
+  }
+
+  if (fs::file_exists(full_path)) {
+    fs::file_delete(full_path)
+  } else if (fs::dir_exists(full_path)) {
+    fs::dir_delete(full_path)
+  }
+
+  invisible(full_path)
+}
+
+rename_project_relative_path <- function(root, from, to, overwrite = FALSE) {
+  from_path <- fs::path(root, from)
+  to_path <- fs::path(root, to)
+
+  if (!project_relative_path_exists(root, from)) {
+    rlang::abort(paste0("Source path does not exist: ", normalize_relative_path(from)))
+  }
+
+  if (project_relative_path_exists(root, to) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Destination path already exists: ", normalize_relative_path(to)))
+  }
+
+  fs::dir_create(fs::path_dir(to_path), recurse = TRUE)
+  if (project_relative_path_exists(root, to) && isTRUE(overwrite)) {
+    delete_project_relative_path(root, to)
+  }
+  fs::file_move(from_path, to_path)
+  invisible(to_path)
 }
 
 project_file_metadata <- function(path, root = ".") {
@@ -980,14 +1399,23 @@ load_object_from_path <- function(path) {
 
 #' Save a project object
 #'
-#' @param object Object to save.
-#' @param name Object name.
-#' @param type Object type.
-#' @param root Project root.
-#' @param location Save inside `outputs/` or under an external data source.
-#' @param source External data source name when `location = "external"`.
+#' @param object R object to save. Supported output formats depend on `type` and
+#'   the inferred file extension.
+#' @param name Output object name recorded in the registry.
+#' @param type Output object type, used to infer the default output file path.
+#' @param root Existing project root where the output should be registered or
+#'   resolved.
+#' @param location Save either inside the project `outputs/` directory or under
+#'   a configured external data source.
+#' @param source External data source name to use when `location = "external"`.
 #'
 #' @return Invisibly returns the saved path.
+#' @examples
+#' \dontrun{
+#' result <- data.frame(id = 1:3, value = c(4.2, 4.8, 5.1))
+#' save_project_object(result, name = "analysis_results", type = "analysis")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 save_project_object <- function(
     object,
@@ -1024,13 +1452,25 @@ save_project_object <- function(
 
 #' Save a project object to external storage
 #'
-#' @param object Object to save.
-#' @param name Object name.
-#' @param type Object type.
-#' @param source External data source name.
-#' @param root Project root.
+#' @param object R object to save outside the repository.
+#' @param name Output object name.
+#' @param type Output object type used to infer the output filename.
+#' @param source External data source name that should receive the output.
+#' @param root Existing project root used to resolve the named external data
+#'   source.
 #'
 #' @return Invisibly returns the saved path.
+#' @examples
+#' \dontrun{
+#' result <- data.frame(id = 1:3, value = c(4.2, 4.8, 5.1))
+#' save_external_project_object(
+#'   result,
+#'   name = "analysis_results_backup",
+#'   type = "analysis",
+#'   source = "default"
+#' )
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 save_external_project_object <- function(object, name, type, source = "default", root = ".") {
   save_project_object(
@@ -1045,10 +1485,15 @@ save_external_project_object <- function(object, name, type, source = "default",
 
 #' Load a saved project object
 #'
-#' @param name Object name.
-#' @param root Project root.
+#' @param name Output object name to load from the registry.
+#' @param root Existing project root whose registry should be consulted.
 #'
 #' @return Loaded object.
+#' @examples
+#' \dontrun{
+#' load_project_object("analysis_results")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 load_project_object <- function(name, root = ".") {
   name <- validate_project_object_name(name, repair = TRUE)
@@ -1237,37 +1682,131 @@ render_one_report <- function(input_path, output_path) {
 
 #' Create a new project script
 #'
-#' @param name Script name.
-#' @param type Script type.
-#' @param root Project root.
-#' @param order Execution order.
-#' @param open Included for API compatibility. Opening is not automated.
+#' @param name Script name. The value is normalised to a safe snake_case name
+#'   before creating the file and registry entry.
+#' @param type Script type recorded in the registry and used to infer output
+#'   types when explicit outputs are supplied.
+#' @param root Existing project root where the script should be added.
+#' @param order Optional numeric execution order for the script. If `NULL`, the
+#'   next available order value is used.
+#' @param outputs Optional character vector of output names to register for the
+#'   script. If omitted, the script is registered without outputs.
+#' @param output Optional explicit output path to register for the script. When
+#'   supplied, the output name is derived from the file stem and the path is
+#'   stored exactly as provided, relative to the project root.
+#' @param template Template style used for the generated script. `"minimal"`
+#'   creates a bare scaffold; `"example"` includes placeholder code.
+#' @param open Logical scalar kept for API compatibility. The script is not
+#'   opened automatically.
+#' @param overwrite Logical scalar. If `TRUE`, replace an existing script file
+#'   and registry entry with the same name.
+#' @param repair Logical scalar. If `TRUE`, register an existing script file
+#'   without overwriting it.
+#' @param dry_run Logical scalar. If `TRUE`, return the planned registry and
+#'   filesystem changes without writing them.
 #'
 #' @return Invisibly returns the created script path.
+#' @examples
+#' \dontrun{
+#' new_project_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+#'
+#' new_project_script(
+#'   name = "fit_model",
+#'   type = "model",
+#'   outputs = "heritability_model",
+#'   template = "example",
+#'   open = FALSE
+#' )
+#'
+#' new_project_script(
+#'   name = "analysis_01",
+#'   type = "statistical_analysis",
+#'   output = "outputs/models/model_fit.rds",
+#'   open = FALSE
+#' )
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
-new_project_script <- function(name, type = "analysis", root = ".", order = NULL, open = interactive()) {
+new_project_script <- function(name,
+                               type = "analysis",
+                               root = ".",
+                               order = NULL,
+                               outputs = NULL,
+                               output = NULL,
+                               template = c("minimal", "example"),
+                               open = interactive(),
+                               overwrite = FALSE,
+                               repair = FALSE,
+                               dry_run = FALSE) {
   validate_logical_scalar(open, "open")
+  validate_logical_scalar(overwrite, "overwrite")
+  validate_logical_scalar(repair, "repair")
+  validate_logical_scalar(dry_run, "dry_run")
   if (!is.null(order) && (!is.numeric(order) || length(order) != 1L || is.na(order))) {
     rlang::abort("`order` must be a single numeric value or `NULL`.")
   }
 
   name <- validate_project_object_name(name, repair = TRUE)
   type <- validate_choice(type, project_script_types(), "type")
-  root <- find_project_root(root)
-  registry <- read_project_registry(root)
-
-  if (!is.null(registry$scripts[[name]])) {
-    rlang::abort(paste0("Script `", name, "` is already registered."))
+  template <- match.arg(template)
+  if (!is.null(output) && !is.null(outputs)) {
+    rlang::abort("Use either `outputs` or `output`, not both.")
   }
 
+  outputs <- if (is.null(outputs)) character() else unique(vapply(outputs, validate_project_object_name, character(1), repair = TRUE))
+  root <- find_project_root(root)
+  backup_project_registry(root)
+  registry <- read_project_registry(root)
   relative_path <- fs::path("analysis", paste0(name, ".R"))
   source_path <- fs::path(root, relative_path)
 
-  write_template_file(
-    source_path,
-    script_template(name = name, type = type, title = name),
-    overwrite = FALSE
-  )
+  if (!is.null(registry$scripts[[name]]) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Script `", name, "` is already registered."))
+  }
+
+  if (project_relative_path_exists(root, relative_path) && !isTRUE(overwrite) && !isTRUE(repair)) {
+    rlang::abort(paste0("Script file already exists: ", normalize_relative_path(relative_path)))
+  }
+
+  explicit_output <- NULL
+  if (!is.null(output)) {
+    validate_character_vector(output, "output")
+    if (is_absolute_path(output[[1]])) {
+      rlang::abort("`output` must be a project-relative path.")
+    }
+    explicit_output <- list(
+      name = validate_project_object_name(tools::file_path_sans_ext(safe_basename(output[[1]])), repair = TRUE),
+      path = normalize_relative_path(output[[1]]),
+      type = infer_output_type(tools::file_path_sans_ext(safe_basename(output[[1]])), type)
+    )
+    outputs <- explicit_output$name
+  }
+
+  if (isTRUE(dry_run)) {
+    return(new_registry_action(
+      action = if (isTRUE(repair)) "repair_script" else "create_script",
+      kind = "script",
+      name = name,
+      path = relative_path,
+      root = root,
+      dry_run = TRUE,
+      details = list(
+        type = type,
+        order = if (is.null(order)) next_script_order(registry) else order,
+        outputs = outputs
+      )
+    ))
+  }
+
+  if (!isTRUE(repair)) {
+    write_template_file(
+      source_path,
+      script_template(name = name, type = type, outputs = outputs, template = template, title = name),
+      overwrite = overwrite
+    )
+  } else if (!project_relative_path_exists(root, relative_path)) {
+    rlang::abort(paste0("Cannot repair script `", name, "` because the file does not exist: ", normalize_relative_path(relative_path)))
+  }
 
   if (is.null(order)) {
     order <- next_script_order(registry)
@@ -1277,14 +1816,41 @@ new_project_script <- function(name, type = "analysis", root = ".", order = NULL
     path = normalize_relative_path(relative_path),
     type = type,
     order = order,
-    outputs = list(name)
+    outputs = outputs
   )
-  registry$outputs[[name]] <- list(
-    path = normalize_relative_path(default_output_path(name, type)),
-    type = type,
-    generated_by = name
-  )
+
+  if (length(outputs) > 0L) {
+    for (output_name in outputs) {
+      if (!is.null(registry$outputs[[output_name]]) && !isTRUE(overwrite)) {
+        rlang::abort(paste0("Output `", output_name, "` is already registered."))
+      }
+
+      output_entry <- if (!is.null(explicit_output) && identical(output_name, explicit_output$name)) {
+        explicit_output
+      } else {
+        list(
+          path = normalize_relative_path(default_output_path(output_name, infer_output_type(output_name, type))),
+          type = infer_output_type(output_name, type)
+        )
+      }
+
+      registry$outputs[[output_name]] <- list(
+        path = output_entry$path,
+        type = output_entry$type,
+        generated_by = name
+      )
+    }
+  }
+
   write_project_registry(registry, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = if (isTRUE(repair)) "repair_script" else "create_script",
+    object_type = "script",
+    object_id = name,
+    object_name = name,
+    details = list(path = normalize_relative_path(relative_path), type = type, outputs = outputs),
+    root = root
+  )
 
   if (isTRUE(open)) {
     cli::cli_alert_info("Project opening is not automated; open the script manually if needed.")
@@ -1295,32 +1861,78 @@ new_project_script <- function(name, type = "analysis", root = ".", order = NULL
 
 #' Create a new project report
 #'
-#' @param name Report name.
-#' @param format Report source format.
-#' @param root Project root.
-#' @param open Included for API compatibility. Opening is not automated.
+#' @param name Report name used as the filename stem and registry key.
+#' @param format Source format to create. Supported values are `"qmd"` and
+#'   `"Rmd"`.
+#' @param root Existing project root where the report should be added.
+#' @param open Logical scalar kept for API compatibility. The report file is not
+#'   opened automatically.
+#' @param overwrite Logical scalar. If `TRUE`, replace an existing report file
+#'   and registry entry with the same name.
+#' @param repair Logical scalar. If `TRUE`, register an existing report file
+#'   without overwriting it.
+#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#'   writing files.
 #'
 #' @return Invisibly returns the created report path.
+#' @examples
+#' \dontrun{
+#' new_project_report("supplementary_note", format = "qmd", open = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
-new_project_report <- function(name, format = c("qmd", "Rmd"), root = ".", open = interactive()) {
+new_project_report <- function(name,
+                               format = c("qmd", "Rmd"),
+                               root = ".",
+                               open = interactive(),
+                               overwrite = FALSE,
+                               repair = FALSE,
+                               dry_run = FALSE) {
   validate_logical_scalar(open, "open")
+  validate_logical_scalar(overwrite, "overwrite")
+  validate_logical_scalar(repair, "repair")
+  validate_logical_scalar(dry_run, "dry_run")
   name <- validate_project_object_name(name, repair = TRUE)
   format <- match.arg(format)
   root <- find_project_root(root)
+  backup_project_registry(root)
   registry <- read_project_registry(root)
 
   relative_path <- fs::path("reports", paste0(name, ".", format))
-  write_template_file(
-    fs::path(root, relative_path),
-    report_template(title = name),
-    overwrite = FALSE
-  )
+  if (!is.null(registry$reports[[name]]) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Report `", name, "` is already registered."))
+  }
+  if (project_relative_path_exists(root, relative_path) && !isTRUE(overwrite) && !isTRUE(repair)) {
+    rlang::abort(paste0("Report file already exists: ", normalize_relative_path(relative_path)))
+  }
+
+  if (isTRUE(dry_run)) {
+    return(new_registry_action("create_report", "report", name, relative_path, root, TRUE, list(format = format)))
+  }
+
+  if (!isTRUE(repair)) {
+    write_template_file(
+      fs::path(root, relative_path),
+      report_template(title = name),
+      overwrite = overwrite
+    )
+  } else if (!project_relative_path_exists(root, relative_path)) {
+    rlang::abort(paste0("Cannot repair report `", name, "` because the file does not exist: ", normalize_relative_path(relative_path)))
+  }
 
   registry$reports[[name]] <- list(
     path = normalize_relative_path(relative_path),
     type = "report"
   )
   write_project_registry(registry, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = if (isTRUE(repair)) "repair_report" else "create_report",
+    object_type = "report",
+    object_id = name,
+    object_name = name,
+    details = list(path = normalize_relative_path(relative_path), format = format),
+    root = root
+  )
 
   if (isTRUE(open)) {
     cli::cli_alert_info("Project opening is not automated; open the report manually if needed.")
@@ -1331,11 +1943,16 @@ new_project_report <- function(name, format = c("qmd", "Rmd"), root = ".", open 
 
 #' Create a new model script
 #'
-#' @param name Script name.
-#' @param root Project root.
-#' @param open Included for API compatibility.
+#' @param name Script name for the new model step.
+#' @param root Existing project root where the script should be added.
+#' @param open Logical scalar kept for API compatibility.
 #'
 #' @return Invisibly returns the created script path.
+#' @examples
+#' \dontrun{
+#' new_project_model("genomic_model", open = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 new_project_model <- function(name, root = ".", open = interactive()) {
   new_project_script(name = name, type = "model", root = root, open = open)
@@ -1343,11 +1960,16 @@ new_project_model <- function(name, root = ".", open = interactive()) {
 
 #' Create a new table-export script
 #'
-#' @param name Script name.
-#' @param root Project root.
-#' @param open Included for API compatibility.
+#' @param name Script name for the new export step.
+#' @param root Existing project root where the script should be added.
+#' @param open Logical scalar kept for API compatibility.
 #'
 #' @return Invisibly returns the created script path.
+#' @examples
+#' \dontrun{
+#' new_project_table("export_tables", open = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 new_project_table <- function(name, root = ".", open = interactive()) {
   new_project_script(name = name, type = "export", root = root, open = open)
@@ -1355,11 +1977,16 @@ new_project_table <- function(name, root = ".", open = interactive()) {
 
 #' Create a new figure script
 #'
-#' @param name Script name.
-#' @param root Project root.
-#' @param open Included for API compatibility.
+#' @param name Script name for the new visualisation step.
+#' @param root Existing project root where the script should be added.
+#' @param open Logical scalar kept for API compatibility.
 #'
 #' @return Invisibly returns the created script path.
+#' @examples
+#' \dontrun{
+#' new_project_figure("plot_results", open = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 new_project_figure <- function(name, root = ".", open = interactive()) {
   new_project_script(name = name, type = "visualisation", root = root, open = open)
@@ -1367,13 +1994,20 @@ new_project_figure <- function(name, root = ".", open = interactive()) {
 
 #' Create a new project idea
 #'
-#' @param name Idea name.
+#' @param name Idea name used either as a script name or as an output registry
+#'   key depending on `create_script`.
 #' @param type Script type to create when `create_script = TRUE`.
-#' @param create_script Should a script be created immediately?
-#' @param root Project root.
-#' @param open Included for API compatibility.
+#' @param create_script Logical scalar. If `TRUE`, create a script immediately;
+#'   otherwise register a placeholder output object.
+#' @param root Existing project root to update.
+#' @param open Logical scalar kept for API compatibility.
 #'
 #' @return Invisibly returns the created script path or registry entry.
+#' @examples
+#' \dontrun{
+#' new_project_idea("future_analysis", create_script = TRUE, open = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 new_project_idea <- function(name, type = "analysis", create_script = TRUE, root = ".", open = interactive()) {
   validate_logical_scalar(create_script, "create_script")
@@ -1381,23 +2015,101 @@ new_project_idea <- function(name, type = "analysis", create_script = TRUE, root
     return(new_project_script(name = name, type = type, root = root, open = open))
   }
 
-  register_project_object(
-    name = validate_project_object_name(name, repair = TRUE),
-    path = default_output_path(validate_project_object_name(name, repair = TRUE), "output"),
+  new_project_output(
+    name = name,
     type = "output",
     root = root,
-    overwrite = FALSE
+    overwrite = FALSE,
+    repair = FALSE,
+    dry_run = FALSE
+  )
+}
+
+#' Create or register a project output
+#'
+#' @param name Output object name used as the registry key and default filename
+#'   stem.
+#' @param type Output type such as `"table"`, `"figure"`, `"model"`, or
+#'   `"output"`.
+#' @param path Optional explicit project-relative path for the output. When
+#'   omitted, `projflow` uses the default location for the selected `type`.
+#' @param root Existing project root to update.
+#' @param overwrite Logical scalar. If `TRUE`, replace an existing registry
+#'   entry for the same output name.
+#' @param repair Logical scalar. If `TRUE`, register an existing output file
+#'   without overwriting it.
+#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#'   modifying the project.
+#'
+#' @return Invisibly returns the registered output path, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' new_project_output("model_fit", type = "model")
+#' new_project_output("weekly_summary", type = "table", path = "outputs/tables/weekly_summary.csv")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+new_project_output <- function(name,
+                               type = "output",
+                               path = NULL,
+                               root = ".",
+                               overwrite = FALSE,
+                               repair = FALSE,
+                               dry_run = FALSE) {
+  validate_logical_scalar(overwrite, "overwrite")
+  validate_logical_scalar(repair, "repair")
+  validate_logical_scalar(dry_run, "dry_run")
+
+  name <- validate_project_object_name(name, repair = TRUE)
+  type <- validate_project_object_type(type)
+  root <- find_project_root(root)
+  registry <- read_project_registry(root)
+  relative_path <- if (is.null(path)) {
+    default_output_path(name, type)
+  } else {
+    validate_character_vector(path, "path")
+    if (is_absolute_path(path[[1]])) {
+      rlang::abort("`path` must be relative to the project root.")
+    }
+    normalize_relative_path(path[[1]])
+  }
+
+  if (!is.null(registry$outputs[[name]]) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Output `", name, "` is already registered."))
+  }
+
+  if (isTRUE(dry_run)) {
+    return(new_registry_action("create_output", "output", name, relative_path, root, TRUE, list(type = type)))
+  }
+
+  if (isTRUE(repair) && !project_relative_path_exists(root, relative_path)) {
+    rlang::abort(paste0("Cannot repair output `", name, "` because the file does not exist: ", relative_path))
+  }
+
+  register_project_object(
+    name = name,
+    path = relative_path,
+    type = type,
+    root = root,
+    overwrite = overwrite
   )
 }
 
 #' Create and register a project object
 #'
-#' @param name Object name.
-#' @param type Object type.
-#' @param root Project root.
-#' @param overwrite Should an existing file be overwritten?
+#' @param name Object name used as the registry key and default filename stem.
+#' @param type Object type to create. Script-like types create scripts, `"report"`
+#'   creates a report, and other types register an output artefact.
+#' @param root Existing project root to update.
+#' @param overwrite Logical scalar. If `TRUE`, allow an existing file at the
+#'   inferred path to be replaced.
 #'
 #' @return Invisibly returns the created path.
+#' @examples
+#' \dontrun{
+#' new_project_object("custom_table", type = "table", overwrite = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 new_project_object <- function(name, type, root = ".", overwrite = FALSE) {
   validate_logical_scalar(overwrite, "overwrite")
@@ -1411,28 +2123,366 @@ new_project_object <- function(name, type, root = ".", overwrite = FALSE) {
     return(new_project_report(name = name, root = root, open = FALSE))
   }
 
-  root <- find_project_root(root)
-  name <- validate_project_object_name(name, repair = TRUE)
-  relative_path <- default_output_path(name, type)
-
-  if (fs::file_exists(fs::path(root, relative_path)) && !isTRUE(overwrite)) {
-    rlang::abort(paste0("File already exists for `", name, "`: ", relative_path))
-  }
-
-  register_project_object(
+  new_project_output(
     name = name,
-    path = relative_path,
     type = type,
     root = root,
     overwrite = overwrite
   )
 }
 
+remove_registry_entry <- function(section, name, root = ".", delete_files = FALSE, confirm = FALSE, dry_run = FALSE) {
+  section <- match.arg(section, c("script", "report", "output"))
+  validate_logical_scalar(delete_files, "delete_files")
+  validate_logical_scalar(confirm, "confirm")
+  validate_logical_scalar(dry_run, "dry_run")
+
+  root <- find_project_root(root)
+  name <- validate_project_object_name(name, repair = TRUE)
+  backup_project_registry(root)
+  registry <- read_project_registry(root)
+  section_name <- registry_section_for_type(section)
+  entry <- registry[[section_name]][[name]]
+
+  if (is.null(entry)) {
+    rlang::abort(paste0(tools::toTitleCase(section), " `", name, "` is not registered."))
+  }
+
+  if (isTRUE(delete_files) && !isTRUE(confirm) && !isTRUE(dry_run)) {
+    rlang::abort("Set `confirm = TRUE` to delete project files.")
+  }
+
+  if (isTRUE(dry_run)) {
+    return(new_registry_action("remove", section, name, entry$path, root, TRUE, list(delete_files = delete_files)))
+  }
+
+  registry[[section_name]][[name]] <- NULL
+
+  if (identical(section, "script")) {
+    generated <- names(registry$outputs)[vapply(
+      registry$outputs,
+      function(output) identical(output$generated_by %||% "", name),
+      logical(1)
+    )]
+    if (length(generated) > 0L) {
+      for (output_name in generated) {
+        registry$outputs[[output_name]]$generated_by <- NULL
+      }
+    }
+  }
+
+  write_project_registry(registry, root = root, overwrite = TRUE)
+
+  if (isTRUE(delete_files) && project_relative_path_exists(root, entry$path)) {
+    delete_project_relative_path(root, entry$path)
+  }
+  append_project_activity(
+    action = paste0("remove_", section),
+    object_type = section,
+    object_id = name,
+    object_name = name,
+    details = list(path = entry$path, delete_files = delete_files),
+    root = root
+  )
+
+  invisible(entry)
+}
+
+rename_registry_entry <- function(section, from, to, root = ".", overwrite = FALSE, dry_run = FALSE) {
+  section <- match.arg(section, c("script", "report", "output"))
+  validate_logical_scalar(overwrite, "overwrite")
+  validate_logical_scalar(dry_run, "dry_run")
+
+  root <- find_project_root(root)
+  from <- validate_project_object_name(from, repair = TRUE)
+  to <- validate_project_object_name(to, repair = TRUE)
+  backup_project_registry(root)
+  registry <- read_project_registry(root)
+  section_name <- registry_section_for_type(section)
+  entry <- registry[[section_name]][[from]]
+
+  if (is.null(entry)) {
+    rlang::abort(paste0(tools::toTitleCase(section), " `", from, "` is not registered."))
+  }
+  if (!is.null(registry[[section_name]][[to]]) && !isTRUE(overwrite)) {
+    rlang::abort(paste0(tools::toTitleCase(section), " `", to, "` is already registered."))
+  }
+
+  extension <- fs::path_ext(entry$path)
+  new_relative_path <- switch(
+    section,
+    script = normalize_relative_path(fs::path("analysis", paste0(to, ".", extension))),
+    report = normalize_relative_path(fs::path("reports", paste0(to, ".", extension))),
+    output = normalize_relative_path(default_output_path(to, entry$type))
+  )
+
+  if (isTRUE(dry_run)) {
+    return(new_registry_action("rename", section, from, entry$path, root, TRUE, list(new_name = to, new_path = new_relative_path)))
+  }
+
+  if (project_relative_path_exists(root, entry$path)) {
+    rename_project_relative_path(root, entry$path, new_relative_path, overwrite = overwrite)
+  }
+
+  registry[[section_name]][[from]] <- NULL
+  entry$path <- new_relative_path
+  registry[[section_name]][[to]] <- entry
+
+  if (identical(section, "script")) {
+    for (output_name in names(registry$outputs)) {
+      if (identical(registry$outputs[[output_name]]$generated_by %||% "", from)) {
+        registry$outputs[[output_name]]$generated_by <- to
+      }
+    }
+  }
+
+  write_project_registry(registry, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = paste0("rename_", section),
+    object_type = section,
+    object_id = to,
+    object_name = to,
+    details = list(previous_name = from, path = new_relative_path),
+    root = root
+  )
+  invisible(entry)
+}
+
+#' Remove a project object
+#'
+#' @param name Object name to remove.
+#' @param root Existing project root to update.
+#' @param section Object section to remove: `"script"`, `"report"`, or
+#'   `"output"`.
+#' @param delete_files Logical scalar. If `TRUE`, delete the corresponding file
+#'   after validating the path and requiring confirmation.
+#' @param confirm Logical scalar confirming file deletion when
+#'   `delete_files = TRUE`.
+#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#'   modifying the project.
+#'
+#' @return Invisibly returns the removed entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' remove_project_object("analysis_results", section = "output")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+remove_project_object <- function(name,
+                                  root = ".",
+                                  section = c("script", "report", "output"),
+                                  delete_files = FALSE,
+                                  confirm = FALSE,
+                                  dry_run = FALSE) {
+  section <- match.arg(section)
+  remove_registry_entry(section, name, root = root, delete_files = delete_files, confirm = confirm, dry_run = dry_run)
+}
+
+#' Remove a project script
+#'
+#' @inheritParams remove_project_object
+#'
+#' @return Invisibly returns the removed script entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' remove_project_script("analysis_01", delete_files = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+remove_project_script <- function(name, root = ".", delete_files = FALSE, confirm = FALSE, dry_run = FALSE) {
+  remove_registry_entry("script", name, root = root, delete_files = delete_files, confirm = confirm, dry_run = dry_run)
+}
+
+#' Remove a project report
+#'
+#' @inheritParams remove_project_object
+#'
+#' @return Invisibly returns the removed report entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' remove_project_report("main_report", delete_files = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+remove_project_report <- function(name, root = ".", delete_files = FALSE, confirm = FALSE, dry_run = FALSE) {
+  remove_registry_entry("report", name, root = root, delete_files = delete_files, confirm = confirm, dry_run = dry_run)
+}
+
+#' Remove a project output
+#'
+#' @inheritParams remove_project_object
+#'
+#' @return Invisibly returns the removed output entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' remove_project_output("analysis_results", delete_files = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+remove_project_output <- function(name, root = ".", delete_files = FALSE, confirm = FALSE, dry_run = FALSE) {
+  remove_registry_entry("output", name, root = root, delete_files = delete_files, confirm = confirm, dry_run = dry_run)
+}
+
+#' Rename a project object
+#'
+#' @param from Existing object name.
+#' @param to Replacement object name.
+#' @param root Existing project root to update.
+#' @param section Object section to rename: `"script"`, `"report"`, or
+#'   `"output"`.
+#' @param overwrite Logical scalar. If `TRUE`, allow an existing destination
+#'   registry entry or file path to be replaced.
+#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#'   modifying the project.
+#'
+#' @return Invisibly returns the updated entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' rename_project_object("analysis_results", "analysis_results_v2", section = "output")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+rename_project_object <- function(from,
+                                  to,
+                                  root = ".",
+                                  section = c("script", "report", "output"),
+                                  overwrite = FALSE,
+                                  dry_run = FALSE) {
+  section <- match.arg(section)
+  rename_registry_entry(section, from, to, root = root, overwrite = overwrite, dry_run = dry_run)
+}
+
+#' Rename a project script
+#'
+#' @inheritParams rename_project_object
+#'
+#' @return Invisibly returns the updated script entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' rename_project_script("analysis_01", "analysis_02")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+rename_project_script <- function(from, to, root = ".", overwrite = FALSE, dry_run = FALSE) {
+  rename_registry_entry("script", from, to, root = root, overwrite = overwrite, dry_run = dry_run)
+}
+
+#' Rename a project report
+#'
+#' @inheritParams rename_project_object
+#'
+#' @return Invisibly returns the updated report entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' rename_project_report("main_report", "final_report")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+rename_project_report <- function(from, to, root = ".", overwrite = FALSE, dry_run = FALSE) {
+  rename_registry_entry("report", from, to, root = root, overwrite = overwrite, dry_run = dry_run)
+}
+
+#' Rename a project output
+#'
+#' @inheritParams rename_project_object
+#'
+#' @return Invisibly returns the updated output entry, or a dry-run plan.
+#' @examples
+#' \dontrun{
+#' rename_project_output("analysis_results", "analysis_results_v2")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+rename_project_output <- function(from, to, root = ".", overwrite = FALSE, dry_run = FALSE) {
+  rename_registry_entry("output", from, to, root = root, overwrite = overwrite, dry_run = dry_run)
+}
+
+#' Update a registered project output
+#'
+#' @param name Output name.
+#' @param ... Fields to update.
+#' @param root Existing project root.
+#'
+#' @return Invisibly returns the updated output entry.
+#' @examples
+#' \dontrun{
+#' update_project_output("analysis_results", generated_by = "fit_model")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+update_project_output <- function(name, ..., root = ".") {
+  update_project_object(name, ..., root = root)
+}
+
+#' Update a registered project report
+#'
+#' @param name Report name.
+#' @param root Existing project root.
+#' @param overwrite Logical scalar. If `TRUE`, allow file-path changes to
+#'   replace an existing destination.
+#' @param path Optional replacement report source path.
+#' @param type Optional replacement report type.
+#'
+#' @return Invisibly returns the updated report entry.
+#' @examples
+#' \dontrun{
+#' update_project_report("main_report", path = "reports/final_report.qmd")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+update_project_report <- function(name, root = ".", overwrite = FALSE, path = NULL, type = NULL) {
+  name <- validate_project_object_name(name, repair = TRUE)
+  validate_logical_scalar(overwrite, "overwrite")
+  root <- find_project_root(root)
+  backup_project_registry(root)
+  registry <- read_project_registry(root)
+  entry <- registry$reports[[name]]
+  if (is.null(entry)) {
+    rlang::abort(paste0("Report `", name, "` is not registered."))
+  }
+
+  if (!is.null(path)) {
+    validate_character_vector(path, "path")
+    if (is_absolute_path(path[[1]])) {
+      rlang::abort("Report paths must remain project-relative.")
+    }
+    new_path <- normalize_relative_path(path[[1]])
+    if (!identical(entry$path, new_path) && project_relative_path_exists(root, new_path) && !isTRUE(overwrite)) {
+      rlang::abort(paste0("Destination report path already exists: ", new_path))
+    }
+    if (project_relative_path_exists(root, entry$path) && !identical(entry$path, new_path)) {
+      rename_project_relative_path(root, entry$path, new_path, overwrite = overwrite)
+    }
+    entry$path <- new_path
+  }
+  if (!is.null(type)) {
+    entry$type <- validate_optional_text(type, "type")
+  }
+
+  registry$reports[[name]] <- entry
+  write_project_registry(registry, root = root, overwrite = TRUE)
+  append_project_activity(
+    action = "update_report",
+    object_type = "report",
+    object_id = name,
+    object_name = name,
+    details = list(path = entry$path, type = entry$type),
+    root = root
+  )
+  invisible(entry)
+}
+
 #' Render project reports
 #'
-#' @param root Project root.
+#' @param root Existing project root whose registered reports should be
+#'   rendered.
 #'
 #' @return Invisibly returns rendered report paths.
+#' @examples
+#' \dontrun{
+#' render_project_reports()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 render_project_reports <- function(root = ".") {
   root <- find_project_root(root)
@@ -1503,10 +2553,15 @@ run_registered_report <- function(name, root) {
 
 #' Run a registered project object
 #'
-#' @param name Object name.
-#' @param root Project root.
+#' @param name Registered script, report, or output name to resolve and run.
+#' @param root Existing project root whose registry should be consulted.
 #'
 #' @return Invisibly returns the executed path.
+#' @examples
+#' \dontrun{
+#' run_project_object("analysis_core")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 run_project_object <- function(name, root = ".") {
   name <- validate_project_object_name(name, repair = TRUE)
@@ -1536,10 +2591,16 @@ run_project_object <- function(name, root = ".") {
 
 #' Run a registered project step
 #'
-#' @param name Step name.
-#' @param root Project root.
+#' @param name Registered step name. This is an alias for
+#'   [run_project_object()] kept for workflow readability.
+#' @param root Existing project root whose registry should be consulted.
 #'
 #' @return Invisibly returns the executed path.
+#' @examples
+#' \dontrun{
+#' run_project_step("analysis_core")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 run_project_step <- function(name, root = ".") {
   run_project_object(name, root = root)
@@ -1547,9 +2608,15 @@ run_project_step <- function(name, root = ".") {
 
 #' Run the project workflow
 #'
-#' @param root Project root.
+#' @param root Existing project root whose registered scripts should be run in
+#'   execution order.
 #'
 #' @return Invisibly returns executed script paths.
+#' @examples
+#' \dontrun{
+#' run_project()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 run_project <- function(root = ".") {
   root <- find_project_root(root)
@@ -1596,9 +2663,14 @@ run_project <- function(root = ".") {
 
 #' List registered project outputs
 #'
-#' @param root Project root.
+#' @param root Existing project root whose registered outputs should be listed.
 #'
 #' @return Data frame of outputs and their existence status.
+#' @examples
+#' \dontrun{
+#' list_project_outputs()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 list_project_outputs <- function(root = ".") {
   root <- find_project_root(root)
@@ -1627,7 +2699,7 @@ list_project_outputs <- function(root = ".") {
           name = name,
           type = entry$type,
           output = entry$path,
-          exists = fs::file_exists(full_path) || fs::dir_exists(full_path),
+          exists = fs::file_exists(full_path),
           stringsAsFactors = FALSE
         )
       }
@@ -1637,9 +2709,14 @@ list_project_outputs <- function(root = ".") {
 
 #' Report missing project outputs
 #'
-#' @param root Project root.
+#' @param root Existing project root whose registered outputs should be checked.
 #'
 #' @return Character vector of missing output paths.
+#' @examples
+#' \dontrun{
+#' missing_project_outputs()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 missing_project_outputs <- function(root = ".") {
   outputs <- list_project_outputs(root)
@@ -1652,9 +2729,15 @@ missing_project_outputs <- function(root = ".") {
 
 #' Report stale project outputs
 #'
-#' @param root Project root.
+#' @param root Existing project root whose registered outputs should be compared
+#'   against their generating scripts.
 #'
 #' @return Character vector of stale output paths.
+#' @examples
+#' \dontrun{
+#' stale_project_outputs()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 stale_project_outputs <- function(root = ".") {
   root <- find_project_root(root)
@@ -1700,8 +2783,29 @@ collect_scalar_strings <- function(x) {
   character()
 }
 
-validate_project_registry <- function(root = ".") {
+validate_report_source <- function(path) {
+  extension <- tolower(fs::path_ext(path))
+  if (!extension %in% c("qmd", "rmd")) {
+    return(NULL)
+  }
+
+  lines <- readLines(path, warn = FALSE)
+  yaml_delimiters <- which(trimws(lines) == "---")
+
+  if (length(yaml_delimiters) < 2L || yaml_delimiters[[1]] != 1L) {
+    return("Report source is missing a valid YAML front matter block at the top of the file.")
+  }
+
+  if (length(yaml_delimiters) > 2L) {
+    return("Report source contains repeated YAML delimiters; keep a single front matter block at the top of the file.")
+  }
+
+  NULL
+}
+
+validate_project_registry <- function(root = ".", render_reports = FALSE) {
   root <- find_project_root(root)
+  validate_logical_scalar(render_reports, "render_reports")
   errors <- empty_issue_table()
   warnings <- empty_issue_table()
 
@@ -1715,7 +2819,7 @@ validate_project_registry <- function(root = ".") {
       errors,
       "registry_yaml",
       conditionMessage(registry),
-      ".projectSetupR/project_registry.yml",
+      project_registry_relative_path(root),
       "Repair or recreate the registry YAML."
     )
     return(list(ok = FALSE, errors = errors, warnings = warnings))
@@ -1726,19 +2830,8 @@ validate_project_registry <- function(root = ".") {
       errors,
       "registry_version",
       paste0("Unsupported registry version: ", registry$version),
-      ".projectSetupR/project_registry.yml",
+      project_registry_relative_path(root),
       "Use registry version 1."
-    )
-  }
-
-  all_names <- c(names(registry$scripts), names(registry$reports), names(registry$outputs))
-  if (anyDuplicated(all_names)) {
-    errors <- append_issue(
-      errors,
-      "duplicate_names",
-      "Duplicate names were found across scripts, reports, or outputs.",
-      ".projectSetupR/project_registry.yml",
-      "Use unique names across the registry."
     )
   }
 
@@ -1785,7 +2878,7 @@ validate_project_registry <- function(root = ".") {
       warnings,
       "duplicate_script_order",
       "Some scripts share the same execution order.",
-      ".projectSetupR/project_registry.yml",
+      project_registry_relative_path(root),
       "Use unique order values for deterministic execution."
     )
   }
@@ -1862,7 +2955,9 @@ git_exit_status <- function(root, args) {
 
 required_gitignore_entries <- function() {
   c(
-    ".projectSetupR/local.yml",
+    ".projflow/local.yml",
+    ".projflow/activity_log.yml",
+    ".projflow/backups/",
     ".Rhistory",
     ".RData",
     ".Ruserdata",
@@ -1914,9 +3009,14 @@ detect_large_data_files <- function(root = ".", size_mb = 5) {
 
 #' Check Git status for a project
 #'
-#' @param root Project root.
+#' @param root Existing project root whose Git state should be inspected.
 #'
 #' @return Structured Git status information.
+#' @examples
+#' \dontrun{
+#' check_git_status()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 check_git_status <- function(root = ".") {
   root <- find_project_root(root)
@@ -1927,7 +3027,7 @@ check_git_status <- function(root = ".") {
 
   if (git_initialized && nzchar(Sys.which("git"))) {
     remote <- length(git_command(root, c("remote"))) > 0L
-    local_config_ignored <- git_exit_status(root, c("check-ignore", ".projectSetupR/local.yml")) == 0L
+    local_config_ignored <- git_exit_status(root, c("check-ignore", ".projflow/local.yml")) == 0L
     tracked_data_files <- git_command(root, c("ls-files", "*.csv", "*.tsv", "*.xlsx", "*.rds", "*.parquet", "*.fst", "*.qs"))
   }
 
@@ -1941,9 +3041,15 @@ check_git_status <- function(root = ".") {
 
 #' Check GitHub Actions workflow files
 #'
-#' @param root Project root.
+#' @param root Existing project root whose GitHub Actions workflow files should
+#'   be inspected.
 #'
 #' @return Data frame describing known workflows.
+#' @examples
+#' \dontrun{
+#' check_github_actions()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 check_github_actions <- function(root = ".") {
   root <- find_project_root(root)
@@ -2013,10 +3119,16 @@ github_workflow_contents <- function(workflow, use_renv = FALSE) {
 
 #' Add a GitHub Actions workflow
 #'
-#' @param root Project root.
-#' @param workflow Workflow name.
+#' @param root Existing project root where the workflow file should be created.
+#' @param workflow Workflow name to create. Supported values are
+#'   `"check-project"` and `"render-reports"`.
 #'
 #' @return Invisibly returns the created workflow path.
+#' @examples
+#' \dontrun{
+#' use_github_actions(workflow = "check-project")
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 use_github_actions <- function(root = ".", workflow = c("check-project", "render-reports")) {
   workflow <- match.arg(workflow)
@@ -2039,14 +3151,16 @@ use_github_actions <- function(root = ".", workflow = c("check-project", "render
   invisible(path)
 }
 
-check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair = FALSE) {
+check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE, strict = FALSE, repair = FALSE) {
   validate_logical_scalar(deep, "deep")
+  validate_logical_scalar(render_reports, "render_reports")
   validate_logical_scalar(strict, "strict")
   validate_logical_scalar(repair, "repair")
 
   errors <- empty_issue_table()
   warnings <- empty_issue_table()
   suggestions <- empty_issue_table()
+  info <- empty_issue_table()
 
   root <- tryCatch(find_project_root(root), error = function(error) error)
   if (inherits(root, "error")) {
@@ -2058,7 +3172,19 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       "Create a project with `new_project()` or move into an existing project."
     )
     result <- structure(
-      list(ok = FALSE, errors = errors, warnings = warnings, suggestions = suggestions),
+      list(
+        ok = FALSE,
+        errors = errors,
+        warnings = warnings,
+        suggestions = suggestions,
+        info = info,
+        issues = rbind(
+          issue_table_with_severity(errors, "error"),
+          issue_table_with_severity(warnings, "warning"),
+          issue_table_with_severity(suggestions, "suggestion"),
+          issue_table_with_severity(info, "info")
+        )
+      ),
       class = "project_check"
     )
     if (isTRUE(strict)) {
@@ -2068,14 +3194,29 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
   }
 
   if (isTRUE(repair)) {
-    fs::dir_create(fs::path(root, ".projectSetupR"), recurse = TRUE)
+    fs::dir_create(project_metadata_dir(root, create = TRUE, prefer_existing = TRUE), recurse = TRUE)
     fs::dir_create(fs::path(root, "outputs"), recurse = TRUE)
     ensure_gitignore_entries(root)
     ensure_local_config_file(root)
-    if (!fs::file_exists(fs::path(root, ".projectSetupR", "project_registry.yml"))) {
+    if (!fs::file_exists(registry_path(root))) {
       ensure_registry_file(root, overwrite = TRUE)
     }
   }
+
+  info <- append_issue(
+    info,
+    "project_root_detected",
+    paste0("Project root detected at ", root),
+    "",
+    ""
+  )
+  info <- append_issue(
+    info,
+    "metadata_dir",
+    paste0("Using project metadata directory `", project_metadata_relative_dir(root), "`."),
+    project_metadata_relative_dir(root),
+    ""
+  )
 
   config <- tryCatch(read_project_config(root), error = function(error) error)
   config_ok <- !inherits(config, "error")
@@ -2089,7 +3230,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       use_renv = FALSE
     )
   }
-  registry_check <- validate_project_registry(root)
+  registry_check <- validate_project_registry(root, render_reports = render_reports)
 
   if (inherits(config, "error")) {
     errors <- append_issue(
@@ -2104,7 +3245,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
   errors <- rbind(errors, registry_check$errors)
   warnings <- rbind(warnings, registry_check$warnings)
 
-  required_files <- c("project.yml", fs::path(".projectSetupR", "project_registry.yml"))
+  required_files <- c("project.yml", project_registry_relative_path(root))
   for (relative_path in required_files) {
     if (!fs::file_exists(fs::path(root, relative_path))) {
       errors <- append_issue(
@@ -2117,7 +3258,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
     }
   }
 
-  required_dirs <- c("analysis", "reports", "outputs", ".projectSetupR")
+  required_dirs <- c("analysis", "reports", "outputs", project_metadata_relative_dir(root))
   for (relative_path in required_dirs) {
     if (!fs::dir_exists(fs::path(root, relative_path))) {
       errors <- append_issue(
@@ -2168,9 +3309,9 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
     warnings <- append_issue(
       warnings,
       "local_config_ignored",
-      "`.projectSetupR/local.yml` is not ignored by Git.",
-      ".projectSetupR/local.yml",
-      "Add `.projectSetupR/local.yml` to `.gitignore`."
+      paste0("`", project_local_config_relative_path(root), "` is not ignored by Git."),
+      project_local_config_relative_path(root),
+      paste0("Add `", project_local_config_relative_path(root), "` to `.gitignore`.")
     )
   }
 
@@ -2182,7 +3323,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
           errors,
           "missing_external_data_root",
           paste0("Configured external data root does not exist: ", data_sources$path[[index]]),
-          ".projectSetupR/local.yml",
+          project_local_config_relative_path(root),
           "Update the local data root or create the directory."
         )
       } else if (!isTRUE(data_sources$readable[[index]])) {
@@ -2190,7 +3331,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
           warnings,
           "unreadable_external_data_root",
           paste0("Configured external data root is not readable: ", data_sources$path[[index]]),
-          ".projectSetupR/local.yml",
+          project_local_config_relative_path(root),
           "Check permissions for the configured directory."
         )
       }
@@ -2235,7 +3376,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       suggestions,
       "external_data",
       "No external data root is configured for a project plan that expects external data.",
-      ".projectSetupR/local.yml",
+      project_local_config_relative_path(root),
       'Run `projflow::set_project_data_root("path/to/external/data")`.'
     )
   }
@@ -2303,7 +3444,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       warnings,
       "external_data_configured",
       "The project includes `data_preparation`, but no external data root is configured and no example mode file is present.",
-      ".projectSetupR/local.yml",
+      project_local_config_relative_path(root),
       'Run `projflow::set_project_data_root("path/to/external/data")`.'
     )
   }
@@ -2391,7 +3532,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       "docs/assumptions.md",
       "docs/decisions.md",
       "docs/risks.md",
-      ".projectSetupR/tasks.yml"
+      project_tasks_relative_path(root)
     )
 
     for (relative_path in governance_files) {
@@ -2412,44 +3553,44 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
         warnings,
         "tasks_file_valid",
         conditionMessage(tasks_data),
-        ".projectSetupR/tasks.yml",
-        "Repair `.projectSetupR/tasks.yml`."
+        project_tasks_relative_path(root),
+        paste0("Repair `", project_tasks_relative_path(root), "`.")
       )
     } else {
-      valid_statuses <- c("todo", "in_progress", "blocked", "done", "cancelled")
+      valid_statuses <- c("backlog", "todo", "in_progress", "blocked", "done", "cancelled")
       valid_priorities <- c("low", "medium", "high", "critical")
 
-      for (task_name in names(tasks_data$tasks)) {
-        task <- tasks_data$tasks[[task_name]]
+      for (task in tasks_data$tasks) {
+        task_name <- task$title %||% task$id %||% "task"
 
         if (!task$status %in% valid_statuses) {
           warnings <- append_issue(
             warnings,
             "task_status",
             paste0("Task `", task_name, "` has an invalid status."),
-            ".projectSetupR/tasks.yml",
-            "Use one of: todo, in_progress, blocked, done, cancelled."
+            project_tasks_relative_path(root),
+            "Use one of: backlog, todo, in_progress, blocked, done, cancelled."
           )
         }
 
-        if (!task$priority %in% valid_priorities) {
+        if (!is.null(task$priority) && !task$priority %in% valid_priorities) {
           warnings <- append_issue(
             warnings,
             "task_priority",
             paste0("Task `", task_name, "` has an invalid priority."),
-            ".projectSetupR/tasks.yml",
+            project_tasks_relative_path(root),
             "Use one of: low, medium, high, critical."
           )
         }
 
-        if (!is.null(task$due) && nzchar(as.character(task$due))) {
-          due_ok <- !inherits(tryCatch(as.Date(task$due), error = function(error) error), "error")
+        if (!is.null(task$due_date) && nzchar(as.character(task$due_date))) {
+          due_ok <- !inherits(tryCatch(as.Date(task$due_date), error = function(error) error), "error")
           if (!isTRUE(due_ok)) {
             warnings <- append_issue(
               warnings,
               "task_due_date",
               paste0("Task `", task_name, "` has an invalid due date."),
-              ".projectSetupR/tasks.yml",
+              project_tasks_relative_path(root),
               "Store due dates as valid ISO dates."
             )
           }
@@ -2460,34 +3601,34 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
             suggestions,
             "blocked_task",
             paste0("Task `", task_name, "` is currently blocked."),
-            ".projectSetupR/tasks.yml",
+            project_tasks_relative_path(root),
             "Update the blocker in the task notes or status report."
           )
         }
 
-        if (!is.null(task$due) && nzchar(as.character(task$due)) &&
-            !inherits(tryCatch(as.Date(task$due), error = function(error) error), "error") &&
-            as.Date(task$due) < Sys.Date() &&
-            !identical(task$status, "done")) {
+        if (!is.null(task$due_date) && nzchar(as.character(task$due_date)) &&
+            !inherits(tryCatch(as.Date(task$due_date), error = function(error) error), "error") &&
+            as.Date(task$due_date) < Sys.Date() &&
+            !task$status %in% c("done", "cancelled")) {
           suggestions <- append_issue(
             suggestions,
             "overdue_task",
             paste0("Task `", task_name, "` is overdue."),
-            ".projectSetupR/tasks.yml",
+            project_tasks_relative_path(root),
             "Review the due date or task status."
           )
         }
       }
 
-      for (risk_name in names(tasks_data$risks)) {
-        risk <- tasks_data$risks[[risk_name]]
+      for (risk in tasks_data$risks) {
+        risk_name <- risk$title %||% risk$id %||% "risk"
         if (identical(risk$status %||% "open", "open") &&
             identical(risk$impact %||% NA_character_, "critical")) {
           suggestions <- append_issue(
             suggestions,
             "open_critical_risk",
             paste0("Risk `", risk_name, "` is open and marked critical."),
-            ".projectSetupR/tasks.yml",
+            project_tasks_relative_path(root),
             "Review mitigation and ownership."
           )
         }
@@ -2533,7 +3674,27 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
         entry$path,
         "Restore the report or remove it from the registry."
       )
-    } else if (isTRUE(deep)) {
+    } else {
+      if (isTRUE(deep)) {
+        source_warning <- tryCatch(
+          validate_report_source(path),
+          error = function(error) conditionMessage(error)
+        )
+        if (!is.null(source_warning)) {
+          warnings <- append_issue(
+            warnings,
+            "report_source",
+            source_warning,
+            entry$path,
+            "Keep a single valid YAML front matter block at the top of the report."
+          )
+        }
+      }
+
+      if (!isTRUE(render_reports)) {
+        next
+      }
+
       warning_message <- tryCatch(
         render_one_report(path, fs::path(root, default_output_path(name, "report"))),
         error = function(error) conditionMessage(error)
@@ -2594,7 +3755,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       "absolute_paths_in_project_yml",
       "Absolute or machine-specific paths were found in `project.yml`.",
       "project.yml",
-      "Keep machine-specific paths in `.projectSetupR/local.yml`."
+      paste0("Keep machine-specific paths in `", project_local_config_relative_path(root), "`.")
     )
   }
 
@@ -2605,7 +3766,7 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       errors,
       "absolute_paths_in_registry",
       "Absolute or machine-specific paths were found in the project registry.",
-      ".projectSetupR/project_registry.yml",
+      project_registry_relative_path(root),
       "Store only project-relative paths in the registry."
     )
   }
@@ -2671,7 +3832,14 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
       ok = nrow(errors) == 0L,
       errors = errors,
       warnings = warnings,
-      suggestions = suggestions
+      suggestions = suggestions,
+      info = info,
+      issues = rbind(
+        issue_table_with_severity(errors, "error"),
+        issue_table_with_severity(warnings, "warning"),
+        issue_table_with_severity(suggestions, "suggestion"),
+        issue_table_with_severity(info, "info")
+      )
     ),
     class = "project_check"
   )
@@ -2690,37 +3858,77 @@ check_project_impl <- function(root = ".", deep = TRUE, strict = FALSE, repair =
 
 #' Check project health
 #'
-#' @param root Project root.
-#' @param deep Should deeper checks such as report rendering run?
-#' @param strict Should critical failures raise an error?
-#' @param repair Should safe repairs be applied?
+#' @param root Existing project root to validate.
+#' @param deep Logical scalar. If `TRUE`, run deeper static checks such as
+#'   validating report source structure in addition to the default checks.
+#' @param render_reports Logical scalar. If `TRUE`, render registered reports as
+#'   part of the health check.
+#' @param strict Logical scalar. If `TRUE`, abort when critical errors are
+#'   found; otherwise return a structured result object.
+#' @param repair Logical scalar. If `TRUE`, apply safe repairs such as creating
+#'   missing project metadata directories and default config files.
 #'
 #' @return Structured project-check result.
+#' @examples
+#' \dontrun{
+#' check_project()
+#' check_project(deep = TRUE, render_reports = FALSE)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
-check_project <- function(root = ".", deep = TRUE, strict = FALSE, repair = FALSE) {
-  check_project_impl(root = root, deep = deep, strict = strict, repair = repair)
+check_project <- function(root = ".", deep = FALSE, render_reports = FALSE, strict = FALSE, repair = FALSE) {
+  check_project_impl(
+    root = root,
+    deep = deep,
+    render_reports = render_reports,
+    strict = strict,
+    repair = repair
+  )
 }
 
 #' Project status alias
 #'
-#' @param root Project root.
+#' @param root Existing project root to inspect.
 #'
 #' @return Structured project-check result.
+#' @examples
+#' \dontrun{
+#' project_status()
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 project_status <- function(root = ".") {
-  check_project(root = root, deep = FALSE, strict = FALSE, repair = FALSE)
+  structure(
+    check_project(root = root, deep = FALSE, render_reports = FALSE, strict = FALSE, repair = FALSE),
+    class = c("project_status", "project_check")
+  )
 }
 
 #' Print a project check summary
 #'
-#' @param x A project check result.
-#' @param ... Unused.
+#' @param x A `"project_check"` object, usually created by [check_project()].
+#' @param ... Additional arguments accepted for S3 compatibility but ignored by
+#'   this method.
 #'
 #' @return `x`, invisibly.
+#' @examples
+#' \dontrun{
+#' x <- check_project()
+#' print(x)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 print.project_check <- function(x, ...) {
   cat("Project check\n\n")
   cat("OK: ", if (isTRUE(x$ok)) "yes" else "no", "\n", sep = "")
+  cat(
+    "Issues: ",
+    nrow(x$errors), " error(s), ",
+    nrow(x$warnings), " warning(s), ",
+    nrow(x$suggestions), " suggestion(s), ",
+    nrow(x$info %||% empty_issue_table()), " info item(s)\n",
+    sep = ""
+  )
 
   if (nrow(x$errors) > 0L) {
     cat("\nErrors:\n")
@@ -2745,10 +3953,17 @@ print.project_check <- function(x, ...) {
 
 #' Print a project status summary
 #'
-#' @param x A project status object.
-#' @param ... Unused.
+#' @param x A `"project_status"` object, usually created by [project_status()].
+#' @param ... Additional arguments accepted for S3 compatibility but ignored by
+#'   this method.
 #'
 #' @return `x`, invisibly.
+#' @examples
+#' \dontrun{
+#' x <- project_status()
+#' print(x)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 print.project_status <- function(x, ...) {
   print.project_check(x, ...)
@@ -2760,7 +3975,7 @@ migrate_internal_data_to_external <- function(root = ".", external_path) {
     paste(
       "`migrate_internal_data_to_external()` is not implemented yet.",
       "The intended behaviour is to create the external folder, confirm copy or move operations explicitly,",
-      "and update `.projectSetupR/local.yml` without deleting user files automatically."
+      "and update `.projflow/local.yml` without deleting user files automatically."
     )
   )
 }

@@ -14,7 +14,7 @@ new_analysis_project_scaffold <- function(
     use_targets,
     use_renv,
     use_git,
-    preset = "analysis",
+    preset = "basic_analysis",
     scaffold_level = "simple",
     entrypoint = "run_project.R",
     guide = "README.md") {
@@ -46,10 +46,23 @@ new_analysis_project_scaffold <- function(
 
 #' Print an analysis project scaffold result
 #'
-#' @param x An object of class `"analysis_project_scaffold"`.
-#' @param ... Unused.
+#' @param x An object of class `"analysis_project_scaffold"`, typically the
+#'   result returned by [new_project()].
+#' @param ... Additional arguments accepted for S3 compatibility but ignored by
+#'   this method.
 #'
 #' @return `x`, invisibly.
+#' @examples
+#' \dontrun{
+#' result <- new_project(
+#'   path = "demo-project",
+#'   components = c("statistical_analysis", "report"),
+#'   infrastructure = character(),
+#'   open = FALSE
+#' )
+#' print(result)
+#' }
+#' @author Thiago de Paula Oliveira
 #' @export
 print.analysis_project_scaffold <- function(x, ...) {
   cat("Project name: ", x$project_name, "\n", sep = "")
@@ -77,7 +90,7 @@ print.analysis_project_scaffold <- function(x, ...) {
   }
 
   if (isTRUE(x$use_renv)) {
-    cat("* Restore packages with: Rscript scripts/restore_environment.R\n")
+    cat("* Restore packages with: renv::restore()\n")
   }
 
   invisible(x)

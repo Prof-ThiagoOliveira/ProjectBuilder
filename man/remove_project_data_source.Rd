@@ -7,13 +7,22 @@
 remove_project_data_source(name = "default", root = ".")
 }
 \arguments{
-\item{name}{Data source name.}
+\item{name}{Data source name to remove from \code{.projflow/local.yml}.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose local data-source configuration
+should be updated.}
 }
 \value{
 Invisibly returns remaining data sources.
 }
 \description{
 Remove a configured external data source
+}
+\examples{
+\dontrun{
+remove_project_data_source("reference")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

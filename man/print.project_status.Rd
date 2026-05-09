@@ -7,13 +7,23 @@
 \method{print}{project_status}(x, ...)
 }
 \arguments{
-\item{x}{A project status object.}
+\item{x}{A \code{"project_status"} object, usually created by \code{\link[=project_status]{project_status()}}.}
 
-\item{...}{Unused.}
+\item{...}{Additional arguments accepted for S3 compatibility but ignored by
+this method.}
 }
 \value{
 \code{x}, invisibly.
 }
 \description{
 Print a project status summary
+}
+\examples{
+\dontrun{
+x <- project_status()
+print(x)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

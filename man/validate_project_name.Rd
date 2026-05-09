@@ -7,11 +7,18 @@
 validate_project_name(project_name)
 }
 \arguments{
-\item{project_name}{Project name supplied by the user.}
+\item{project_name}{Project name supplied by the user, usually derived from a
+folder name or explicit project title field.}
 }
 \value{
 A validated project name.
 }
 \description{
 Validate a project name
+}
+\examples{
+projflow:::validate_project_name("My analysis project")
+}
+\author{
+Thiago de Paula Oliveira
 }

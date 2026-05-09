@@ -7,15 +7,22 @@
 validate_character_vector(x, arg, allow_null = FALSE)
 }
 \arguments{
-\item{x}{Object to validate.}
+\item{x}{Object to validate as a character vector without \code{NA} or empty
+entries.}
 
-\item{arg}{Argument name.}
+\item{arg}{Argument name used in the error message when validation fails.}
 
-\item{allow_null}{Logical. Whether \code{NULL} is allowed.}
+\item{allow_null}{Logical scalar indicating whether \code{NULL} is accepted.}
 }
 \value{
 Invisibly returns \code{TRUE}.
 }
 \description{
 Validate a character vector
+}
+\examples{
+projflow:::validate_character_vector(c("analysis", "report"), "components")
+}
+\author{
+Thiago de Paula Oliveira
 }

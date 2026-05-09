@@ -13,28 +13,26 @@ test_that("default scaffold is minimal and external-data oriented", {
   expect_true(dir.exists(file.path(project_path, "analysis")))
   expect_true(dir.exists(file.path(project_path, "reports")))
   expect_true(dir.exists(file.path(project_path, "outputs")))
-  expect_true(dir.exists(file.path(project_path, ".projectSetupR")))
+  expect_true(dir.exists(file.path(project_path, ".projflow")))
 
   expect_false(dir.exists(file.path(project_path, "data")))
   expect_true(file.exists(file.path(project_path, "project.yml")))
-  expect_true(file.exists(file.path(project_path, ".projectSetupR", "project_registry.yml")))
-  expect_true(file.exists(file.path(project_path, ".projectSetupR", "local.yml")))
+  expect_true(file.exists(file.path(project_path, ".projflow", "project_registry.yml")))
+  expect_true(file.exists(file.path(project_path, ".projflow", "local.yml")))
   expect_true(file.exists(file.path(project_path, "README.md")))
   expect_true(file.exists(file.path(project_path, "run_project.R")))
   expect_true(file.exists(file.path(project_path, ".gitignore")))
   expect_true(file.exists(file.path(project_path, "reports", "main_report.qmd")))
-  expect_true(file.exists(file.path(project_path, "analysis", "example_analysis.R")))
+  expect_false(file.exists(file.path(project_path, "analysis", "example_analysis.R")))
   expect_true(file.exists(file.path(project_path, paste0(basename(project_path), ".Rproj"))))
 
   readme <- readLines(file.path(project_path, "README.md"), warn = FALSE)
-  example_script <- readLines(file.path(project_path, "analysis", "example_analysis.R"), warn = FALSE)
   report <- readLines(file.path(project_path, "reports", "main_report.qmd"), warn = FALSE)
   gitignore <- readLines(file.path(project_path, ".gitignore"), warn = FALSE)
 
   expect_false(any(grepl("data/raw", readme, fixed = TRUE)))
-  expect_false(any(grepl("data/raw", example_script, fixed = TRUE)))
   expect_false(any(grepl("data/raw", report, fixed = TRUE)))
-  expect_true(".projectSetupR/local.yml" %in% gitignore)
+  expect_true(".projflow/local.yml" %in% gitignore)
 })
 
 test_that("infrastructure NULL infers defaults and character(0) disables them", {
@@ -78,6 +76,7 @@ test_that("example script runs without real data", {
   new_project(
     path = project_path,
     infrastructure = character(),
+    include_example = TRUE,
     open = FALSE
   )
 
@@ -116,7 +115,7 @@ test_that("project management component creates governance files and task helper
   expect_true(file.exists(file.path(project_path, "docs", "assumptions.md")))
   expect_true(file.exists(file.path(project_path, "docs", "decisions.md")))
   expect_true(file.exists(file.path(project_path, "docs", "risks.md")))
-  expect_true(file.exists(file.path(project_path, ".projectSetupR", "tasks.yml")))
+  expect_true(file.exists(file.path(project_path, ".projflow", "tasks.yml")))
   expect_true(file.exists(file.path(project_path, "reports", "status_report.qmd")))
 
   task_id <- add_project_task(
@@ -126,9 +125,9 @@ test_that("project management component creates governance files and task helper
     priority = "high"
   )
 
-  expect_true(task_id %in% project_tasks(project_path)$task)
+  expect_true(task_id %in% project_tasks(project_path)$id)
 
-  update_project_task(task_id, root = project_path, status = "blocked", notes = "Waiting for inputs")
+  update_project_task(task_id, root = project_path, status = "blocked", description = "Waiting for inputs")
   status <- project_status_report(project_path, output = "data")
 
   expect_true(any(status$tasks$status == "blocked"))
@@ -167,7 +166,7 @@ test_that("custom component specs can be registered and used", {
   expect_true(file.exists(file.path(project_path, "analysis", "08_genomic_evaluation.R")))
   expect_true(dir.exists(file.path(project_path, "outputs", "ebv")))
 
-  registry <- yaml::read_yaml(file.path(project_path, ".projectSetupR", "project_registry.yml"))
+  registry <- yaml::read_yaml(file.path(project_path, ".projflow", "project_registry.yml"))
   expect_true("genomic_evaluation" %in% registry$components)
   expect_true("genomic_evaluation" %in% registry$custom_components)
   expect_true("genomic_evaluation" %in% names(registry$component_specs))

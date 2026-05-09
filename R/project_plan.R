@@ -257,7 +257,7 @@ default_deliverables_for_components <- function(components) {
   inferred <- character()
 
   if ("report" %in% components) {
-    inferred <- c(inferred, "html_report", "tables", "figures")
+    inferred <- c(inferred, "html_report")
   }
   if ("manuscript" %in% components) {
     inferred <- c(inferred, "scientific_manuscript", "tables", "figures")
@@ -378,7 +378,7 @@ resolve_dependency_vector <- function(values, dependencies, label) {
           paste0(
             "Adding required ", label, " `",
             needed,
-            "` because `",
+            "` because ", label, " `",
             value,
             "` depends on it."
           )
@@ -418,7 +418,7 @@ resolve_project_deliverable_dependencies <- function(deliverables, existing_comp
         paste0(
           "Adding required component `",
           needed_messages,
-          "` because `",
+          "` because deliverable `",
           deliverable,
           "` depends on it."
         )
@@ -584,7 +584,6 @@ built_in_component_specs <- function() {
     ),
     report = list(
       folders = c("reports"),
-      scripts = list(list(name = "summarise_results", path = "analysis/06_summarise_results.R", type = "summary", order = 60, outputs = c("summary_tables", "summary_figures"))),
       reports = list(list(name = "main_report", path = "reports/main_report.qmd", type = "report", deliverable = "html_report")),
       packages = c("quarto")
     ),
@@ -618,7 +617,7 @@ built_in_component_specs <- function() {
     ),
     project_management = list(
       folders = c("docs"),
-      files = c("docs/project_plan.md", "docs/assumptions.md", "docs/decisions.md", "docs/risks.md", "docs/changelog.md", "docs/status.md", ".projectSetupR/tasks.yml"),
+      files = c("docs/project_plan.md", "docs/assumptions.md", "docs/decisions.md", "docs/risks.md", "docs/changelog.md", "docs/status.md", ".projflow/tasks.yml"),
       checks = c("tasks_file_valid", "project_plan_present", "decision_log_present", "risk_log_present")
     ),
     data_governance = list(
@@ -792,8 +791,8 @@ project_core_files <- function(project_name) {
     "run_project.R",
     "project.yml",
     ".gitignore",
-    ".projectSetupR/project_registry.yml",
-    ".projectSetupR/local.yml",
+    ".projflow/project_registry.yml",
+    ".projflow/local.yml",
     paste0(project_name, ".Rproj")
   )
 }
@@ -807,26 +806,8 @@ build_component_output_entries <- function(script_entries) {
     }
 
     for (output_name in entry$outputs) {
-      output_type <- if (grepl("figure", output_name)) {
-        "figures"
-      } else if (grepl("table", output_name)) {
-        "tables"
-      } else if (grepl("diagnostic", output_name)) {
-        "diagnostics"
-      } else if (grepl("qc", output_name)) {
-        "qc"
-      } else {
-        "intermediate"
-      }
-
-      output_path <- switch(
-        output_type,
-        figures = "outputs/figures",
-        tables = "outputs/tables",
-        diagnostics = "outputs/diagnostics",
-        qc = "outputs/qc",
-        paste0("outputs/", output_name, ".rds")
-      )
+      output_type <- infer_output_type(output_name, entry$type)
+      output_path <- normalize_relative_path(default_output_path(output_name, output_type))
 
       outputs[[output_name]] <- list(
         path = output_path,
@@ -889,7 +870,7 @@ build_project_plan <- function(
     preset = NULL,
     component_specs = NULL,
     use_internal_data_dirs = FALSE,
-    include_example = TRUE) {
+    include_example = FALSE) {
   validate_character_vector(path, "path")
   validate_character_vector(title, "title", allow_null = TRUE)
   validate_logical_scalar(use_internal_data_dirs, "use_internal_data_dirs")
@@ -941,7 +922,7 @@ build_project_plan <- function(
   deliverable_map <- deliverable_specs()
   infrastructure_map <- infrastructure_specs()
 
-  folders <- c("analysis", "reports", "outputs", ".projectSetupR")
+  folders <- c("analysis", "reports", "outputs", ".projflow")
   files <- character()
   scripts <- list()
   reports <- list()
@@ -994,6 +975,10 @@ build_project_plan <- function(
   if (scaffold_level %in% c("standard", "advanced")) {
     folders <- c(folders, "docs")
     files <- c(files, ".here")
+  }
+
+  if ("quarto" %in% infrastructure || any(vapply(reports, function(report) grepl("\\.qmd$", report$path), logical(1)))) {
+    files <- c(files, "_quarto.yml")
   }
 
   if (identical(scaffold_level, "advanced")) {

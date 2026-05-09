@@ -7,15 +7,24 @@
 update_project_object(name, ..., root = ".")
 }
 \arguments{
-\item{name}{Object name.}
+\item{name}{Output object name to update.}
 
-\item{...}{Named fields to update.}
+\item{...}{Named fields to merge into the existing registry entry, such as
+\code{path}, \code{type}, or \code{generated_by}.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose registry should be updated.}
 }
 \value{
 Invisibly returns the updated entry.
 }
 \description{
 Update an output object in the project registry
+}
+\examples{
+\dontrun{
+update_project_object("weekly_summary", generated_by = "summarise_weekly")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

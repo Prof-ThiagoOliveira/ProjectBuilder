@@ -7,17 +7,27 @@
 new_project_object(name, type, root = ".", overwrite = FALSE)
 }
 \arguments{
-\item{name}{Object name.}
+\item{name}{Object name used as the registry key and default filename stem.}
 
-\item{type}{Object type.}
+\item{type}{Object type to create. Script-like types create scripts, \code{"report"}
+creates a report, and other types register an output artefact.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root to update.}
 
-\item{overwrite}{Should an existing file be overwritten?}
+\item{overwrite}{Logical scalar. If \code{TRUE}, allow an existing file at the
+inferred path to be replaced.}
 }
 \value{
 Invisibly returns the created path.
 }
 \description{
 Create and register a project object
+}
+\examples{
+\dontrun{
+new_project_object("custom_table", type = "table", overwrite = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

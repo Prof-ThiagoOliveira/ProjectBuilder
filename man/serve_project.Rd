@@ -12,17 +12,29 @@ serve_project(
 )
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root to preview or serve.}
 
-\item{target}{What to serve.}
+\item{target}{Target to serve. \code{"auto"} chooses between reports, dashboard,
+Shiny app, or the full project based on the files present.}
 
-\item{watch}{Included for API compatibility.}
+\item{watch}{Logical scalar kept for API compatibility. Continuous watch mode
+is not currently implemented, so the function performs a one-shot preview.}
 
-\item{render}{Should reports be rendered for report-oriented projects?}
+\item{render}{Logical scalar indicating whether reports or dashboards should
+be rendered as part of the preview step.}
 }
 \value{
 Invisibly returns the launched target or build result.
 }
 \description{
 Serve a project for interactive development
+}
+\examples{
+\dontrun{
+serve_project(target = "reports", render = TRUE)
+serve_project(target = "shiny_app", render = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

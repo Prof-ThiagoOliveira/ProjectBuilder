@@ -33,7 +33,7 @@ project_readme_template <- function(plan) {
     "## Workflow",
     "",
     "```r",
-    "projflow::check_project(deep = TRUE)",
+    "projflow::check_project()",
     "projflow::build_project()",
     "```",
     "",
@@ -75,6 +75,7 @@ example_analysis_template <- function() {
 }
 
 base_script_template <- function(script) {
+  template <- script$template %||% "example"
   data_comment <- c(
     "# Data are expected to live outside this repository.",
     "# Configure the external data root once with:",
@@ -85,7 +86,7 @@ base_script_template <- function(script) {
   )
 
   header <- c(
-    paste0("# ", safe_basename(script$path)),
+    paste0("# ", tools::file_path_sans_ext(safe_basename(script$path))),
     paste0("# Created: ", as.character(Sys.Date())),
     "",
     "projflow::setup_project()",
@@ -94,37 +95,43 @@ base_script_template <- function(script) {
     ""
   )
 
+  if (identical(template, "minimal")) {
+    return(paste(c(header, "# Add analysis code here."), collapse = "\n"))
+  }
+
   output_lines <- character()
   outputs <- script$outputs %||% character()
 
   if (length(outputs) > 0L) {
-    main_object <- outputs[[1]]
-    object_type <- if (identical(script$type, "summary")) "table" else if (main_object %in% c("summary_figures", "exploratory_figures")) "figure" else script$type
     output_lines <- c(
-      output_lines,
       "result <- data.frame(",
       '  message = "Replace this example with project-specific logic.",',
-      "  created = Sys.time()",
-      ")",
-      "",
-      if (identical(object_type, "figure")) {
-        c(
-          "if (requireNamespace(\"ggplot2\", quietly = TRUE)) {",
-          "  figure <- ggplot2::ggplot(data.frame(x = 1:3, y = c(2, 5, 3)), ggplot2::aes(x, y)) +",
-          "    ggplot2::geom_col()",
-          paste0('  projflow::save_project_object(figure, name = "', main_object, '", type = "figure")'),
-          "}"
-        )
-      } else {
-        paste0('projflow::save_project_object(result, name = "', main_object, '", type = "', object_type, '")')
-      }
+      "  created = Sys.time(),",
+      "  stringsAsFactors = FALSE",
+      ")"
     )
+
+    for (output_name in outputs) {
+      object_type <- infer_output_type(output_name, script$type)
+      output_lines <- c(
+        output_lines,
+        "",
+        if (identical(object_type, "figure")) {
+          c(
+            "if (requireNamespace(\"ggplot2\", quietly = TRUE)) {",
+            "  figure <- ggplot2::ggplot(data.frame(x = 1:3, y = c(2, 5, 3)), ggplot2::aes(x, y)) +",
+            "    ggplot2::geom_col()",
+            paste0('  projflow::save_project_object(figure, name = "', output_name, '", type = "figure")'),
+            "}"
+          )
+        } else {
+          paste0('projflow::save_project_object(result, name = "', output_name, '", type = "', object_type, '")')
+        }
+      )
+    }
   } else {
     output_lines <- c(
-      "result <- data.frame(",
-      '  message = "Replace this example with project-specific logic.",',
-      "  created = Sys.time()",
-      ")"
+      "# Add analysis code here."
     )
   }
 
@@ -169,13 +176,15 @@ report_template_for_plan <- function(report) {
   }
 
   paste(
-    "---",
-    paste0('title: "', title, '"'),
-    "format: html",
-    "---",
-    "",
-    body,
-    sep = "\n"
+    c(
+      "---",
+      paste0('title: "', title, '"'),
+      "format: html",
+      "---",
+      "",
+      body
+    ),
+    collapse = "\n"
   )
 }
 
@@ -213,9 +222,22 @@ plain_file_template <- function(path, plan) {
     normalize_relative_path(path),
     ".here" = "",
     "config.yml" = paste0("project:\n  name: ", safe_basename(plan$path), "\n"),
+    "_quarto.yml" = paste(
+      "project:",
+      "  type: default",
+      "  output-dir: outputs/reports",
+      sep = "\n"
+    ),
     "tests/testthat.R" = "library(testthat)\nlibrary(projflow)\n\ntest_check('projflow')\n",
     ".lintr" = "linters: lintr::linters_with_defaults()\n",
-    "_targets.R" = "library(targets)\n\nlist()\n",
+    "_targets.R" = paste(
+      "library(targets)",
+      "",
+      "list(",
+      "  tar_target(project_check, projflow::check_project(deep = FALSE))",
+      ")",
+      sep = "\n"
+    ),
     "Dockerfile" = "FROM rocker/r-ver:latest\n",
     "app/app.R" = shiny_app_template(),
     ""
@@ -278,11 +300,11 @@ write_plan_files <- function(path, plan, overwrite = FALSE) {
   track_result(write_template_file(fs::path(path, "README.md"), project_readme_template(plan), overwrite = overwrite))
   track_result(write_template_file(fs::path(path, "run_project.R"), run_project_template(), overwrite = overwrite))
   track_result(write_yaml_file(fs::path(path, "project.yml"), project_config_from_plan(plan), overwrite = overwrite))
-  track_result(write_yaml_file(fs::path(path, ".projectSetupR", "project_registry.yml"), plan$registry, overwrite = overwrite))
-  track_result(write_yaml_file(fs::path(path, ".projectSetupR", "local.yml"), default_local_config(), overwrite = overwrite))
+  track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "project_registry.yml"), plan$registry, overwrite = overwrite))
+  track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "local.yml"), default_local_config(), overwrite = overwrite))
 
   if ("project_management" %in% plan$components) {
-    track_result(write_yaml_file(fs::path(path, ".projectSetupR", "tasks.yml"), plan$tasks, overwrite = overwrite))
+    track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "tasks.yml"), plan$tasks, overwrite = overwrite))
   }
 
   for (script in plan$scripts) {
@@ -341,16 +363,21 @@ finalise_project_scaffold <- function(
     use_targets = "targets" %in% infrastructure,
     use_renv = "renv" %in% infrastructure,
     use_git = "git" %in% infrastructure,
-    preset = "analysis",
+    preset = "basic_analysis",
     scaffold_level = scaffold_level,
     entrypoint = "run_project.R",
     guide = "README.md"
   )
 }
 
-apply_project_plan <- function(plan, open = interactive(), overwrite = FALSE) {
+apply_project_plan <- function(plan, open = interactive(), overwrite = FALSE, dry_run = FALSE) {
   validate_logical_scalar(open, "open")
   validate_logical_scalar(overwrite, "overwrite")
+  validate_logical_scalar(dry_run, "dry_run")
+
+  if (isTRUE(dry_run)) {
+    return(plan)
+  }
 
   path <- plan$path
   if (!fs::dir_exists(path)) {
@@ -437,7 +464,7 @@ rebuild_project_plan <- function(root = ".") {
   )
 }
 
-add_project_component <- function(component, root = ".", open = interactive()) {
+add_project_component <- function(component, root = ".", open = interactive(), overwrite = FALSE, dry_run = FALSE) {
   plan <- rebuild_project_plan(root)
   plan <- build_project_plan(
     path = plan$path,
@@ -448,10 +475,10 @@ add_project_component <- function(component, root = ".", open = interactive()) {
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
     include_example = "analysis/example_analysis.R" %in% plan$files
   )
-  apply_project_plan(plan, open = open, overwrite = FALSE)
+  apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
 }
 
-add_project_deliverable <- function(deliverable, root = ".", open = interactive()) {
+add_project_deliverable <- function(deliverable, root = ".", open = interactive(), overwrite = FALSE, dry_run = FALSE) {
   plan <- rebuild_project_plan(root)
   plan <- build_project_plan(
     path = plan$path,
@@ -462,10 +489,10 @@ add_project_deliverable <- function(deliverable, root = ".", open = interactive(
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
     include_example = "analysis/example_analysis.R" %in% plan$files
   )
-  apply_project_plan(plan, open = open, overwrite = FALSE)
+  apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
 }
 
-add_project_infrastructure <- function(infrastructure, root = ".", open = interactive()) {
+add_project_infrastructure <- function(infrastructure, root = ".", open = interactive(), overwrite = FALSE, dry_run = FALSE) {
   plan <- rebuild_project_plan(root)
   plan <- build_project_plan(
     path = plan$path,
@@ -476,12 +503,15 @@ add_project_infrastructure <- function(infrastructure, root = ".", open = intera
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
     include_example = "analysis/example_analysis.R" %in% plan$files
   )
-  apply_project_plan(plan, open = open, overwrite = FALSE)
+  apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
 }
 
-remove_project_component <- function(component, root = ".", delete_files = FALSE) {
+remove_project_component <- function(component, root = ".", delete_files = FALSE, dry_run = FALSE) {
   component <- normalise_project_components(component)
   registry <- read_project_registry(root)
+  if (isTRUE(dry_run)) {
+    return(list(action = "remove_component", components = component, root = find_project_root(root), dry_run = TRUE))
+  }
   registry$components <- setdiff(project_components(root), component)
   write_project_registry(registry, root = root, overwrite = TRUE)
   config <- read_project_config(root)
@@ -490,9 +520,12 @@ remove_project_component <- function(component, root = ".", delete_files = FALSE
   invisible(registry$components)
 }
 
-remove_project_deliverable <- function(deliverable, root = ".", delete_files = FALSE) {
+remove_project_deliverable <- function(deliverable, root = ".", delete_files = FALSE, dry_run = FALSE) {
   deliverable <- normalise_project_deliverables(deliverable)
   registry <- read_project_registry(root)
+  if (isTRUE(dry_run)) {
+    return(list(action = "remove_deliverable", deliverables = deliverable, root = find_project_root(root), dry_run = TRUE))
+  }
   registry$deliverables <- setdiff(project_deliverables(root), deliverable)
   write_project_registry(registry, root = root, overwrite = TRUE)
   config <- read_project_config(root)
@@ -501,9 +534,12 @@ remove_project_deliverable <- function(deliverable, root = ".", delete_files = F
   invisible(registry$deliverables)
 }
 
-remove_project_infrastructure <- function(infrastructure, root = ".", delete_files = FALSE) {
+remove_project_infrastructure <- function(infrastructure, root = ".", delete_files = FALSE, dry_run = FALSE) {
   infrastructure <- normalise_project_infrastructure(infrastructure)
   registry <- read_project_registry(root)
+  if (isTRUE(dry_run)) {
+    return(list(action = "remove_infrastructure", infrastructure = infrastructure, root = find_project_root(root), dry_run = TRUE))
+  }
   registry$infrastructure <- setdiff(project_infrastructure(root), infrastructure)
   write_project_registry(registry, root = root, overwrite = TRUE)
   config <- read_project_config(root)

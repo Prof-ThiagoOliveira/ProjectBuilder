@@ -7,13 +7,19 @@
 validate_package_names(packages, allow_null = TRUE)
 }
 \arguments{
-\item{packages}{Package vector.}
+\item{packages}{Character vector of package names to validate and clean.}
 
-\item{allow_null}{Logical. Whether \code{NULL} is allowed.}
+\item{allow_null}{Logical scalar indicating whether \code{NULL} is accepted.}
 }
 \value{
 Cleaned package names.
 }
 \description{
 Validate package names
+}
+\examples{
+projflow:::validate_package_names(c("fs", "yaml", "fs"))
+}
+\author{
+Thiago de Paula Oliveira
 }

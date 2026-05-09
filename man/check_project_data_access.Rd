@@ -7,11 +7,20 @@
 check_project_data_access(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose configured data sources should be
+checked for existence and readability.}
 }
 \value{
 Data frame describing configured data sources.
 }
 \description{
 Check whether configured external data sources are accessible
+}
+\examples{
+\dontrun{
+check_project_data_access()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

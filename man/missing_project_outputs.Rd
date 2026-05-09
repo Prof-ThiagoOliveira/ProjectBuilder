@@ -7,11 +7,19 @@
 missing_project_outputs(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose registered outputs should be checked.}
 }
 \value{
 Character vector of missing output paths.
 }
 \description{
 Report missing project outputs
+}
+\examples{
+\dontrun{
+missing_project_outputs()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

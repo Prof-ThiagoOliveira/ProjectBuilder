@@ -7,15 +7,26 @@
 build_project(root = ".", render_reports = TRUE, run_apps = FALSE)
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root to build.}
 
-\item{render_reports}{Should registered reports be rendered?}
+\item{render_reports}{Logical scalar. If \code{TRUE}, render registered reports
+after running registered scripts.}
 
-\item{run_apps}{Should the app be launched after building?}
+\item{run_apps}{Logical scalar. If \code{TRUE}, launch the project app or
+dashboard after the build completes.}
 }
 \value{
 Structured build results.
 }
 \description{
 Build a project
+}
+\examples{
+\dontrun{
+build_project(render_reports = FALSE)
+build_project(render_reports = TRUE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

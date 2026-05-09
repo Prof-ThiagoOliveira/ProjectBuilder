@@ -2,7 +2,9 @@ gitignore_template <- function(
     use_internal_data_dirs = FALSE,
     deliverables = character()) {
   lines <- c(
-    ".projectSetupR/local.yml",
+    ".projflow/local.yml",
+    ".projflow/activity_log.yml",
+    ".projflow/backups/",
     ".Rhistory",
     ".RData",
     ".Ruserdata",
@@ -37,14 +39,29 @@ gitignore_template <- function(
 
 #' Create Git support files
 #'
-#' @param path Project root path.
-#' @param overwrite Should existing files be overwritten?
-#' @param use_internal_data_dirs Should internal data directories be ignored
-#'   explicitly?
-#' @param deliverables Project deliverables used to shape allow-lists for final
-#'   tracked outputs.
+#' @param path Project root path where `.gitignore`, `.Rbuildignore`, and
+#'   `.gitattributes` should be written.
+#' @param overwrite Logical scalar. If `TRUE`, existing Git support files are
+#'   replaced; if `FALSE`, existing files are preserved.
+#' @param use_internal_data_dirs Logical scalar indicating whether the scaffold
+#'   includes internal `data/` folders that should be ignored explicitly in the
+#'   generated `.gitignore`.
+#' @param deliverables Character vector of project deliverables. This is used to
+#'   decide whether output tables should remain ignored broadly or whether
+#'   selected `outputs/tables/` files should be allow-listed for tracking.
 #'
 #' @return A list with created and skipped file paths.
+#' @examples
+#' \dontrun{
+#' tmp <- tempfile("projflow-git-")
+#' dir.create(tmp)
+#' projflow:::create_git_files(
+#'   path = tmp,
+#'   use_internal_data_dirs = FALSE,
+#'   deliverables = c("html_report", "tables")
+#' )
+#' }
+#' @author Thiago de Paula Oliveira
 create_git_files <- function(
     path,
     overwrite = FALSE,
@@ -61,7 +78,23 @@ create_git_files <- function(
     ),
     write_template_file(
       fs::path(path, ".Rbuildignore"),
-      "^.*\\.Rproj$\n^\\.Rproj\\.user$\n^\\.git$\n^\\.gitignore$\n^\\.Rhistory$\n^\\.RData$",
+      paste(
+        c(
+          "^.*\\.Rproj$",
+          "^\\.Rproj\\.user$",
+          "^\\.git$",
+          "^\\.gitignore$",
+          "^\\.Rhistory$",
+          "^\\.RData$",
+          "^projflow\\.Rcheck$",
+          "^projflow_.*\\.tar\\.gz$",
+          "^.*~$",
+          "^.*\\.tmp$",
+          "^.*\\.bak$",
+          "^\\.DS_Store$"
+        ),
+        collapse = "\n"
+      ),
       overwrite = overwrite
     ),
     write_template_file(

@@ -13,19 +13,34 @@ save_external_project_object(
 )
 }
 \arguments{
-\item{object}{Object to save.}
+\item{object}{R object to save outside the repository.}
 
-\item{name}{Object name.}
+\item{name}{Output object name.}
 
-\item{type}{Object type.}
+\item{type}{Output object type used to infer the output filename.}
 
-\item{source}{External data source name.}
+\item{source}{External data source name that should receive the output.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root used to resolve the named external data
+source.}
 }
 \value{
 Invisibly returns the saved path.
 }
 \description{
 Save a project object to external storage
+}
+\examples{
+\dontrun{
+result <- data.frame(id = 1:3, value = c(4.2, 4.8, 5.1))
+save_external_project_object(
+  result,
+  name = "analysis_results_backup",
+  type = "analysis",
+  source = "default"
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

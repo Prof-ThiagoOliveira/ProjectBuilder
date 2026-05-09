@@ -7,11 +7,20 @@
 run_project(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose registered scripts should be run in
+execution order.}
 }
 \value{
 Invisibly returns executed script paths.
 }
 \description{
 Run the project workflow
+}
+\examples{
+\dontrun{
+run_project()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

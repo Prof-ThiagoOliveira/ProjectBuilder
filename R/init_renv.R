@@ -1,12 +1,25 @@
 #' Initialise renv when available
 #'
-#' @param path Project root path.
-#' @param packages Character vector of packages to install into the project
-#'   library after initialising renv.
-#' @param snapshot Logical. Should `renv::snapshot()` be run?
-#' @param strict Logical. Should failures error instead of warning?
+#' @param path Project root path where `renv` should be initialised.
+#' @param packages Character vector of package names to install into the project
+#'   library immediately after `renv::init(project = path, bare = TRUE)`.
+#' @param snapshot Logical scalar. If `TRUE`, run `renv::snapshot()` after the
+#'   optional package installation step.
+#' @param strict Logical scalar. If `TRUE`, initialisation failures raise an
+#'   error; otherwise a warning-style message is returned.
 #'
 #' @return `NULL` on success or a warning message when renv was not initialised.
+#' @examples
+#' \dontrun{
+#' tmp <- tempfile("projflow-renv-")
+#' dir.create(tmp)
+#' projflow:::init_renv_project(
+#'   path = tmp,
+#'   packages = c("fs", "yaml"),
+#'   snapshot = FALSE
+#' )
+#' }
+#' @author Thiago de Paula Oliveira
 init_renv_project <- function(
     path,
     packages = character(),

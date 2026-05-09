@@ -13,32 +13,53 @@ plan_project(
   preset = NULL,
   component_specs = NULL,
   use_internal_data_dirs = FALSE,
-  include_example = TRUE
+  include_example = FALSE
 )
 }
 \arguments{
-\item{path}{Target project path. Defaults to \code{"."}.}
+\item{path}{Target project path. No files are written; the path is used only
+to construct the proposed plan.}
 
-\item{title}{Optional project title.}
+\item{title}{Optional project title to include in the plan metadata.}
 
-\item{components}{Project components to include.}
+\item{components}{Character vector of components to include in the proposed
+scaffold.}
 
-\item{deliverables}{Deliverables to prepare.}
+\item{deliverables}{Optional character vector of deliverables to prepare. If
+\code{NULL}, deliverables are inferred from the selected components.}
 
-\item{infrastructure}{Technical support features to enable.}
+\item{infrastructure}{Optional character vector of technical features to
+enable, such as \code{git}, \code{quarto}, or \code{tests}.}
 
-\item{preset}{Optional preset shortcut.}
+\item{preset}{Optional preset name used as a shorthand for a predefined
+scaffold configuration.}
 
-\item{component_specs}{Optional custom component spec path, spec list, or
-list of specs.}
+\item{component_specs}{Optional custom component spec path, a single spec
+list, or a list of spec objects merged into the available component map for
+this plan.}
 
-\item{use_internal_data_dirs}{Should internal data directories be created?}
+\item{use_internal_data_dirs}{Logical scalar indicating whether internal
+\verb{data/raw/} and \verb{data/processed/} directories should be included in the
+plan.}
 
-\item{include_example}{Should example files be created?}
+\item{include_example}{Logical scalar indicating whether the built-in example
+script should be included in the plan.}
 }
 \value{
 A structured project plan.
 }
 \description{
 Preview a project plan without writing files
+}
+\examples{
+\dontrun{
+plan_project(
+  path = "demo-project",
+  components = c("statistical_analysis", "report"),
+  infrastructure = character()
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

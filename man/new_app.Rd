@@ -8,21 +8,41 @@ new_app(
   name = "app",
   type = c("shiny", "quarto_dashboard"),
   root = ".",
-  open = interactive()
+  open = interactive(),
+  overwrite = FALSE,
+  dry_run = FALSE
 )
 }
 \arguments{
-\item{name}{App or dashboard name.}
+\item{name}{App or dashboard name. For dashboards, non-default names are used
+as the \code{.qmd} filename stem.}
 
-\item{type}{App type.}
+\item{type}{App type to create. \code{"shiny"} adds the Shiny app scaffold,
+whereas \code{"quarto_dashboard"} adds a Quarto dashboard deliverable.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root where the app or dashboard should be added.}
 
-\item{open}{Included for API compatibility.}
+\item{open}{Logical scalar kept for API compatibility. The created file is
+not opened automatically.}
+
+\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing dashboard or
+app scaffold when supported.}
+
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
+modifying the project.}
 }
 \value{
 Invisibly returns the created app or dashboard path.
 }
 \description{
 Create a new app or dashboard
+}
+\examples{
+\dontrun{
+new_app(type = "shiny", open = FALSE)
+new_app(name = "operations_dashboard", type = "quarto_dashboard", open = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

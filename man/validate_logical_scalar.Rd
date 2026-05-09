@@ -7,13 +7,19 @@
 validate_logical_scalar(x, arg)
 }
 \arguments{
-\item{x}{Object to validate.}
+\item{x}{Object to validate as a single non-missing logical value.}
 
-\item{arg}{Argument name.}
+\item{arg}{Argument name used in the error message when validation fails.}
 }
 \value{
 Invisibly returns \code{TRUE}.
 }
 \description{
 Validate a logical scalar
+}
+\examples{
+projflow:::validate_logical_scalar(TRUE, "overwrite")
+}
+\author{
+Thiago de Paula Oliveira
 }

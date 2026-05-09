@@ -12,18 +12,34 @@ init_renv_project(
 )
 }
 \arguments{
-\item{path}{Project root path.}
+\item{path}{Project root path where \code{renv} should be initialised.}
 
-\item{packages}{Character vector of packages to install into the project
-library after initialising renv.}
+\item{packages}{Character vector of package names to install into the project
+library immediately after \code{renv::init(project = path, bare = TRUE)}.}
 
-\item{snapshot}{Logical. Should \code{renv::snapshot()} be run?}
+\item{snapshot}{Logical scalar. If \code{TRUE}, run \code{renv::snapshot()} after the
+optional package installation step.}
 
-\item{strict}{Logical. Should failures error instead of warning?}
+\item{strict}{Logical scalar. If \code{TRUE}, initialisation failures raise an
+error; otherwise a warning-style message is returned.}
 }
 \value{
 \code{NULL} on success or a warning message when renv was not initialised.
 }
 \description{
 Initialise renv when available
+}
+\examples{
+\dontrun{
+tmp <- tempfile("projflow-renv-")
+dir.create(tmp)
+projflow:::init_renv_project(
+  path = tmp,
+  packages = c("fs", "yaml"),
+  snapshot = FALSE
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

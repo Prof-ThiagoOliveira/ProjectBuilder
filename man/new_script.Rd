@@ -9,23 +9,68 @@ new_script(
   type = "analysis",
   root = ".",
   order = NULL,
-  open = interactive()
+  outputs = NULL,
+  output = NULL,
+  template = c("minimal", "example"),
+  open = interactive(),
+  overwrite = FALSE,
+  repair = FALSE,
+  dry_run = FALSE
 )
 }
 \arguments{
-\item{name}{Script name.}
+\item{name}{Script name. The value is normalised to a safe snake_case object
+name before the file and registry entry are created.}
 
-\item{type}{Script type.}
+\item{type}{Script type recorded in the registry and used to infer default
+output locations when \code{outputs} are supplied.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root where the script should be added.}
 
-\item{order}{Optional execution order.}
+\item{order}{Optional numeric execution order. If omitted, the script is
+placed after the highest existing script order.}
 
-\item{open}{Included for API compatibility.}
+\item{outputs}{Optional character vector of output names to register for the
+script. If \code{NULL}, the script is created without registered outputs.}
+
+\item{output}{Optional explicit project-relative output path to register for
+the script.}
+
+\item{template}{Template style used for the generated script. \code{"minimal"}
+creates a bare scaffold; \code{"example"} adds placeholder analysis code and
+save calls for any explicit outputs.}
+
+\item{open}{Logical scalar kept for API compatibility. The script is created
+on disk but not opened automatically.}
+
+\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing script file
+and registry entry with the same name.}
+
+\item{repair}{Logical scalar. If \code{TRUE}, register an existing script file
+without overwriting it.}
+
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned change without
+modifying the project.}
 }
 \value{
 Invisibly returns the created script path.
 }
 \description{
 Create a new project script
+}
+\examples{
+\dontrun{
+new_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+
+new_script(
+  "fit_model",
+  type = "model",
+  outputs = "heritability_model",
+  template = "example",
+  open = FALSE
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

@@ -1,0 +1,24 @@
+Name: Open projflow Project Manager
+Description: Open the interactive projflow Project Manager.
+Binding: open_projflow_project_manager
+Interactive: true
+
+Name: Run projflow Check
+Description: Run check_project() for the current projflow project.
+Binding: run_projflow_check
+Interactive: true
+
+Name: Add projflow Script
+Description: Prompt for a script name and add it to the current project.
+Binding: add_projflow_script
+Interactive: true
+
+Name: Add projflow Report
+Description: Prompt for a report name and add it to the current project.
+Binding: add_projflow_report
+Interactive: true
+
+Name: Add projflow Task
+Description: Prompt for a task title and add it to the current project.
+Binding: add_projflow_task
+Interactive: true

@@ -4,20 +4,41 @@
 \alias{check_project}
 \title{Check project health}
 \usage{
-check_project(root = ".", deep = TRUE, strict = FALSE, repair = FALSE)
+check_project(
+  root = ".",
+  deep = FALSE,
+  render_reports = FALSE,
+  strict = FALSE,
+  repair = FALSE
+)
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root to validate.}
 
-\item{deep}{Should deeper checks such as report rendering run?}
+\item{deep}{Logical scalar. If \code{TRUE}, run deeper static checks such as
+validating report source structure in addition to the default checks.}
 
-\item{strict}{Should critical failures raise an error?}
+\item{render_reports}{Logical scalar. If \code{TRUE}, render registered reports as
+part of the health check.}
 
-\item{repair}{Should safe repairs be applied?}
+\item{strict}{Logical scalar. If \code{TRUE}, abort when critical errors are
+found; otherwise return a structured result object.}
+
+\item{repair}{Logical scalar. If \code{TRUE}, apply safe repairs such as creating
+missing project metadata directories and default config files.}
 }
 \value{
 Structured project-check result.
 }
 \description{
 Check project health
+}
+\examples{
+\dontrun{
+check_project()
+check_project(deep = TRUE, render_reports = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

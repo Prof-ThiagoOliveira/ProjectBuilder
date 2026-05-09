@@ -7,13 +7,21 @@
 unregister_project_object(name, root = ".")
 }
 \arguments{
-\item{name}{Object name.}
+\item{name}{Output object name to remove from the registry.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose registry should be updated.}
 }
 \value{
 Invisibly returns the modified registry.
 }
 \description{
 Remove an output object from the project registry
+}
+\examples{
+\dontrun{
+unregister_project_object("weekly_summary")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

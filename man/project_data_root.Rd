@@ -7,13 +7,22 @@
 project_data_root(name = "default", root = ".")
 }
 \arguments{
-\item{name}{Data source name.}
+\item{name}{Data source name to retrieve from \code{.projflow/local.yml}.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root.}
 }
 \value{
 Absolute path.
 }
 \description{
 Read a configured external data root
+}
+\examples{
+\dontrun{
+project_data_root()
+project_data_root("reference")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

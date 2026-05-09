@@ -7,11 +7,20 @@
 check_github_actions(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose GitHub Actions workflow files should
+be inspected.}
 }
 \value{
 Data frame describing known workflows.
 }
 \description{
 Check GitHub Actions workflow files
+}
+\examples{
+\dontrun{
+check_github_actions()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

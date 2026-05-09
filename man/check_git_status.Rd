@@ -7,11 +7,19 @@
 check_git_status(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose Git state should be inspected.}
 }
 \value{
 Structured Git status information.
 }
 \description{
 Check Git status for a project
+}
+\examples{
+\dontrun{
+check_git_status()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

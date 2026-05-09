@@ -20,7 +20,7 @@ test_that("data source helpers store and read local external paths", {
     file.path(normalizePath(external_root, winslash = "/", mustWork = FALSE), "phenotypes", "raw.csv")
   )
 
-  local_config <- yaml::read_yaml(file.path(project_path, ".projectSetupR", "local.yml"))
+  local_config <- yaml::read_yaml(file.path(project_path, ".projflow", "local.yml"))
   expect_identical(local_config$data_sources$default$path, normalizePath(external_root, winslash = "/", mustWork = FALSE))
 })
 

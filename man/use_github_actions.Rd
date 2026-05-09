@@ -7,13 +7,22 @@
 use_github_actions(root = ".", workflow = c("check-project", "render-reports"))
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root where the workflow file should be created.}
 
-\item{workflow}{Workflow name.}
+\item{workflow}{Workflow name to create. Supported values are
+\code{"check-project"} and \code{"render-reports"}.}
 }
 \value{
 Invisibly returns the created workflow path.
 }
 \description{
 Add a GitHub Actions workflow
+}
+\examples{
+\dontrun{
+use_github_actions(workflow = "check-project")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

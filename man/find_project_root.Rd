@@ -7,11 +7,21 @@
 find_project_root(root = ".")
 }
 \arguments{
-\item{root}{Starting path.}
+\item{root}{Starting path from which \code{projflow} should search upwards for a
+project marker such as \code{project.yml}, \code{.projflow/project_registry.yml},
+\code{.here}, or an \code{.Rproj} file.}
 }
 \value{
 Absolute project root path.
 }
 \description{
 Find a project root directory
+}
+\examples{
+\dontrun{
+projflow:::find_project_root(".")
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

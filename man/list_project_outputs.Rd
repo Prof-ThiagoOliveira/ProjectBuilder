@@ -7,11 +7,19 @@
 list_project_outputs(root = ".")
 }
 \arguments{
-\item{root}{Project root.}
+\item{root}{Existing project root whose registered outputs should be listed.}
 }
 \value{
 Data frame of outputs and their existence status.
 }
 \description{
 List registered project outputs
+}
+\examples{
+\dontrun{
+list_project_outputs()
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

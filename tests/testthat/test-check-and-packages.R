@@ -52,7 +52,7 @@ test_that("check_project strict mode fails on critical inconsistencies", {
     open = FALSE
   )
 
-  unlink(file.path(project_path, ".projectSetupR", "project_registry.yml"))
+  unlink(file.path(project_path, ".projflow", "project_registry.yml"))
 
   expect_error(
     check_project(project_path, deep = FALSE, strict = TRUE),

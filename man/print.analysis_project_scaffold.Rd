@@ -7,13 +7,29 @@
 \method{print}{analysis_project_scaffold}(x, ...)
 }
 \arguments{
-\item{x}{An object of class \code{"analysis_project_scaffold"}.}
+\item{x}{An object of class \code{"analysis_project_scaffold"}, typically the
+result returned by \code{\link[=new_project]{new_project()}}.}
 
-\item{...}{Unused.}
+\item{...}{Additional arguments accepted for S3 compatibility but ignored by
+this method.}
 }
 \value{
 \code{x}, invisibly.
 }
 \description{
 Print an analysis project scaffold result
+}
+\examples{
+\dontrun{
+result <- new_project(
+  path = "demo-project",
+  components = c("statistical_analysis", "report"),
+  infrastructure = character(),
+  open = FALSE
+)
+print(result)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

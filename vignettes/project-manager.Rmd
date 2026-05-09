@@ -1,0 +1,160 @@
+---
+title: "projflow Project Manager"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{projflow Project Manager}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Overview
+
+The `projflow` Project Manager is an optional Shiny control centre for
+inspection, diagnosis, and safe project administration.
+
+It is designed as a front end for the command-line API. The source of truth
+remains:
+
+- `project.yml`
+- `.projflow/project_registry.yml`
+- `.projflow/local.yml`
+- `.projflow/tasks.yml`
+- exported `projflow` functions
+
+The dashboard does not replace the command line. It exposes the same workflow in
+a form that is easier to browse, review, and amend interactively.
+
+# Optional packages
+
+The dashboard is optional. Core `projflow` features do not require Shiny.
+
+To use the Project Manager, install the optional packages:
+
+```r
+install.packages(c("shiny", "bslib", "DT", "htmltools"))
+```
+
+For the network visualisation tab, install:
+
+```r
+install.packages("visNetwork")
+```
+
+# Launching the dashboard
+
+```r
+projflow::launch_project_manager()
+projflow::launch_project_manager(mode = "diagnose")
+```
+
+Use `mode = "manage"` for the full control centre. Use `mode = "diagnose"` for
+a read-only diagnostic view.
+
+# Diagnostic data without Shiny
+
+All dashboard data can also be collected without Shiny:
+
+```r
+diagnostics <- projflow::project_diagnostics_data()
+names(diagnostics)
+```
+
+This read-only data layer powers:
+
+- `project_diagnostics_data()`
+- `diagnose_project(output = "data")`
+- `diagnose_project(output = "console")`
+- `diagnose_project(output = "html")`
+- `launch_project_manager()`
+
+The package inspects metadata only by default. It does not read raw external
+data contents.
+
+# Dashboard tabs
+
+The Project Manager includes tabs for:
+
+- overview and health summary;
+- tasks;
+- registry objects;
+- adding common project objects;
+- outputs and reports;
+- data sources;
+- risks, milestones, and decisions;
+- project network;
+- checks and safe repairs;
+- activity log and backups.
+
+# Safety model
+
+The dashboard is conservative by default.
+
+- It does not modify project files on launch.
+- Read-only diagnostics do not create or delete files.
+- Registry and local configuration writes create backups in `.projflow/backups/`.
+- Management actions are logged in `.projflow/activity_log.yml`.
+- Removing registry entries does not delete files unless the relevant helper is
+  called explicitly with destructive options.
+
+# Mapping dashboard actions to CLI functions
+
+The dashboard calls the same exported functions you can use at the command line.
+
+- Add a script: `new_script()`
+- Add a report: `new_report()`
+- Register an output: `new_project_output()`
+- Add a task: `add_project_task()`
+- Add a risk: `add_project_risk()`
+- Add a milestone: `add_project_milestone()`
+- Record a decision: `record_project_decision()`
+- Refresh diagnostics: `project_diagnostics_data()`
+- Apply safe repairs: `repair_project()`
+
+# Static diagnostic reports
+
+You can generate a static HTML diagnostic report without launching Shiny:
+
+```r
+projflow::diagnose_project(output = "html")
+```
+
+By default this writes:
+
+```r
+file.path("outputs", "reports", "project_diagnostics.html")
+```
+
+# Activity log and backups
+
+Management actions recorded by the dashboard can also be inspected directly:
+
+```r
+projflow::list_project_activity()
+projflow::list_project_backups()
+```
+
+These helpers are useful when auditing changes or recovering from an accidental
+registry edit.
+
+# Recommended workflow
+
+```r
+projflow::new_project(
+  "trial_analysis",
+  preset = "statistical_report",
+  include_example = FALSE
+)
+
+projflow::set_project_data_root("/path/to/external/data")
+projflow::new_script("fit_mixed_model", type = "statistical_analysis")
+projflow::new_report("main_report")
+projflow::check_project()
+projflow::launch_project_manager()
+```
+
+Use the dashboard when you want a broader project-control view. Use the
+command-line API when you want scripted or reproducible automation.

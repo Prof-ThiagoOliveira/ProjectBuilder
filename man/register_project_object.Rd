@@ -7,19 +7,34 @@
 register_project_object(name, path, type, root = ".", overwrite = FALSE)
 }
 \arguments{
-\item{name}{Object name.}
+\item{name}{Output object name to store in the registry.}
 
-\item{path}{Relative output path.}
+\item{path}{Project-relative output path, typically somewhere under
+\verb{outputs/}.}
 
-\item{type}{Object type.}
+\item{type}{Output object type, such as \code{"table"}, \code{"figure"}, or
+\code{"analysis"}.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root whose registry should be updated.}
 
-\item{overwrite}{Should an existing registry entry be overwritten?}
+\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing registry
+entry with the same name.}
 }
 \value{
 Invisibly returns the registry entry.
 }
 \description{
 Register an output object in the project registry
+}
+\examples{
+\dontrun{
+register_project_object(
+  name = "weekly_summary",
+  path = "outputs/tables/weekly_summary.csv",
+  type = "table"
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

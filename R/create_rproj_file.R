@@ -1,10 +1,18 @@
 #' Create an RStudio project file
 #'
-#' @param path Project root path.
-#' @param project_name Project name.
-#' @param overwrite Logical. Should an existing file be overwritten?
+#' @param path Project root path where the `.Rproj` file should be written.
+#' @param project_name Project name used as the `.Rproj` filename stem.
+#' @param overwrite Logical scalar. If `TRUE`, an existing `.Rproj` file with
+#'   the same name is replaced.
 #'
 #' @return A list describing the write outcome.
+#' @examples
+#' \dontrun{
+#' tmp <- tempfile("projflow-rproj-")
+#' dir.create(tmp)
+#' projflow:::create_rproj_file(tmp, "demo_project")
+#' }
+#' @author Thiago de Paula Oliveira
 create_rproj_file <- function(path, project_name, overwrite = FALSE) {
   content <- c(
     "Version: 1.0",

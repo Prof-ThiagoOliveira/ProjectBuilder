@@ -9,23 +9,75 @@ new_project_script(
   type = "analysis",
   root = ".",
   order = NULL,
-  open = interactive()
+  outputs = NULL,
+  output = NULL,
+  template = c("minimal", "example"),
+  open = interactive(),
+  overwrite = FALSE,
+  repair = FALSE,
+  dry_run = FALSE
 )
 }
 \arguments{
-\item{name}{Script name.}
+\item{name}{Script name. The value is normalised to a safe snake_case name
+before creating the file and registry entry.}
 
-\item{type}{Script type.}
+\item{type}{Script type recorded in the registry and used to infer output
+types when explicit outputs are supplied.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root where the script should be added.}
 
-\item{order}{Execution order.}
+\item{order}{Optional numeric execution order for the script. If \code{NULL}, the
+next available order value is used.}
 
-\item{open}{Included for API compatibility. Opening is not automated.}
+\item{outputs}{Optional character vector of output names to register for the
+script. If omitted, the script is registered without outputs.}
+
+\item{output}{Optional explicit output path to register for the script. When
+supplied, the output name is derived from the file stem and the path is
+stored exactly as provided, relative to the project root.}
+
+\item{template}{Template style used for the generated script. \code{"minimal"}
+creates a bare scaffold; \code{"example"} includes placeholder code.}
+
+\item{open}{Logical scalar kept for API compatibility. The script is not
+opened automatically.}
+
+\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing script file
+and registry entry with the same name.}
+
+\item{repair}{Logical scalar. If \code{TRUE}, register an existing script file
+without overwriting it.}
+
+\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned registry and
+filesystem changes without writing them.}
 }
 \value{
 Invisibly returns the created script path.
 }
 \description{
 Create a new project script
+}
+\examples{
+\dontrun{
+new_project_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+
+new_project_script(
+  name = "fit_model",
+  type = "model",
+  outputs = "heritability_model",
+  template = "example",
+  open = FALSE
+)
+
+new_project_script(
+  name = "analysis_01",
+  type = "statistical_analysis",
+  output = "outputs/models/model_fit.rds",
+  open = FALSE
+)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }

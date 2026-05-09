@@ -2,3 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+projflow.Rcheck/
+projflow_*.tar.gz
+*.tmp
+*~

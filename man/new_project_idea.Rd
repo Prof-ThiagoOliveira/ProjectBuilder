@@ -13,19 +13,29 @@ new_project_idea(
 )
 }
 \arguments{
-\item{name}{Idea name.}
+\item{name}{Idea name used either as a script name or as an output registry
+key depending on \code{create_script}.}
 
 \item{type}{Script type to create when \code{create_script = TRUE}.}
 
-\item{create_script}{Should a script be created immediately?}
+\item{create_script}{Logical scalar. If \code{TRUE}, create a script immediately;
+otherwise register a placeholder output object.}
 
-\item{root}{Project root.}
+\item{root}{Existing project root to update.}
 
-\item{open}{Included for API compatibility.}
+\item{open}{Logical scalar kept for API compatibility.}
 }
 \value{
 Invisibly returns the created script path or registry entry.
 }
 \description{
 Create a new project idea
+}
+\examples{
+\dontrun{
+new_project_idea("future_analysis", create_script = TRUE, open = FALSE)
+}
+}
+\author{
+Thiago de Paula Oliveira
 }
