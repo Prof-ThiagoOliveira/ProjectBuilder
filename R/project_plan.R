@@ -631,7 +631,7 @@ governance_file_templates <- function() {
 built_in_component_specs <- function() {
   list(
     data_preparation = list(
-      folders = c("analysis", "outputs/logs"),
+      folders = c("analysis", "outputs/data", "outputs/logs"),
       scripts = list(list(name = "prepare_inputs", path = "analysis/01_prepare_inputs.R", type = "data_preparation", order = 10, outputs = c("prepared_inputs"))),
       packages = c("readr", "readxl", "dplyr"),
       checks = c("external_data_configured")
@@ -648,7 +648,7 @@ built_in_component_specs <- function() {
       packages = c("dplyr", "ggplot2")
     ),
     statistical_analysis = list(
-      folders = c("analysis", "outputs/models"),
+      folders = c("analysis", "outputs/analysis", "outputs/models"),
       scripts = list(list(name = "analysis_core", path = "analysis/04_analysis.R", type = "statistical_analysis", order = 40, outputs = c("analysis_results"))),
       packages = c("broom")
     ),
@@ -848,9 +848,9 @@ component_dependency_map <- function(component_map = component_specs()) {
 
 deliverable_specs <- function() {
   list(
-    html_report = list(report = "main_report", output = "outputs/reports/main_report.html"),
-    pdf_report = list(report = "main_report", output = "outputs/reports/main_report.pdf"),
-    word_report = list(report = "main_report", output = "outputs/reports/main_report.docx"),
+    html_report = list(report = "main_report", output = "outputs/reports/main_report/main_report.html"),
+    pdf_report = list(report = "main_report", output = "outputs/reports/main_report/main_report.pdf"),
+    word_report = list(report = "main_report", output = "outputs/reports/main_report/main_report.docx"),
     client_report = list(report = "client_report", path = "reports/client_report.qmd"),
     internal_report = list(report = "internal_report", path = "reports/internal_report.qmd"),
     scientific_manuscript = list(report = "manuscript", path = "manuscript/manuscript.qmd"),
@@ -1023,7 +1023,13 @@ build_project_plan <- function(
   deliverable_map <- deliverable_specs()
   infrastructure_map <- infrastructure_specs()
 
-  folders <- c("analysis", "reports", "outputs", ".projflow")
+  folders <- c(
+    "analysis",
+    "reports",
+    "outputs",
+    fs::path("outputs", project_output_subdirs()),
+    ".projflow"
+  )
   files <- character()
   scripts <- list()
   reports <- list()

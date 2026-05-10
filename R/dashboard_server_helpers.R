@@ -120,16 +120,71 @@ dashboard_selected_row <- function(input, table_id, data) {
   data[selected[[1]], , drop = FALSE]
 }
 
-dashboard_update_main_tab <- function(parent_session, selected) {
+dashboard_nav_route <- function(selected, subnav = NULL, subview = NULL) {
+  selected <- as.character(selected %||% "overview")
+
+  route <- switch(
+    selected,
+    "Overview" = list(tab = "overview"),
+    "overview" = list(tab = "overview"),
+    "Planning charts" = list(tab = "planning"),
+    "Planning" = list(tab = "planning"),
+    "planning" = list(tab = "planning"),
+    "Task board" = list(tab = "tasks", subnav = "tasks_workflow_tabs", subview = "task_board"),
+    "Tasks" = list(tab = "tasks", subnav = "tasks_workflow_tabs", subview = "task_board"),
+    "tasks" = list(tab = "tasks"),
+    "Risks" = list(tab = "tasks", subnav = "tasks_workflow_tabs", subview = "risks"),
+    "Milestones" = list(tab = "tasks", subnav = "tasks_workflow_tabs", subview = "milestones"),
+    "Decisions" = list(tab = "tasks", subnav = "tasks_workflow_tabs", subview = "decisions"),
+    "Add object" = list(tab = "outputs", subnav = "outputs_workflow_tabs", subview = "add_object"),
+    "Create object" = list(tab = "outputs", subnav = "outputs_workflow_tabs", subview = "add_object"),
+    "Reports" = list(tab = "outputs", subnav = "outputs_workflow_tabs", subview = "reports"),
+    "Outputs" = list(tab = "outputs", subnav = "outputs_workflow_tabs", subview = "outputs_inventory"),
+    "outputs" = list(tab = "outputs"),
+    "Registry" = list(tab = "outputs", subnav = "outputs_workflow_tabs", subview = "registry"),
+    "Network" = list(tab = "diagnostics", subnav = "diagnostics_workflow_tabs", subview = "network"),
+    "Checks and fixes" = list(tab = "diagnostics", subnav = "diagnostics_workflow_tabs", subview = "checks"),
+    "Checks" = list(tab = "diagnostics", subnav = "diagnostics_workflow_tabs", subview = "checks"),
+    "Packages and files" = list(tab = "diagnostics", subnav = "diagnostics_workflow_tabs", subview = "dependencies"),
+    "Diagnostics" = list(tab = "diagnostics", subnav = "diagnostics_workflow_tabs", subview = "checks"),
+    "diagnostics" = list(tab = "diagnostics"),
+    "Activity log" = list(tab = "diagnostics", subnav = "diagnostics_workflow_tabs", subview = "activity"),
+    "Settings" = list(tab = "settings", subnav = "settings_workflow_tabs", subview = "project_settings"),
+    "settings" = list(tab = "settings"),
+    "Data sources" = list(tab = "settings", subnav = "settings_workflow_tabs", subview = "data_sources"),
+    list(tab = selected)
+  )
+
+  if (!is.null(subnav)) {
+    route$subnav <- subnav
+  }
+  if (!is.null(subview)) {
+    route$subview <- subview
+  }
+  route
+}
+
+dashboard_select_nav <- function(session, input_id, selected) {
+  if ("nav_select" %in% getNamespaceExports("bslib")) {
+    bslib::nav_select(input_id, selected = selected, session = session)
+  } else {
+    shiny::updateTabsetPanel(session = session, inputId = input_id, selected = selected)
+  }
+  invisible(selected)
+}
+
+dashboard_update_main_tab <- function(parent_session, selected, subnav = NULL, subview = NULL) {
   if (is.null(parent_session) || !inherits(parent_session, "ShinySession")) {
     rlang::abort("A valid parent Shiny session is required to update the main dashboard tab.")
   }
-  shiny::updateTabsetPanel(
-    session = parent_session,
-    inputId = "main_tabs",
-    selected = selected
-  )
-  invisible(selected)
+  route <- dashboard_nav_route(selected, subnav = subnav, subview = subview)
+  dashboard_select_nav(parent_session, "main_tabs", route$tab)
+  if (!is.null(route$subnav) && !is.null(route$subview)) {
+    parent_session$onFlushed(function() {
+      dashboard_select_nav(parent_session, route$subnav, route$subview)
+    }, once = TRUE)
+  }
+  invisible(route)
 }
 
 refresh_dashboard_state <- function(state) {
@@ -263,7 +318,18 @@ dashboard_recent_activity <- function(diagnostics, n = 6L) {
       stringsAsFactors = FALSE
     ))
   }
-  keep <- intersect(c("timestamp", "created_at", "action", "object_type", "object_name", "user", "source"), names(activity))
+  if ("entry" %in% names(activity)) {
+    when <- if ("timestamp" %in% names(activity)) {
+      activity$timestamp
+    } else if ("created_at" %in% names(activity)) {
+      activity$created_at
+    } else {
+      rep(NA_character_, nrow(activity))
+    }
+    time <- suppressWarnings(as.POSIXct(when, tz = "UTC"))
+    activity <- activity[order(time, activity$entry, decreasing = TRUE, na.last = TRUE), , drop = FALSE]
+  }
+  keep <- intersect(c("timestamp", "created_at", "action", "object_type", "object_name", "status", "source", "summary"), names(activity))
   out <- activity[, keep, drop = FALSE]
   if ("timestamp" %in% names(out)) names(out)[names(out) == "timestamp"] <- "when"
   if ("created_at" %in% names(out)) names(out)[names(out) == "created_at"] <- "when"

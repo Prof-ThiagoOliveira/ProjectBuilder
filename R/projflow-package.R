@@ -26,4 +26,5 @@
 #' )
 #' }
 #' @author Thiago de Paula Oliveira
+#' @importFrom stats setNames
 "_PACKAGE"

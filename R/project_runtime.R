@@ -813,6 +813,7 @@ validate_project_object_type <- function(type) {
 infer_output_type <- function(output_name, script_type = NULL) {
   validate_character_vector(output_name, "output_name")
   output_name <- output_name[[1]]
+  script_type <- script_type %||% NA_character_
 
   if (grepl("figure|plot|graph", output_name, ignore.case = TRUE) ||
       identical(script_type, "visualisation")) {
@@ -839,14 +840,61 @@ infer_output_type <- function(output_name, script_type = NULL) {
     return("quality_control")
   }
 
+  if (script_type %in% c("import", "data_preparation", "data_cleaning") ||
+      grepl("data|dataset|input|prepared|clean", output_name, ignore.case = TRUE)) {
+    return("dataset")
+  }
+
   "output"
+}
+
+canonical_output_type <- function(name, entry = list(), registry = list()) {
+  type <- entry$type %||% "output"
+
+  if (!identical(type, "output")) {
+    return(type)
+  }
+
+  generated_by <- entry$generated_by %||% NA_character_
+  script_type <- NA_character_
+  if (!is.na(generated_by) && nzchar(generated_by) &&
+      !is.null(registry$scripts[[generated_by]]$type)) {
+    script_type <- registry$scripts[[generated_by]]$type
+  }
+
+  infer_output_type(name, script_type = script_type)
+}
+
+project_output_subdirs <- function() {
+  c(
+    "data",
+    "analysis",
+    "models",
+    "diagnostics",
+    "tables",
+    "figures",
+    "reports",
+    "logs",
+    "project_management",
+    "deliverables"
+  )
+}
+
+default_report_output_path <- function(name, extension = "html") {
+  name <- validate_project_object_name(name, repair = TRUE)
+  extension <- gsub("^\\.", "", extension)
+  fs::path("outputs", "reports", name, paste0(name, ".", extension))
 }
 
 default_output_path <- function(name, type) {
   type <- validate_project_object_type(type)
 
-  if (type %in% c("dataset", "import", "data_preparation", "data_cleaning", "quality_control", "exploration", "exploratory_analysis", "analysis", "statistical_analysis", "simulation", "forecasting", "optimisation", "causal_inference", "output")) {
-    return(fs::path("outputs", paste0(name, ".rds")))
+  if (type %in% c("dataset", "import", "data_preparation", "data_cleaning", "quality_control")) {
+    return(fs::path("outputs", "data", paste0(name, ".rds")))
+  }
+
+  if (type %in% c("analysis", "statistical_analysis", "exploration", "exploratory_analysis", "simulation", "forecasting", "optimisation", "causal_inference", "output")) {
+    return(fs::path("outputs", "analysis", paste0(name, ".rds")))
   }
 
   if (identical(type, "model")) {
@@ -866,10 +914,10 @@ default_output_path <- function(name, type) {
   }
 
   if (type %in% c("report", "manuscript")) {
-    return(fs::path("outputs", "reports", paste0(name, ".html")))
+    return(default_report_output_path(name, "html"))
   }
 
-  fs::path("outputs", paste0(name, ".rds"))
+  fs::path("outputs", "analysis", paste0(name, ".rds"))
 }
 
 next_script_order <- function(registry) {
@@ -1558,21 +1606,25 @@ projflow_quarto_available <- function() {
 
 projflow_quarto_render <- function(input,
                                    output_file = NULL,
+                                   output_dir = NULL,
                                    quiet = TRUE,
                                    execute_dir = NULL,
                                    ...) {
   override <- getOption("projflow.quarto_render", NULL)
   
   if (is.function(override)) {
-    return(
-      override(
-        input = input,
-        output_file = output_file,
-        quiet = quiet,
-        execute_dir = execute_dir,
-        ...
-      )
+    override_args <- list(
+      input = input,
+      output_file = output_file,
+      quiet = quiet,
+      execute_dir = execute_dir
     )
+    override_formals <- names(formals(override))
+    has_dots <- "..." %in% override_formals
+    if (!is.null(output_dir) && (has_dots || "output_dir" %in% override_formals)) {
+      override_args$output_dir <- output_dir
+    }
+    return(do.call(override, c(override_args, list(...))))
   }
   
   if (!requireNamespace("quarto", quietly = TRUE)) {
@@ -1585,12 +1637,162 @@ projflow_quarto_render <- function(input,
     quiet = quiet
   )
   
-  if (!is.null(execute_dir) &&
-      "execute_dir" %in% names(formals(quarto::quarto_render))) {
+  quarto_formals <- names(formals(quarto::quarto_render))
+  
+  if (!is.null(output_dir) && "output_dir" %in% quarto_formals) {
+    render_args$output_dir <- output_dir
+  }
+  
+  if (!is.null(execute_dir) && "execute_dir" %in% quarto_formals) {
     render_args$execute_dir <- execute_dir
   }
   
   do.call(quarto::quarto_render, render_args)
+}
+
+report_rendered_path_candidates <- function(input_path, output_path, rendered, output_file, render_root) {
+  rendered_paths <- if (is.null(rendered)) {
+    character()
+  } else {
+    unlist(rendered, recursive = TRUE, use.names = FALSE)
+  }
+  rendered_paths <- as.character(rendered_paths)
+  rendered_paths <- rendered_paths[!is.na(rendered_paths) & nzchar(rendered_paths)]
+
+  stem <- tools::file_path_sans_ext(output_file)
+  expected_names <- unique(c(output_file, paste0(stem, ".html")))
+  output_dir <- fs::path_dir(output_path)
+  project_report_dir <- fs::path(render_root, "outputs", "reports")
+  input_parent_name <- fs::path_file(fs::path_dir(input_path))
+
+  search_dirs <- unique(normalize_absolute_path(c(
+    output_dir,
+    fs::path(output_dir, input_parent_name),
+    fs::path_dir(input_path),
+    project_report_dir,
+    fs::path(project_report_dir, input_parent_name),
+    render_root
+  )))
+  search_dirs <- search_dirs[fs::dir_exists(search_dirs)]
+
+  discovered <- character()
+  for (search_dir in search_dirs) {
+    for (expected_name in expected_names) {
+      discovered <- c(
+        discovered,
+        list.files(
+          search_dir,
+          pattern = utils::glob2rx(expected_name),
+          full.names = TRUE,
+          recursive = TRUE,
+          ignore.case = FALSE,
+          no.. = TRUE
+        )
+      )
+    }
+  }
+
+  candidates <- unique(c(
+    output_path,
+    rendered_paths,
+    fs::path(output_dir, output_file),
+    fs::path(output_dir, input_parent_name, output_file),
+    fs::path(project_report_dir, output_file),
+    fs::path(project_report_dir, input_parent_name, output_file),
+    fs::path(fs::path_dir(input_path), output_file),
+    fs::path(render_root, output_file),
+    discovered
+  ))
+  candidates <- normalize_absolute_path(candidates)
+  candidates <- candidates[fs::file_exists(candidates)]
+
+  if (length(candidates) == 0L) {
+    return(character())
+  }
+
+  info <- file.info(candidates)
+  candidates[order(info$mtime, decreasing = TRUE, na.last = TRUE)]
+}
+
+copy_report_companion_files <- function(from_html, to_html) {
+  from_html <- normalize_absolute_path(from_html)
+  to_html <- normalize_absolute_path(to_html)
+  from_dir <- fs::path_dir(from_html)
+  to_dir <- fs::path_dir(to_html)
+
+  fs::dir_create(to_dir, recurse = TRUE)
+  if (!identical(from_html, to_html)) {
+    fs::file_copy(from_html, to_html, overwrite = TRUE)
+  }
+
+  from_stem <- tools::file_path_sans_ext(fs::path_file(from_html))
+  to_stem <- tools::file_path_sans_ext(fs::path_file(to_html))
+  companion_names <- unique(c(
+    paste0(from_stem, "_files"),
+    paste0(to_stem, "_files"),
+    "site_libs",
+    "libs"
+  ))
+
+  for (companion_name in companion_names) {
+    source_dir <- fs::path(from_dir, companion_name)
+    if (!fs::dir_exists(source_dir)) {
+      next
+    }
+
+    target_name <- if (identical(companion_name, paste0(from_stem, "_files"))) {
+      paste0(to_stem, "_files")
+    } else {
+      companion_name
+    }
+    target_dir <- fs::path(to_dir, target_name)
+
+    if (fs::dir_exists(target_dir)) {
+      fs::dir_delete(target_dir)
+    }
+    fs::dir_copy(source_dir, target_dir, overwrite = TRUE)
+  }
+
+  invisible(to_html)
+}
+
+cleanup_report_render_noise <- function(input_path, output_path, output_file, render_root) {
+  output_path <- normalize_absolute_path(output_path)
+  report_root <- normalize_absolute_path(fs::path(render_root, "outputs", "reports"))
+  if (!fs::dir_exists(report_root)) {
+    return(invisible(FALSE))
+  }
+
+  report_name <- tools::file_path_sans_ext(output_file)
+  input_parent_name <- fs::path_file(fs::path_dir(input_path))
+  noise_html <- unique(normalize_absolute_path(c(
+    fs::path(report_root, output_file),
+    fs::path(report_root, input_parent_name, output_file),
+    fs::path(render_root, output_file),
+    fs::path(fs::path_dir(input_path), output_file)
+  )))
+  noise_html <- setdiff(noise_html, output_path)
+
+  for (path in noise_html) {
+    if (fs::file_exists(path)) {
+      fs::file_delete(path)
+    }
+
+    files_dir <- fs::path(fs::path_dir(path), paste0(report_name, "_files"))
+    if (fs::dir_exists(files_dir)) {
+      fs::dir_delete(files_dir)
+    }
+  }
+
+  nested_dir <- fs::path(report_root, input_parent_name)
+  if (!identical(normalize_absolute_path(nested_dir), fs::path_dir(output_path)) && fs::dir_exists(nested_dir)) {
+    remaining <- list.files(nested_dir, all.files = TRUE, no.. = TRUE)
+    if (length(remaining) == 0L) {
+      fs::dir_delete(nested_dir)
+    }
+  }
+
+  invisible(TRUE)
 }
 
 render_one_report <- function(input_path, output_path) {
@@ -1612,6 +1814,7 @@ render_one_report <- function(input_path, output_path) {
       projflow_quarto_render(
         input = input_path,
         output_file = output_file,
+        output_dir = fs::path_dir(output_path),
         quiet = TRUE,
         execute_dir = render_root
       ),
@@ -1629,22 +1832,48 @@ render_one_report <- function(input_path, output_path) {
       }
     )
     
-    candidate_paths <- unique(c(
-      output_path,
-      if (is.character(rendered) && length(rendered) > 0L) rendered[[1]] else character(),
-      fs::path(fs::path_dir(input_path), output_file),
-      fs::path(render_root, output_file)
-    ))
+    candidate_paths <- report_rendered_path_candidates(
+      input_path = input_path,
+      output_path = output_path,
+      rendered = rendered,
+      output_file = output_file,
+      render_root = render_root
+    )
     
-    candidate_paths <- candidate_paths[fs::file_exists(candidate_paths)]
-    
-    if (!fs::file_exists(output_path) && length(candidate_paths) > 0L) {
-      fs::file_copy(candidate_paths[[1]], output_path, overwrite = TRUE)
+    source_path <- character()
+    if (length(candidate_paths) > 0L) {
+      non_canonical <- setdiff(candidate_paths, output_path)
+      source_path <- if (length(non_canonical) > 0L) non_canonical[[1]] else candidate_paths[[1]]
+      copy_report_companion_files(source_path, output_path)
     }
     
     if (!fs::file_exists(output_path)) {
-      return(paste0("Quarto completed, but expected output was not found: ", output_path))
+      searched <- paste(
+        unique(normalize_absolute_path(c(
+          fs::path_dir(output_path),
+          fs::path(fs::path_dir(output_path), fs::path_file(fs::path_dir(input_path))),
+          fs::path_dir(input_path),
+          fs::path(render_root, "outputs", "reports"),
+          render_root
+        ))),
+        collapse = "; "
+      )
+      return(paste0(
+        "Quarto completed, but expected output was not found: ",
+        output_path,
+        ". Searched for `",
+        output_file,
+        "` under: ",
+        searched
+      ))
     }
+    
+    cleanup_report_render_noise(
+      input_path = input_path,
+      output_path = output_path,
+      output_file = output_file,
+      render_root = render_root
+    )
     
     return(NULL)
   }
@@ -3258,7 +3487,13 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
     }
   }
 
-  required_dirs <- c("analysis", "reports", "outputs", project_metadata_relative_dir(root))
+  required_dirs <- c(
+    "analysis",
+    "reports",
+    "outputs",
+    fs::path("outputs", project_output_subdirs()),
+    project_metadata_relative_dir(root)
+  )
   for (relative_path in required_dirs) {
     if (!fs::dir_exists(fs::path(root, relative_path))) {
       errors <- append_issue(

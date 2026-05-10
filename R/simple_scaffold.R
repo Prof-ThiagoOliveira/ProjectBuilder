@@ -37,7 +37,8 @@ project_readme_template <- function(plan) {
     "projflow::build_project()",
     "```",
     "",
-    "`outputs/` is intended for small generated artefacts such as tables, figures, and model summaries.",
+    "`outputs/` is intended for small generated artefacts and is organised by output type.",
+    "Use `outputs/data/` for derived data, `outputs/analysis/` for analysis objects, `outputs/tables/` for tabular exports, `outputs/figures/` for plots, and `outputs/reports/<report-name>/` for rendered reports.",
     "Raw data, cleaned data, and large intermediate files should normally stay outside the repository.",
     sep = "\n"
   )
@@ -166,8 +167,8 @@ report_template_for_plan <- function(report) {
       "## Overview",
       "",
       "```{r}",
-      "if (file.exists('outputs/example_analysis.rds')) {",
-      "  readRDS('outputs/example_analysis.rds')",
+      "if (file.exists('outputs/analysis/example_analysis.rds')) {",
+      "  readRDS('outputs/analysis/example_analysis.rds')",
       "} else {",
       "  data.frame(message = 'Report template is ready. Add project outputs as they become available.')",
       "}",
@@ -199,8 +200,8 @@ shiny_app_template <- function() {
     "",
     "server <- function(input, output, session) {",
     "  output$preview <- renderTable({",
-    "    if (file.exists(file.path('outputs', 'example_analysis.rds'))) {",
-    "      readRDS(file.path('outputs', 'example_analysis.rds'))",
+    "    if (file.exists(file.path('outputs', 'analysis', 'example_analysis.rds'))) {",
+    "      readRDS(file.path('outputs', 'analysis', 'example_analysis.rds'))",
     "    } else {",
     '      data.frame(message = "No lightweight project outputs are available yet.")',
     "    }",
@@ -225,7 +226,8 @@ plain_file_template <- function(path, plan) {
     "_quarto.yml" = paste(
       "project:",
       "  type: default",
-      "  output-dir: outputs/reports",
+      "execute:",
+      "  freeze: auto",
       sep = "\n"
     ),
     "tests/testthat.R" = "library(testthat)\nlibrary(projflow)\n\ntest_check('projflow')\n",

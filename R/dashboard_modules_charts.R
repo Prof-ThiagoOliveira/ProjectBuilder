@@ -620,7 +620,7 @@ dashboard_chart_branch_choices <- function(diagnostics, network = diagnostics$ne
   if (nrow(nodes) > 0L && "type" %in% names(nodes)) {
     types <- sort(unique(tolower(as.character(nodes$type))))
     types <- types[!is.na(types) & nzchar(types)]
-    extra <- setNames(types, paste("Type:", gsub("_", " ", types)))
+    extra <- stats::setNames(types, paste("Type:", gsub("_", " ", types)))
     choices <- c(choices, extra[!extra %in% unname(choices)])
   }
 

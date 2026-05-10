@@ -179,3 +179,22 @@ test_that("planning chart data are structured for hierarchical visualisation", {
   expect_s3_class(pert$nodes, "data.frame")
   expect_s3_class(pert$edges, "data.frame")
 })
+
+test_that("dashboard management helpers are exported", {
+  exports <- getNamespaceExports("projflow")
+
+  expect_true("open_dashboard" %in% exports)
+  expect_true("stop_dashboard" %in% exports)
+  expect_true("dashboard_status" %in% exports)
+})
+
+test_that("dashboard_status reports no recorded dashboard gracefully", {
+  project_path <- make_project_path("dashboard-status-empty")
+  new_project(project_path, infrastructure = character(), open = FALSE)
+
+  status <- dashboard_status(project_path)
+
+  expect_true(is.data.frame(status))
+  expect_false(status$running[[1]])
+  expect_true(is.na(status$pid[[1]]))
+})

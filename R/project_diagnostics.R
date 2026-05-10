@@ -306,6 +306,17 @@ check_dashboard_dependencies <- function(
       )
     )
   }
+
+  if ("bslib" %in% needed && utils::packageVersion("bslib") < "0.9.0") {
+    rlang::abort(
+      paste0(
+        "The projflow Project Manager requires bslib >= 0.9.0 for the ",
+        "modern page_navbar() dashboard layout. Update it with ",
+        "install.packages('bslib')."
+      )
+    )
+  }
+
   invisible(TRUE)
 }
 

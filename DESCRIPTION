@@ -13,10 +13,10 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports: cli, fs, yaml, rlang
-Suggests: bslib, DT, gert, ggplot2, htmltools, knitr, pak, quarto,
-        renv, rmarkdown, shiny, targets, testthat (>= 3.0.0),
-        timevis, visNetwork, withr
+Suggests: bslib (>= 0.9.0), callr, DT, gert, ggplot2, htmltools, httpuv, knitr,
+        pak, quarto, renv, rmarkdown, shiny, targets, testthat (>=
+        3.0.0), timevis, visNetwork, withr
 VignetteBuilder: knitr, rmarkdown
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2026-05-09 11:00:09 UTC; ThiagoOliveira
+Packaged: 2026-05-10 07:56:09 UTC; ThiagoOliveira

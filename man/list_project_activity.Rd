@@ -10,7 +10,11 @@ list_project_activity(root = ".")
 \item{root}{Existing project root.}
 }
 \value{
-Data frame of activity-log entries.
+A data frame of activity-log entries. In addition to the core audit
+fields (\code{timestamp}, \code{action}, \code{object_type}, \code{object_id}, \code{object_name},
+and \code{source}), the returned table includes derived fields used by the
+dashboard: \code{entry}, \code{action_label}, \code{affected_path}, \code{status}, \code{summary},
+\code{details}, and \code{recommendation}.
 }
 \description{
 List the project activity log

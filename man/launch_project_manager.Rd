@@ -10,6 +10,7 @@ launch_project_manager(
   host = "127.0.0.1",
   port = NULL,
   launch.browser = interactive(),
+  background = TRUE,
   ...
 )
 }
@@ -21,15 +22,24 @@ launch_project_manager(
 
 \item{host}{Host interface passed to \code{\link[shiny:runApp]{shiny::runApp()}}.}
 
-\item{port}{Optional port passed to \code{\link[shiny:runApp]{shiny::runApp()}}.}
+\item{port}{Optional port passed to \code{\link[shiny:runApp]{shiny::runApp()}}. If \code{NULL}, a free
+local port is selected where possible.}
 
 \item{launch.browser}{Logical scalar indicating whether the dashboard should
 open in a browser automatically.}
 
-\item{...}{Additional arguments passed to \code{\link[shiny:runApp]{shiny::runApp()}}.}
+\item{background}{Logical scalar. If \code{TRUE}, the dashboard is started in a
+separate R process using \code{\link[callr:r_bg]{callr::r_bg()}}, leaving the current R session
+available for scripts and project work. If \code{FALSE}, the dashboard is run in
+the current R session, which is useful for debugging.}
+
+\item{...}{Additional arguments passed to \code{\link[shiny:runApp]{shiny::runApp()}} when
+\code{background = FALSE}.}
 }
 \value{
-Invisibly returns the launched \code{shiny.appobj}.
+If \code{background = TRUE}, invisibly returns the \code{callr} background
+process handle. If \code{background = FALSE}, invisibly returns the launched
+\code{shiny.appobj} after the app stops.
 }
 \description{
 Launch the projflow Project Manager
@@ -38,6 +48,7 @@ Launch the projflow Project Manager
 \dontrun{
 launch_project_manager()
 launch_project_manager(mode = "diagnose")
+launch_project_manager(background = FALSE)
 }
 }
 \author{

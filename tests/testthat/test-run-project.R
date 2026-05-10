@@ -24,7 +24,7 @@ test_that("build_project works when called outside the project root", {
   withr::local_dir(call_path)
   expect_no_error(build_project(project_path, render_reports = FALSE))
 
-  saved <- readRDS(file.path(project_path, "outputs", "record_wd.rds"))
+  saved <- readRDS(file.path(project_path, "outputs", "analysis", "record_wd.rds"))
   expect_identical(saved$wd[[1]], normalizePath(project_path, winslash = "/", mustWork = TRUE))
 })
 

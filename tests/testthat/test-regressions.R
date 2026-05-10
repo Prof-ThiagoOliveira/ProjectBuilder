@@ -121,7 +121,7 @@ test_that("report rendering tests use mocked Quarto", {
   )
 
   expect_no_error(build_project(project_path, render_reports = TRUE))
-  expect_true(file.exists(file.path(project_path, "outputs", "reports", "main_report.html")))
+  expect_true(file.exists(file.path(project_path, "outputs", "reports", "main_report", "main_report.html")))
 })
 
 test_that("local_mock_quarto_render keeps options active during the test", {
@@ -161,7 +161,7 @@ test_that("check_project does not render reports unless requested", {
   status <- check_project(project_path, deep = TRUE, render_reports = FALSE)
 
   expect_s3_class(status, "project_check")
-  expect_false(file.exists(file.path(project_path, "outputs", "reports", "main_report.html")))
+  expect_false(file.exists(file.path(project_path, "outputs", "reports", "main_report", "main_report.html")))
 })
 
 test_that("check_project succeeds for a built default project", {

@@ -82,7 +82,7 @@ test_that("example script runs without real data", {
 
   withr::local_dir(project_path)
   expect_no_error(build_project(project_path, render_reports = FALSE))
-  expect_true(file.exists(file.path(project_path, "outputs", "example_analysis.rds")))
+  expect_true(file.exists(file.path(project_path, "outputs", "analysis", "example_analysis.rds")))
 })
 
 test_that("default report render workflow creates the registered output", {
@@ -97,7 +97,7 @@ test_that("default report render workflow creates the registered output", {
   )
   
   expect_no_error(build_project(project_path, render_reports = TRUE))
-  expect_true(file.exists(file.path(project_path, "outputs", "reports", "main_report.html")))
+  expect_true(file.exists(file.path(project_path, "outputs", "reports", "main_report", "main_report.html")))
 })
 
 test_that("project management component creates governance files and task helpers work", {
@@ -245,4 +245,53 @@ test_that("serve_project handles report, shiny and plain project targets", {
   )
   expect_no_error(serve_project(shiny_path, target = "shiny_app", watch = FALSE, render = FALSE))
   expect_true(called)
+})
+
+test_that("default output paths use typed output subdirectories", {
+  project_path <- make_project_path("typed-output-layout")
+
+  new_project(
+    path = project_path,
+    components = c("data_preparation", "statistical_analysis", "tables", "figures", "report"),
+    infrastructure = character(),
+    open = FALSE
+  )
+
+  registry <- read_project_registry(project_path)
+  expect_identical(registry$outputs$prepared_inputs$path, "outputs/data/prepared_inputs.rds")
+  expect_identical(registry$outputs$analysis_results$path, "outputs/analysis/analysis_results.rds")
+  expect_identical(registry$outputs$summary_tables$path, "outputs/tables/summary_tables.csv")
+  expect_identical(registry$outputs$summary_figures$path, "outputs/figures/summary_figures.png")
+
+  reports <- list_project_reports(project_path)
+  expect_true("outputs/reports/main_report/main_report.html" %in% reports$output)
+})
+
+test_that("organise_project_outputs migrates old registered output paths", {
+  project_path <- make_project_path("organise-output-layout")
+
+  new_project(
+    path = project_path,
+    components = c("data_preparation", "statistical_analysis", "report"),
+    infrastructure = character(),
+    open = FALSE
+  )
+
+  registry <- read_project_registry(project_path)
+  registry$outputs$prepared_inputs$path <- "outputs/prepared_inputs.rds"
+  registry$outputs$analysis_results$path <- "outputs/analysis_results.rds"
+  write_project_registry(registry, project_path, overwrite = TRUE)
+
+  dir.create(file.path(project_path, "outputs"), recursive = TRUE, showWarnings = FALSE)
+  saveRDS(data.frame(x = 1), file.path(project_path, "outputs", "prepared_inputs.rds"))
+  saveRDS(data.frame(x = 2), file.path(project_path, "outputs", "analysis_results.rds"))
+
+  actions <- organise_project_outputs(project_path)
+  registry <- read_project_registry(project_path)
+
+  expect_true(nrow(actions) >= 2L)
+  expect_identical(registry$outputs$prepared_inputs$path, "outputs/data/prepared_inputs.rds")
+  expect_identical(registry$outputs$analysis_results$path, "outputs/analysis/analysis_results.rds")
+  expect_true(file.exists(file.path(project_path, "outputs", "data", "prepared_inputs.rds")))
+  expect_true(file.exists(file.path(project_path, "outputs", "analysis", "analysis_results.rds")))
 })

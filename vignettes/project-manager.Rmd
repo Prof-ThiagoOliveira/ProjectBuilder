@@ -35,8 +35,12 @@ The dashboard is optional. Core `projflow` features do not require Shiny.
 To use the Project Manager, install the optional packages:
 
 ```r
-install.packages(c("shiny", "bslib", "DT", "htmltools"))
+install.packages(c("shiny", "bslib", "callr", "DT", "htmltools"))
 ```
+
+`bslib` is used for the modern dashboard shell: top-level workflow navigation,
+a persistent project-control sidebar, and card-based subviews. `callr` is used
+for non-blocking background launch.
 
 For the network visualisation tab, install:
 
@@ -49,10 +53,29 @@ install.packages("visNetwork")
 ```r
 projflow::launch_project_manager()
 projflow::launch_project_manager(mode = "diagnose")
+projflow::open_dashboard()
 ```
 
+The default is `background = TRUE`. The dashboard is started in a separate R
+process, so the current R session remains available for scripts, builds, and
+interactive analysis while the dashboard stays open in the browser.
+
 Use `mode = "manage"` for the full control centre. Use `mode = "diagnose"` for
-a read-only diagnostic view.
+a read-only diagnostic view. For package development or Shiny debugging, use:
+
+```r
+projflow::launch_project_manager(background = FALSE)
+```
+
+A foreground launch uses Shiny's normal event loop and therefore occupies the
+current R session until the dashboard is closed.
+
+To inspect or stop a background dashboard, use:
+
+```r
+projflow::dashboard_status()
+projflow::stop_dashboard()
+```
 
 # Diagnostic data without Shiny
 
@@ -74,20 +97,20 @@ This read-only data layer powers:
 The package inspects metadata only by default. It does not read raw external
 data contents.
 
-# Dashboard tabs
+# Dashboard structure
 
-The Project Manager includes tabs for:
+The Project Manager uses a task-oriented bslib structure rather than a long list
+of unrelated tabs:
 
-- overview and health summary;
-- tasks;
-- registry objects;
-- adding common project objects;
-- outputs and reports;
-- data sources;
-- risks, milestones, and decisions;
-- project network;
-- checks and safe repairs;
-- activity log and backups.
+- Overview: project health, progress, blockers, missing outputs, and next actions.
+- Planning: work breakdown structure, dependency map, Gantt chart, and blocked tasks.
+- Tasks: task table, risks, milestones, and decisions.
+- Outputs: reports, tables, figures, datasets, missing or stale artefacts, and registry entries.
+- Diagnostics: missing files, invalid registry entries, broken dependencies, package availability, reproducibility checks, network, and activity log.
+- Settings: project paths, data roots, package settings, and dashboard preferences.
+
+The persistent sidebar holds project context, refresh actions, status, and the
+workflow map, so users do not need to hunt for global controls.
 
 # Safety model
 
@@ -153,7 +176,7 @@ projflow::set_project_data_root("/path/to/external/data")
 projflow::new_script("fit_mixed_model", type = "statistical_analysis")
 projflow::new_report("main_report")
 projflow::check_project()
-projflow::launch_project_manager()
+projflow::open_dashboard()
 ```
 
 Use the dashboard when you want a broader project-control view. Use the

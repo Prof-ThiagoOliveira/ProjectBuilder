@@ -196,7 +196,7 @@ For a minimal report-oriented project, the default scaffold usually includes:
 - `.projflow/local.yml`;
 - `analysis/`;
 - `reports/`;
-- `outputs/`;
+- `outputs/` with typed subdirectories (`data/`, `analysis/`, `tables/`, `figures/`, `models/`, `diagnostics/`, `reports/`);
 - `<project>.Rproj`.
 
 If `include_example = TRUE`, the scaffold also includes
@@ -395,11 +395,13 @@ load_project_object("analysis_results")
 
 Supported output families include:
 
-- RDS-style outputs for `analysis`, `data_cleaning`, `dataset`, and generic
-  `output`;
-- `.csv` outputs for `table`, `summary`, and `export`;
-- `.png` outputs for `figure` and `visualisation`;
-- report outputs under `outputs/reports/`.
+- RDS-style data-preparation and dataset outputs under `outputs/data/`;
+- RDS-style analysis and generic outputs under `outputs/analysis/`;
+- model outputs under `outputs/models/`;
+- model diagnostics under `outputs/diagnostics/`;
+- `.csv` outputs for `table`, `summary`, and `export` under `outputs/tables/`;
+- `.png` outputs for `figure` and `visualisation` under `outputs/figures/`;
+- rendered reports under `outputs/reports/<report-name>/<report-name>.html`.
 
 ## Saving outside the repository
 

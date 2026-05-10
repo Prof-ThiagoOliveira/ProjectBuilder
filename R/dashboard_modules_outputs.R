@@ -31,6 +31,16 @@ mod_outputs_ui <- function(id, manage = TRUE) {
           "Build status",
           subtitle = "Lists outputs that should be regenerated or created.",
           shiny::verbatimTextOutput(ns("output_summary"))
+        ),
+        dashboard_card(
+          "Output organisation",
+          subtitle = "Move registered outputs to the canonical typed layout and clean duplicated Quarto report artefacts.",
+          shiny::div(
+            class = "projflow-actions",
+            if (manage) shiny::actionButton(ns("preview_output_organisation"), "Preview organisation", class = "btn-outline-secondary"),
+            if (manage) shiny::actionButton(ns("apply_output_organisation"), "Apply organisation", class = "btn-outline-primary") else dashboard_empty_state("Read-only diagnostic mode.")
+          ),
+          shiny::verbatimTextOutput(ns("output_organisation_preview"))
         )
       ),
       shiny::column(
@@ -98,6 +108,8 @@ mod_outputs_server <- function(id, state, manage = TRUE) {
       )
     })
 
+    output$output_organisation_preview <- shiny::renderPrint(invisible(NULL))
+
     selected_output_row <- shiny::reactive({
       dashboard_selected_row(input, "outputs_table", output_data())
     })
@@ -128,6 +140,21 @@ mod_outputs_server <- function(id, state, manage = TRUE) {
     if (!isTRUE(manage)) {
       return(invisible(NULL))
     }
+
+    shiny::observeEvent(input$preview_output_organisation, {
+      output$output_organisation_preview <- shiny::renderPrint({
+        organise_project_outputs(root = dashboard_root(state), dry_run = TRUE)
+      })
+    })
+
+    shiny::observeEvent(input$apply_output_organisation, {
+      dashboard_run_action(
+        state = state,
+        session = session,
+        label = "Output organisation",
+        expr = organise_project_outputs(root = dashboard_root(state), dry_run = FALSE)
+      )
+    })
 
     shiny::observeEvent(input$register_output, {
       dashboard_run_action(
