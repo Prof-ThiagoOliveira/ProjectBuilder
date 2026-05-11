@@ -6,76 +6,46 @@
 \usage{
 new_project_script(
   name,
-  type = "analysis",
+  script_type = "analysis",
   root = ".",
-  order = NULL,
-  outputs = NULL,
-  output = NULL,
-  template = c("minimal", "example"),
   open = interactive(),
-  overwrite = FALSE,
-  repair = FALSE,
-  dry_run = FALSE
+  overwrite = FALSE
 )
 }
 \arguments{
 \item{name}{Script name. The value is normalised to a safe snake_case name
 before creating the file and registry entry.}
 
-\item{type}{Script type recorded in the registry and used to infer output
-types when explicit outputs are supplied.}
+\item{script_type}{Script type recorded in the registry.}
 
 \item{root}{Existing project root where the script should be added.}
-
-\item{order}{Optional numeric execution order for the script. If \code{NULL}, the
-next available order value is used.}
-
-\item{outputs}{Optional character vector of output names to register for the
-script. If omitted, the script is registered without outputs.}
-
-\item{output}{Optional explicit output path to register for the script. When
-supplied, the output name is derived from the file stem and the path is
-stored exactly as provided, relative to the project root.}
-
-\item{template}{Template style used for the generated script. \code{"minimal"}
-creates a bare scaffold; \code{"example"} includes placeholder code.}
 
 \item{open}{Logical scalar kept for API compatibility. The script is not
 opened automatically.}
 
-\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing script file
-and registry entry with the same name.}
-
-\item{repair}{Logical scalar. If \code{TRUE}, register an existing script file
-without overwriting it.}
-
-\item{dry_run}{Logical scalar. If \code{TRUE}, return the planned registry and
-filesystem changes without writing them.}
+\item{overwrite}{Logical scalar. If \code{TRUE}, replace an existing script
+file and registry entry with the same name.}
 }
 \value{
 Invisibly returns the created script path.
 }
 \description{
-Create a new project script
+\code{new_project_script()} creates a documented, non-executing R script in
+an existing \pkg{projflow} project and registers it as a workflow step. The
+public interface is intentionally minimal and mirrors \code{\link{new_script}()}.
+}
+\details{
+The script path is assigned automatically using the next sequential number
+under \file{analysis/}. Generated scripts contain comments only and do not
+create \file{.rds}, \file{.csv}, \file{.png}, \file{.html}, or other output
+artefacts. Register expected outputs separately with
+\code{\link{new_project_output}()}, \code{\link{new_output}()},
+\code{\link{new_table}()}, or \code{\link{new_figure}()}.
 }
 \examples{
 \dontrun{
-new_project_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
-
-new_project_script(
-  name = "fit_model",
-  type = "model",
-  outputs = "heritability_model",
-  template = "example",
-  open = FALSE
-)
-
-new_project_script(
-  name = "analysis_01",
-  type = "statistical_analysis",
-  output = "outputs/models/model_fit.rds",
-  open = FALSE
-)
+new_project_script("clean_phenotypes", script_type = "data_cleaning", open = FALSE)
+new_project_output("cleaned_phenotypes", type = "dataset")
 }
 }
 \author{

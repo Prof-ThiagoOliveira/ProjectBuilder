@@ -173,7 +173,7 @@ projflow::new_project(
 )
 
 projflow::set_project_data_root("/path/to/external/data")
-projflow::new_script("fit_mixed_model", type = "statistical_analysis")
+projflow::new_script("fit_mixed_model", script_type = "statistical_analysis")
 projflow::new_report("main_report")
 projflow::check_project()
 projflow::open_dashboard()

@@ -608,6 +608,51 @@ merge_script_specs <- function(existing, candidate) {
   existing
 }
 
+
+script_stem_without_number <- function(path, fallback = "script") {
+  stem <- tools::file_path_sans_ext(safe_basename(path))
+  stem <- gsub("^[0-9]+[_-]+", "", stem)
+  if (identical(stem, "") || is.na(stem)) {
+    stem <- fallback
+  }
+  validate_project_object_name(stem, repair = TRUE)
+}
+
+renumber_project_scripts <- function(script_entries) {
+  if (length(script_entries) == 0L) {
+    return(script_entries)
+  }
+
+  old_order <- vapply(
+    script_entries,
+    function(entry) {
+      value <- entry$order %||% NA_real_
+      suppressWarnings(as.numeric(value))
+    },
+    numeric(1)
+  )
+  old_order[is.na(old_order)] <- Inf
+  old_path <- vapply(script_entries, function(entry) entry$path %||% "", character(1))
+  script_entries <- script_entries[order(old_order, old_path)]
+
+  for (index in seq_along(script_entries)) {
+    entry <- script_entries[[index]]
+    number <- index - 1L
+    stem <- script_stem_without_number(entry$path, fallback = entry$name %||% paste0("script_", number))
+    directory <- fs::path_dir(entry$path %||% fs::path("analysis", paste0(stem, ".R")))
+    if (identical(directory, ".")) {
+      directory <- "analysis"
+    }
+
+    entry$path <- normalize_relative_path(fs::path(directory, paste0(number, "_", stem, ".R")))
+    entry$order <- number
+    entry$name <- entry$name %||% stem
+    script_entries[[index]] <- entry
+  }
+
+  script_entries
+}
+
 governance_file_templates <- function() {
   list(
     "docs/project_plan.md" = "# Project Plan\n\nDescribe objectives, scope, milestones, and current priorities.\n",
@@ -1101,13 +1146,12 @@ build_project_plan <- function(
         path = "analysis/example_analysis.R",
         type = "analysis",
         order = 5,
-        outputs = c("example_analysis")
+        outputs = character()
       )
     )
-    files <- c(files, "analysis/example_analysis.R")
   }
 
-  script_entries <- unname(scripts)
+  script_entries <- renumber_project_scripts(unname(scripts))
   report_entries <- unname(reports)
 
   # Project management support creates the governance register, but it should

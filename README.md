@@ -26,7 +26,7 @@ projflow::set_project_data_root("/path/to/external/data")
 
 projflow::new_script(
   "fit_mixed_model",
-  type = "statistical_analysis"
+  script_type = "statistical_analysis"
 )
 
 projflow::new_report("main_report")
@@ -107,16 +107,21 @@ projflow::new_project(
 Create a script only:
 
 ```r
-projflow::new_script("clean_inputs", type = "data_cleaning")
+projflow::new_script("clean_inputs", script_type = "data_cleaning")
 ```
 
-Create a script and register an explicit output:
+Create a script and register the explicit output separately:
 
 ```r
 projflow::new_script(
   "fit_model",
+  script_type = "model"
+)
+
+projflow::new_output(
+  "model_fit",
   type = "model",
-  output = "outputs/models/model_fit.rds"
+  path = "outputs/models/model_fit.rds"
 )
 ```
 
@@ -135,7 +140,7 @@ projflow::new_report("main_report")
 projflow::new_app(type = "shiny")
 ```
 
-By default, `new_script()` does not create `.rds` files or register placeholder outputs. Outputs are opt-in.
+By default, `new_script()` creates only a documented, comment-only script. It does not create `.rds` files and does not register placeholder outputs. Register outputs deliberately with `new_output()`, `new_table()`, or `new_figure()`.
 
 ## External data roots
 

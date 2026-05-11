@@ -65,7 +65,7 @@ component-specification list, or a list of component-specification objects.}
 package preference for external data roots.}
 
 \item{include_example}{Logical scalar. If \code{TRUE} and \code{plan = NULL},
-include the built-in \file{analysis/example_analysis.R} script.}
+include a numbered, comment-only example analysis script.}
 
 \item{plan}{Optional object of class \code{"project_plan"}, usually created
 by \code{\link{plan_project}()}. When supplied, \code{new_project()}

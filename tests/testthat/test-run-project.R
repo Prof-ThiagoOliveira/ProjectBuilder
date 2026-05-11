@@ -11,14 +11,16 @@ test_that("build_project works when called outside the project root", {
   )
 
   withr::local_dir(project_path)
-  new_script("record_wd", type = "analysis", open = FALSE)
+  new_script("record_wd", script_type = "analysis", open = FALSE)
+  registry <- yaml::read_yaml(".projflow/project_registry.yml")
+  record_wd_path <- registry$scripts$record_wd$path
   writeLines(
     c(
       "projflow::setup_project()",
       "result <- data.frame(wd = getwd(), stringsAsFactors = FALSE)",
       'projflow::save_project_object(result, name = "record_wd", type = "analysis")'
     ),
-    "analysis/record_wd.R"
+    record_wd_path
   )
 
   withr::local_dir(call_path)
@@ -56,16 +58,19 @@ test_that("build_project follows registry order", {
   )
 
   withr::local_dir(project_path)
-  new_script("second_step", order = 20, open = FALSE)
-  new_script("first_step", order = 10, open = FALSE)
+  new_script("first_step", open = FALSE)
+  new_script("second_step", open = FALSE)
 
+  registry <- yaml::read_yaml(".projflow/project_registry.yml")
+  second_step_path <- registry$scripts$second_step$path
+  first_step_path <- registry$scripts$first_step$path
   writeLines(
     c(
       "projflow::setup_project()",
       "path <- file.path(projflow::setup_project()$root, 'outputs', 'order.txt')",
       "write('second', file = path, append = TRUE)"
     ),
-    "analysis/second_step.R"
+    second_step_path
   )
   writeLines(
     c(
@@ -73,7 +78,7 @@ test_that("build_project follows registry order", {
       "path <- file.path(projflow::setup_project()$root, 'outputs', 'order.txt')",
       "write('first', file = path, append = TRUE)"
     ),
-    "analysis/first_step.R"
+    first_step_path
   )
 
   expect_no_error(build_project(render_reports = FALSE))
@@ -92,11 +97,13 @@ test_that("build_project reports failing scripts clearly", {
   )
 
   withr::local_dir(project_path)
-  new_script("broken_step", order = 10, open = FALSE)
-  writeLines("stop('boom')", "analysis/broken_step.R")
+  new_script("broken_step", open = FALSE)
+  registry <- yaml::read_yaml(".projflow/project_registry.yml")
+  broken_step_path <- registry$scripts$broken_step$path
+  writeLines("stop('boom')", broken_step_path)
 
   expect_error(
     build_project(render_reports = FALSE),
-    "broken_step.*analysis/broken_step.R.*order: 10.*boom"
+    "broken_step.*analysis/[0-9]+_broken_step\\.R.*order: [0-9]+.*boom"
   )
 })

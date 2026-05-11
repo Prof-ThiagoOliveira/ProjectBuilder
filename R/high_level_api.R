@@ -185,74 +185,41 @@ plan_project <- function(
 #' Create and register a new project script
 #'
 #' @description
-#' \code{new_script()} adds a script to an existing \pkg{projflow} project. It
-#' is a high-level wrapper around the lower-level project-script creation logic
-#' and is intended for day-to-day use when a user wants to extend an existing
-#' project with a new analysis, cleaning, modelling, simulation, visualisation,
-#' or export step.
+#' `new_script()` adds a documented, non-executing R script to an existing
+#' \pkg{projflow} project and records it in the project registry. The public
+#' interface is intentionally small: the function creates one script and does
+#' not register outputs, choose templates, repair registry state, or expose
+#' execution-order internals.
 #'
 #' @details
-#' The function performs two related operations:
-#' \itemize{
-#'   \item it creates, repairs, overwrites, or previews a project-relative script
-#'     file according to the selected template;
-#'   \item it records the script in the project registry so that project status,
-#'     project builds, dependency checks, and diagnostic tools can recognise the
-#'     script as part of the project workflow.
-#' }
+#' Scripts are numbered automatically from 0 to N. The next script receives the
+#' next available sequential number and is written under \file{analysis/}. The
+#' generated file contains comments only; it does not execute code, save
+#' \file{.rds} objects, write \file{.csv} files, or create any other analysis
+#' artefact.
 #'
-#' The \code{type} argument should be a standard project script type. Common
-#' values include \code{"import"}, \code{"data_preparation"},
-#' \code{"data_cleaning"}, \code{"quality_control"},
-#' \code{"exploratory_analysis"}, \code{"statistical_analysis"},
-#' \code{"model"}, \code{"model_diagnostics"}, \code{"simulation"},
-#' \code{"forecasting"}, \code{"optimisation"}, \code{"causal_inference"},
-#' \code{"visualisation"}, \code{"summary"}, \code{"export"}, and
-#' \code{"analysis"}. The exact accepted values are defined by the installed
-#' package version.
-#'
-#' When \code{outputs} or \code{output} is supplied, the output is also
-#' registered in the project registry. This allows later calls to project status,
-#' build, reporting, and diagnostic functions to identify expected products of
-#' the script.
+#' Register outputs separately with \code{\link{new_output}()},
+#' \code{\link{new_table}()}, or \code{\link{new_figure}()} after the user has
+#' decided what the script should deliberately produce.
 #'
 #' @param name Character scalar. Human-readable script name. The value is
-#'   normalised to a safe project-object name, typically a snake_case stem, before
-#'   the file path and registry entry are created.
-#' @param type Character scalar. Script type recorded in the registry. The type
-#'   is used to group workflow steps and may be used to infer default output
-#'   locations when \code{outputs} is supplied.
+#'   normalised to a safe project-object name, typically a snake_case stem,
+#'   before the file path and registry entry are created.
+#' @param script_type Character scalar. Script type recorded in the registry.
+#'   Values must be one of \code{project_script_types()}, such as
+#'   \code{"data_preparation"}, \code{"statistical_analysis"},
+#'   \code{"model_diagnostics"}, \code{"visualisation"}, or
+#'   \code{"analysis"}.
 #' @param root Character scalar. Path inside an existing \pkg{projflow} project.
 #'   The project root is located before the script is added. Use \code{"."} for
 #'   the current working directory.
-#' @param order Optional numeric scalar. Execution order recorded in the
-#'   registry. If \code{NULL}, the script is placed after the highest existing
-#'   script order.
-#' @param outputs Optional character vector. Names of outputs to register for the
-#'   script. These are converted into registry output entries using package
-#'   defaults for the selected script type.
-#' @param output Optional character scalar. Explicit project-relative output path
-#'   to register for the script. This is useful when the output path should not be
-#'   inferred from \code{outputs} or \code{type}.
-#' @param template Character scalar. Template style used for the generated script.
-#'   \code{"minimal"} creates a compact script scaffold. \code{"example"} adds
-#'   placeholder analysis code and output-writing calls where appropriate.
-#' @param open Logical scalar. Retained for user-interface compatibility. In the
-#'   current implementation, the script is created or registered but is not opened
-#'   automatically by this wrapper.
+#' @param open Logical scalar. If \code{TRUE}, an informational message is shown
+#'   reminding the user to open the generated script manually.
 #' @param overwrite Logical scalar. If \code{TRUE}, an existing script file and
 #'   registry entry with the same normalised name may be replaced.
-#' @param repair Logical scalar. If \code{TRUE}, register an existing script file
-#'   without overwriting the file. This is useful when a file exists on disk but
-#'   is missing from the project registry.
-#' @param dry_run Logical scalar. If \code{TRUE}, return the planned registry and
-#'   file changes without modifying the project.
 #'
 #' @return
-#' In normal use, invisibly returns the created or registered script path. When
-#' \code{dry_run = TRUE}, returns the planned change object generated by the
-#' lower-level project-script helper. The return value is primarily intended for
-#' programmatic inspection and testing.
+#' Invisibly returns the created script path.
 #'
 #' @seealso
 #' \code{\link{plan_project}()}, \code{\link{new_component}()},
@@ -269,39 +236,32 @@ plan_project <- function(
 #'
 #' new_script(
 #'   name = "fit_model",
-#'   type = "model",
+#'   script_type = "statistical_analysis",
 #'   root = root,
-#'   outputs = "model_fit",
-#'   template = "example",
 #'   open = FALSE
+#' )
+#'
+#' new_output(
+#'   name = "model_fit",
+#'   type = "model",
+#'   path = "outputs/models/model_fit.rds",
+#'   root = root
 #' )
 #' }
 #'
 #' @author Thiago de Paula Oliveira
 #' @export
 new_script <- function(name,
-                       type = "analysis",
+                       script_type = "analysis",
                        root = ".",
-                       order = NULL,
-                       outputs = NULL,
-                       output = NULL,
-                       template = c("minimal", "example"),
                        open = interactive(),
-                       overwrite = FALSE,
-                       repair = FALSE,
-                       dry_run = FALSE) {
+                       overwrite = FALSE) {
   new_project_script(
     name = name,
-    type = type,
+    script_type = script_type,
     root = root,
-    order = order,
-    outputs = outputs,
-    output = output,
-    template = template,
     open = open,
-    overwrite = overwrite,
-    repair = repair,
-    dry_run = dry_run
+    overwrite = overwrite
   )
 }
 

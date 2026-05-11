@@ -46,98 +46,92 @@ project_readme_template <- function(plan) {
 
 run_project_template <- function() {
   paste(
-    "projflow::check_project(deep = FALSE)",
-    "projflow::build_project()",
+    "# Run project workflow",
+    paste0("# Created: ", as.character(Sys.Date())),
+    "#",
+    "# This entrypoint is intentionally comment-only when generated.",
+    "# Uncomment and run the commands below only after reviewing the project scripts.",
+    "#",
+    "# projflow::check_project(deep = FALSE)",
+    "# projflow::build_project()",
     sep = "\n"
   )
 }
+
 
 example_analysis_template <- function() {
   paste(
     "# Example analysis",
     paste0("# Created: ", as.character(Sys.Date())),
-    "",
-    "projflow::setup_project()",
-    "",
-    "# This example runs without external data by creating toy data in memory.",
-    "toy_data <- data.frame(",
-    "  id = 1:3,",
-    "  value = c(10, 15, 13)",
-    ")",
-    "",
-    "result <- transform(",
-    "  toy_data,",
-    "  centred_value = value - mean(value)",
-    ")",
-    "",
-    'projflow::save_project_object(result, name = "example_analysis", type = "analysis")',
+    "#",
+    "# This optional example file is intentionally comment-only.",
+    "# It documents where a user may place executable analysis code, but it does",
+    "# not create `.rds`, `.csv`, `.png`, or other generated artefacts.",
+    "#",
+    "# Suggested structure:",
+    "# 1. Configure project state with projflow::setup_project().",
+    "# 2. Access external data with projflow::project_data_path().",
+    "# 3. Fit, summarise, and validate the analysis explicitly.",
+    "# 4. Save outputs deliberately only after reviewing what should be produced.",
     sep = "\n"
   )
 }
 
+
 base_script_template <- function(script) {
-  template <- script$template %||% "example"
-  data_comment <- c(
-    "# Data are expected to live outside this repository.",
-    "# Configure the external data root once with:",
-    '# projflow::set_project_data_root("path/to/external/data")',
-    "#",
-    "# Then access files with:",
-    '# input_file <- projflow::project_data_path("input_file.csv")'
+  template <- script$script_template %||% script$template %||% "documented"
+  custom_template <- read_custom_script_template(
+    template_path = script$template_path %||% NULL,
+    template_text = script$template_text %||% NULL
   )
-
-  header <- c(
-    paste0("# ", tools::file_path_sans_ext(safe_basename(script$path))),
-    paste0("# Created: ", as.character(Sys.Date())),
-    "",
-    "projflow::setup_project()",
-    "",
-    data_comment,
-    ""
-  )
-
-  if (identical(template, "minimal")) {
-    return(paste(c(header, "# Add analysis code here."), collapse = "\n"))
+  if (!is.null(custom_template)) {
+    return(substitute_script_template_placeholders(
+      custom_template,
+      name = script$name,
+      script_type = script$type,
+      outputs = script$outputs %||% character(),
+      title = tools::file_path_sans_ext(safe_basename(script$path))
+    ))
   }
 
-  output_lines <- character()
+  if (identical(template, "blank")) {
+    return("")
+  }
+
   outputs <- script$outputs %||% character()
-
-  if (length(outputs) > 0L) {
-    output_lines <- c(
-      "result <- data.frame(",
-      '  message = "Replace this example with project-specific logic.",',
-      "  created = Sys.time(),",
-      "  stringsAsFactors = FALSE",
-      ")"
-    )
-
-    for (output_name in outputs) {
-      object_type <- infer_output_type(output_name, script$type)
-      output_lines <- c(
-        output_lines,
-        "",
-        if (identical(object_type, "figure")) {
-          c(
-            "if (requireNamespace(\"ggplot2\", quietly = TRUE)) {",
-            "  figure <- ggplot2::ggplot(data.frame(x = 1:3, y = c(2, 5, 3)), ggplot2::aes(x, y)) +",
-            "    ggplot2::geom_col()",
-            paste0('  projflow::save_project_object(figure, name = "', output_name, '", type = "figure")'),
-            "}"
-          )
-        } else {
-          paste0('projflow::save_project_object(result, name = "', output_name, '", type = "', object_type, '")')
-        }
-      )
-    }
+  output_lines <- if (length(outputs) == 0L) {
+    "# Expected outputs: none registered."
   } else {
-    output_lines <- c(
-      "# Add analysis code here."
+    c(
+      "# Expected outputs registered in .projflow/project_registry.yml:",
+      paste0("# - ", outputs)
     )
   }
 
-  paste(c(header, output_lines), collapse = "\n")
+  paste(
+    c(
+      paste0("# ", tools::file_path_sans_ext(safe_basename(script$path))),
+      paste0("# Script type: ", script$type),
+      paste0("# Created: ", as.character(Sys.Date())),
+      "#",
+      "# Purpose:",
+      "# - Describe the objective of this workflow step before adding code.",
+      "#",
+      "# Inputs:",
+      "# - Document required external data, registry objects, or upstream scripts.",
+      "# - External data should be accessed with projflow::project_data_path().",
+      "#",
+      output_lines,
+      "#",
+      "# Notes:",
+      "# - This file is intentionally comment-only when generated.",
+      "# - Add executable R code only when the analysis step is ready.",
+      "# - Do not commit raw data or large generated artefacts to the project repository."
+    ),
+    collapse = "\n"
+  )
 }
+
 
 report_template_for_plan <- function(report) {
   title <- switch(
@@ -167,11 +161,7 @@ report_template_for_plan <- function(report) {
       "## Overview",
       "",
       "```{r}",
-      "if (file.exists('outputs/analysis/example_analysis.rds')) {",
-      "  readRDS('outputs/analysis/example_analysis.rds')",
-      "} else {",
-      "  data.frame(message = 'Report template is ready. Add project outputs as they become available.')",
-      "}",
+      "data.frame(message = 'Report template is ready. Add project outputs deliberately as they become available.')",
       "```"
     )
   }
@@ -200,11 +190,7 @@ shiny_app_template <- function() {
     "",
     "server <- function(input, output, session) {",
     "  output$preview <- renderTable({",
-    "    if (file.exists(file.path('outputs', 'analysis', 'example_analysis.rds'))) {",
-    "      readRDS(file.path('outputs', 'analysis', 'example_analysis.rds'))",
-    "    } else {",
-    '      data.frame(message = "No lightweight project outputs are available yet.")',
-    "    }",
+    '    data.frame(message = "No project outputs are available yet. Add outputs deliberately from project scripts.")',
     "  })",
     "}",
     "",
@@ -212,6 +198,7 @@ shiny_app_template <- function() {
     sep = "\n"
   )
 }
+
 
 plain_file_template <- function(path, plan) {
   governance <- governance_file_templates()
@@ -319,7 +306,7 @@ write_plan_files <- function(path, plan, overwrite = FALSE) {
 
   extra_files <- setdiff(
     plan$files,
-    c(project_core_files(safe_basename(plan$path)), "analysis/example_analysis.R")
+    project_core_files(safe_basename(plan$path))
   )
 
   for (file in extra_files) {
@@ -330,10 +317,6 @@ write_plan_files <- function(path, plan, overwrite = FALSE) {
 
     content <- plain_file_template(file, plan)
     track_result(write_template_file(fs::path(path, file), content, overwrite = overwrite))
-  }
-
-  if ("analysis/example_analysis.R" %in% plan$files) {
-    track_result(write_template_file(fs::path(path, "analysis", "example_analysis.R"), example_analysis_template(), overwrite = overwrite))
   }
 
   list(files_created = unique(files_created), files_skipped = unique(files_skipped))
@@ -462,7 +445,7 @@ rebuild_project_plan <- function(root = ".") {
     infrastructure = project_infrastructure(root),
     component_specs = registry$component_specs %||% list(),
     use_internal_data_dirs = isTRUE(config$settings$use_internal_data_dirs),
-    include_example = fs::file_exists(fs::path(root, "analysis", "example_analysis.R"))
+    include_example = "example_analysis" %in% names(registry$scripts %||% list())
   )
 }
 
@@ -475,7 +458,7 @@ add_project_component <- function(component, root = ".", open = interactive(), o
     deliverables = plan$deliverables,
     infrastructure = plan$infrastructure,
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
-    include_example = "analysis/example_analysis.R" %in% plan$files
+    include_example = any(vapply(plan$scripts, function(script) identical(script$name, "example_analysis"), logical(1)))
   )
   apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
 }
@@ -489,7 +472,7 @@ add_project_deliverable <- function(deliverable, root = ".", open = interactive(
     deliverables = unique(c(plan$deliverables, deliverable)),
     infrastructure = plan$infrastructure,
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
-    include_example = "analysis/example_analysis.R" %in% plan$files
+    include_example = any(vapply(plan$scripts, function(script) identical(script$name, "example_analysis"), logical(1)))
   )
   apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
 }
@@ -503,7 +486,7 @@ add_project_infrastructure <- function(infrastructure, root = ".", open = intera
     deliverables = plan$deliverables,
     infrastructure = unique(c(plan$infrastructure, infrastructure)),
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
-    include_example = "analysis/example_analysis.R" %in% plan$files
+    include_example = any(vapply(plan$scripts, function(script) identical(script$name, "example_analysis"), logical(1)))
   )
   apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
 }

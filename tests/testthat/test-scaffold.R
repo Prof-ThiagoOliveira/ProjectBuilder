@@ -82,7 +82,11 @@ test_that("example script runs without real data", {
 
   withr::local_dir(project_path)
   expect_no_error(build_project(project_path, render_reports = FALSE))
-  expect_true(file.exists(file.path(project_path, "outputs", "analysis", "example_analysis.rds")))
+  expect_false(file.exists(file.path(project_path, "outputs", "analysis", "example_analysis.rds")))
+  registry <- yaml::read_yaml(file.path(project_path, ".projflow", "project_registry.yml"))
+  example_path <- registry$scripts$example_analysis$path
+  expect_true(file.exists(file.path(project_path, example_path)))
+  expect_false(any(grepl("save_project_object|saveRDS|write\\.csv", readLines(file.path(project_path, example_path), warn = FALSE))))
 })
 
 test_that("default report render workflow creates the registered output", {
@@ -163,7 +167,10 @@ test_that("custom component specs can be registered and used", {
     open = FALSE
   )
 
-  expect_true(file.exists(file.path(project_path, "analysis", "08_genomic_evaluation.R")))
+  registry <- yaml::read_yaml(file.path(project_path, ".projflow", "project_registry.yml"))
+  genomic_path <- registry$scripts$genomic_evaluation$path
+  expect_true(file.exists(file.path(project_path, genomic_path)))
+  expect_true(grepl("analysis/[0-9]+_genomic_evaluation\\.R$", genomic_path))
   expect_true(dir.exists(file.path(project_path, "outputs", "ebv")))
 
   registry <- yaml::read_yaml(file.path(project_path, ".projflow", "project_registry.yml"))
@@ -197,12 +204,14 @@ test_that("plan_project and high-level verbs grow the project", {
   expect_no_error(serve_project(project_path, watch = FALSE))
 
   withr::local_dir(project_path)
-  expect_no_error(new_script("secondary_analysis", type = "analysis", open = FALSE))
+  expect_no_error(new_script("secondary_analysis", script_type = "analysis", open = FALSE))
   expect_no_error(new_report("client_report", type = "client_report", root = ".", open = FALSE))
   expect_no_error(new_component("shiny_app", root = ".", open = FALSE))
   expect_no_error(new_app(root = ".", type = "shiny", open = FALSE))
 
-  expect_true(file.exists(file.path(project_path, "analysis", "secondary_analysis.R")))
+  registry <- yaml::read_yaml(file.path(project_path, ".projflow", "project_registry.yml"))
+  secondary_path <- registry$scripts$secondary_analysis$path
+  expect_true(file.exists(file.path(project_path, secondary_path)))
   expect_true(file.exists(file.path(project_path, "reports", "client_report.qmd")))
   expect_true(file.exists(file.path(project_path, "app", "app.R")))
 })

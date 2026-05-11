@@ -37,7 +37,7 @@ test_that("new_script does not register or create an output by default", {
   expect_false(file.exists(file.path(project_path, "outputs", "secondary_analysis.rds")))
 })
 
-test_that("new_script can register explicit outputs", {
+test_that("new_script creation and output registration are separate", {
   project_path <- make_project_path("new-script-explicit-output")
 
   new_project(
@@ -49,16 +49,21 @@ test_that("new_script can register explicit outputs", {
 
   new_project_script(
     name = "model_fit",
-    type = "model",
+    script_type = "model",
     root = project_path,
-    outputs = "heritability_model",
-    template = "example",
     open = FALSE
+  )
+  new_output(
+    name = "heritability_model",
+    type = "model",
+    path = "outputs/models/heritability_model.rds",
+    root = project_path
   )
 
   registry <- yaml::read_yaml(file.path(project_path, ".projflow", "project_registry.yml"))
 
   expect_true("model_fit" %in% names(registry$scripts))
+  expect_length(registry$scripts$model_fit$outputs, 0L)
   expect_true("heritability_model" %in% names(registry$outputs))
 })
 
@@ -91,7 +96,7 @@ test_that("default project with report does not imply tables or figures", {
   expect_false("figures" %in% plan$deliverables)
 
   script_paths <- vapply(plan$scripts, `[[`, character(1), "path")
-  expect_false("analysis/06_summarise_results.R" %in% script_paths)
+  expect_false("analysis/2_summarise_results.R" %in% script_paths)
 })
 
 test_that("component script template creates all registered placeholder outputs when examples are enabled", {
@@ -180,4 +185,22 @@ test_that("project management helpers are exported", {
 
   expect_true("add_project_task" %in% exports)
   expect_true("project_status_report" %in% exports)
+})
+
+test_that("script creation public API remains minimal", {
+  removed_args <- c(
+    "order",
+    "output_names",
+    "output_path",
+    "script_template",
+    "template_path",
+    "template_text",
+    "repair",
+    "dry_run"
+  )
+
+  expect_false(any(removed_args %in% names(formals(new_script))))
+  expect_false(any(removed_args %in% names(formals(new_project_script))))
+  expect_true(all(c("name", "script_type", "root", "open", "overwrite") %in% names(formals(new_script))))
+  expect_true(all(c("name", "script_type", "root", "open", "overwrite") %in% names(formals(new_project_script))))
 })

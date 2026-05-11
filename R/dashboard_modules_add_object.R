@@ -158,13 +158,25 @@ mod_add_object_server <- function(id, state, manage = TRUE) {
 
           switch(
             object_type,
-            script = new_script(
-              name = dashboard_required_text(object_name, "Script name"),
-              type = object_subtype,
-              root = root,
-              dry_run = dry_run,
-              open = FALSE
-            ),
+            script = {
+              script_name <- dashboard_required_text(object_name, "Script name")
+              if (isTRUE(dry_run)) {
+                create_project_script_internal(
+                  name = script_name,
+                  script_type = object_subtype,
+                  root = root,
+                  dry_run = TRUE,
+                  open = FALSE
+                )
+              } else {
+                new_script(
+                  name = script_name,
+                  script_type = object_subtype,
+                  root = root,
+                  open = FALSE
+                )
+              }
+            },
             report = new_report(
               name = dashboard_required_text(object_name, "Report name"),
               type = object_subtype,

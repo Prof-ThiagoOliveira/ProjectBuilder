@@ -78,7 +78,7 @@ new_project(
 
 set_project_data_root("D:/shared/my_analysis_data")
 
-new_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+new_script("clean_phenotypes", script_type = "data_cleaning", open = FALSE)
 
 build_project(render_reports = TRUE)
 check_project()
@@ -200,8 +200,7 @@ For a minimal report-oriented project, the default scaffold usually includes:
 - `<project>.Rproj`.
 
 If `include_example = TRUE`, the scaffold also includes
-`analysis/example_analysis.R`. This is the only default script intended to
-create a placeholder output automatically.
+`analysis/0_example_analysis.R` or another sequentially numbered script. This script is comment-only and does not create a placeholder output automatically.
 
 ## Minimal report scaffolds
 
@@ -259,53 +258,52 @@ remove_project_data_source("reference")
 `new_script()` is the main high-level helper for user-created scripts.
 
 ```{r, eval = FALSE}
-new_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
+new_script("clean_phenotypes", script_type = "data_cleaning", open = FALSE)
 ```
 
 By default, this:
 
-- creates `analysis/clean_phenotypes.R`;
+- creates a numbered script such as `analysis/1_clean_phenotypes.R`;
 - registers the script in the project registry;
 - does **not** register an output;
 - does **not** create a placeholder `.rds`.
 
-### Minimal versus example templates
+### Minimal script creation and separate output registration
 
-Use `template = "minimal"` for a bare scaffold:
+`new_script()` deliberately keeps the user-facing API small. It always creates a documented, comment-only script and assigns the next sequential script number automatically.
 
 ```{r, eval = FALSE}
 new_script(
   name = "merge_datasets",
-  type = "data_preparation",
-  template = "minimal",
+  script_type = "data_preparation",
   open = FALSE
 )
 ```
 
-Use `template = "example"` if you want placeholder saving code. Saving code is
-added only if you explicitly provide `outputs`.
+Expected outputs are registered separately after deciding what the script should deliberately produce.
 
 ```{r, eval = FALSE}
-new_script(
-  name = "fit_model",
+new_output(
+  name = "heritability_model",
   type = "model",
-  outputs = "heritability_model",
-  template = "example",
-  open = FALSE
+  path = "outputs/models/heritability_model.rds"
 )
 ```
 
 ### Full script constructor
 
-`new_project_script()` exposes the same behavior directly:
+`new_project_script()` exposes the same minimal behaviour directly:
 
 ```{r, eval = FALSE}
 new_project_script(
   name = "quality_summary",
-  type = "quality_control",
-  outputs = "qc_summary",
-  template = "example",
+  script_type = "quality_control",
   open = FALSE
+)
+new_output(
+  name = "qc_summary",
+  type = "analysis",
+  path = "outputs/analysis/qc_summary.rds"
 )
 ```
 
@@ -619,17 +617,19 @@ set_project_data_root("D:/project_data/animal-breeding-study")
 
 new_script(
   name = "clean_phenotypes",
-  type = "data_cleaning",
-  template = "minimal",
+  script_type = "data_cleaning",
   open = FALSE
 )
 
 new_script(
   name = "fit_heritability_model",
-  type = "model",
-  outputs = "heritability_model",
-  template = "example",
+  script_type = "model",
   open = FALSE
+)
+new_output(
+  name = "heritability_model",
+  type = "model",
+  path = "outputs/models/heritability_model.rds"
 )
 
 new_component("tables", open = FALSE)

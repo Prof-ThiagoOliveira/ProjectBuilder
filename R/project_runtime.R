@@ -934,72 +934,136 @@ next_script_order <- function(registry) {
   orders <- orders[!is.na(orders)]
 
   if (length(orders) == 0L) {
-    return(10)
+    return(0)
   }
 
-  max(orders) + 10
+  max(orders) + 1
 }
 
-script_template <- function(name, type, outputs = NULL, template = c("minimal", "example"), title = NULL) {
-  template <- match.arg(template)
+
+script_file_numbers <- function(registry) {
+  paths <- vapply(registry$scripts %||% list(), function(entry) entry$path %||% "", character(1))
+  stems <- tools::file_path_sans_ext(basename(paths))
+  numbers <- suppressWarnings(as.integer(sub("^([0-9]+).*$", "\\1", stems)))
+  numbers[grepl("^[0-9]+[_-]", stems) & !is.na(numbers)]
+}
+
+next_script_file_number <- function(registry) {
+  numbers <- script_file_numbers(registry)
+  if (length(numbers) == 0L) {
+    return(0L)
+  }
+  max(numbers) + 1L
+}
+
+numbered_script_path <- function(name, number) {
+  number <- suppressWarnings(as.integer(number))
+  if (is.na(number)) {
+    number <- 0L
+  }
+  fs::path("analysis", paste0(number, "_", name, ".R"))
+}
+
+substitute_script_template_placeholders <- function(text, name, script_type, outputs = NULL, title = NULL) {
+  title <- if (is.null(title)) name else title
+  output_text <- paste(outputs %||% character(), collapse = ", ")
+
+  replacements <- c(
+    "{{name}}" = name,
+    "{{script_type}}" = script_type,
+    "{{title}}" = title,
+    "{{date}}" = as.character(Sys.Date()),
+    "{{output_names}}" = output_text
+  )
+
+  for (placeholder in names(replacements)) {
+    text <- gsub(placeholder, replacements[[placeholder]], text, fixed = TRUE)
+  }
+
+  text
+}
+
+read_custom_script_template <- function(template_path = NULL, template_text = NULL) {
+  if (!is.null(template_path) && !is.null(template_text)) {
+    rlang::abort("Use either `template_path` or `template_text`, not both.")
+  }
+
+  if (!is.null(template_path)) {
+    validate_character_vector(template_path, "template_path")
+    template_path <- template_path[[1]]
+    if (!fs::file_exists(template_path)) {
+      rlang::abort(paste0("`template_path` does not exist: ", template_path))
+    }
+    return(paste(readLines(template_path, warn = FALSE), collapse = "\n"))
+  }
+
+  if (!is.null(template_text)) {
+    validate_character_vector(template_text, "template_text")
+    return(paste(template_text, collapse = "\n"))
+  }
+
+  NULL
+}
+
+make_script_template <- function(name,
+                            script_type,
+                            outputs = NULL,
+                            script_template = c("documented", "blank"),
+                            title = NULL,
+                            template_path = NULL,
+                            template_text = NULL) {
+  custom_template <- read_custom_script_template(template_path = template_path, template_text = template_text)
   title <- if (is.null(title)) name else title
   outputs <- outputs %||% character()
 
-  header <- c(
-    paste0("# ", title),
-    paste0("# Created: ", as.character(Sys.Date())),
-    "",
-    "projflow::setup_project()",
-    "",
-    "# Data are expected to live outside this repository.",
-    "# Configure the external data root once with:",
-    '# projflow::set_project_data_root("path/to/external/data")',
-    "#",
-    "# Then access files with:",
-    '# input_file <- projflow::project_data_path("input_file.csv")',
-    ""
+  if (!is.null(custom_template)) {
+    return(substitute_script_template_placeholders(
+      custom_template,
+      name = name,
+      script_type = script_type,
+      outputs = outputs,
+      title = title
+    ))
+  }
+
+  script_template <- match.arg(script_template)
+  if (identical(script_template, "blank")) {
+    return("")
+  }
+
+  output_lines <- if (length(outputs) == 0L) {
+    "# Expected outputs: none registered."
+  } else {
+    c(
+      "# Expected outputs registered in .projflow/project_registry.yml:",
+      paste0("# - ", outputs)
+    )
+  }
+
+  paste(
+    c(
+      paste0("# ", title),
+      paste0("# Script type: ", script_type),
+      paste0("# Created: ", as.character(Sys.Date())),
+      "#",
+      "# Purpose:",
+      "# - Describe the objective of this workflow step before adding code.",
+      "#",
+      "# Inputs:",
+      "# - Document required external data, registry objects, or upstream scripts.",
+      "# - External data should be accessed with projflow::project_data_path().",
+      "#",
+      output_lines,
+      "#",
+      "# Notes:",
+      "# - This file is intentionally comment-only when generated.",
+      "# - Add executable R code only when the analysis step is ready.",
+      "# - Do not commit raw data or large generated artefacts to the project repository."
+    ),
+    collapse = "\n"
   )
-
-  if (identical(template, "minimal")) {
-    return(paste(c(header, "# Add analysis code here."), collapse = "\n"))
-  }
-
-  example_lines <- c(
-    "result <- data.frame(",
-    '  message = "Replace this example with project-specific logic.",',
-    "  created = Sys.time(),",
-    "  stringsAsFactors = FALSE",
-    ")"
-  )
-
-  if (length(outputs) == 0L) {
-    return(paste(c(header, example_lines), collapse = "\n"))
-  }
-
-  save_lines <- character()
-  for (output_name in outputs) {
-    object_type <- infer_output_type(output_name, type)
-    if (identical(object_type, "figure")) {
-      save_lines <- c(
-        save_lines,
-        "",
-        "if (requireNamespace(\"ggplot2\", quietly = TRUE)) {",
-        "  figure <- ggplot2::ggplot(data.frame(x = 1:3, y = c(2, 5, 3)), ggplot2::aes(x, y)) +",
-        "    ggplot2::geom_col()",
-        paste0('  projflow::save_project_object(figure, name = "', output_name, '", type = "figure")'),
-        "}"
-      )
-    } else {
-      save_lines <- c(
-        save_lines,
-        "",
-        paste0('projflow::save_project_object(result, name = "', output_name, '", type = "', object_type, '")')
-      )
-    }
-  }
-
-  paste(c(header, example_lines, save_lines), collapse = "\n")
 }
+
 
 report_template <- function(title) {
   paste(
@@ -1909,60 +1973,18 @@ render_one_report <- function(input_path, output_path) {
   paste0("Unsupported report type: ", input_path)
 }
 
-#' Create a new project script
-#'
-#' @param name Script name. The value is normalised to a safe snake_case name
-#'   before creating the file and registry entry.
-#' @param type Script type recorded in the registry and used to infer output
-#'   types when explicit outputs are supplied.
-#' @param root Existing project root where the script should be added.
-#' @param order Optional numeric execution order for the script. If `NULL`, the
-#'   next available order value is used.
-#' @param outputs Optional character vector of output names to register for the
-#'   script. If omitted, the script is registered without outputs.
-#' @param output Optional explicit output path to register for the script. When
-#'   supplied, the output name is derived from the file stem and the path is
-#'   stored exactly as provided, relative to the project root.
-#' @param template Template style used for the generated script. `"minimal"`
-#'   creates a bare scaffold; `"example"` includes placeholder code.
-#' @param open Logical scalar kept for API compatibility. The script is not
-#'   opened automatically.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing script file
-#'   and registry entry with the same name.
-#' @param repair Logical scalar. If `TRUE`, register an existing script file
-#'   without overwriting it.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned registry and
-#'   filesystem changes without writing them.
-#'
-#' @return Invisibly returns the created script path.
-#' @examples
-#' \dontrun{
-#' new_project_script("clean_phenotypes", type = "data_cleaning", open = FALSE)
-#'
-#' new_project_script(
-#'   name = "fit_model",
-#'   type = "model",
-#'   outputs = "heritability_model",
-#'   template = "example",
-#'   open = FALSE
-#' )
-#'
-#' new_project_script(
-#'   name = "analysis_01",
-#'   type = "statistical_analysis",
-#'   output = "outputs/models/model_fit.rds",
-#'   open = FALSE
-#' )
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-new_project_script <- function(name,
-                               type = "analysis",
+# Internal script creation helper used by public wrappers and tests.
+# This keeps advanced functionality out of the user-facing API while preserving
+# a single implementation point for registry and filesystem updates.
+create_project_script_internal <- function(name,
+                               script_type = "analysis",
                                root = ".",
                                order = NULL,
-                               outputs = NULL,
-                               output = NULL,
-                               template = c("minimal", "example"),
+                               output_names = NULL,
+                               output_path = NULL,
+                               script_template = c("documented", "blank"),
+                               template_path = NULL,
+                               template_text = NULL,
                                open = interactive(),
                                overwrite = FALSE,
                                repair = FALSE,
@@ -1976,17 +1998,27 @@ new_project_script <- function(name,
   }
 
   name <- validate_project_object_name(name, repair = TRUE)
-  type <- validate_choice(type, project_script_types(), "type")
-  template <- match.arg(template)
-  if (!is.null(output) && !is.null(outputs)) {
-    rlang::abort("Use either `outputs` or `output`, not both.")
+  script_type <- validate_choice(script_type, project_script_types(), "script_type")
+  if (is.null(template_path) && is.null(template_text)) {
+    script_template <- match.arg(script_template)
+  }
+  if (!is.null(output_path) && !is.null(output_names)) {
+    rlang::abort("Use either `output_names` or `output_path`, not both.")
   }
 
-  outputs <- if (is.null(outputs)) character() else unique(vapply(outputs, validate_project_object_name, character(1), repair = TRUE))
+  output_names <- if (is.null(output_names)) character() else unique(vapply(output_names, validate_project_object_name, character(1), repair = TRUE))
   root <- find_project_root(root)
   backup_project_registry(root)
   registry <- read_project_registry(root)
-  relative_path <- fs::path("analysis", paste0(name, ".R"))
+  if (is.null(order)) {
+    order <- next_script_order(registry)
+  }
+  existing_script <- registry$scripts[[name]]
+  relative_path <- if (!is.null(existing_script) && isTRUE(overwrite) && !is.null(existing_script$path)) {
+    existing_script$path
+  } else {
+    numbered_script_path(name, next_script_file_number(registry))
+  }
   source_path <- fs::path(root, relative_path)
 
   if (!is.null(registry$scripts[[name]]) && !isTRUE(overwrite)) {
@@ -1998,17 +2030,17 @@ new_project_script <- function(name,
   }
 
   explicit_output <- NULL
-  if (!is.null(output)) {
-    validate_character_vector(output, "output")
-    if (is_absolute_path(output[[1]])) {
-      rlang::abort("`output` must be a project-relative path.")
+  if (!is.null(output_path)) {
+    validate_character_vector(output_path, "output_path")
+    if (is_absolute_path(output_path[[1]])) {
+      rlang::abort("`output_path` must be a project-relative path.")
     }
     explicit_output <- list(
-      name = validate_project_object_name(tools::file_path_sans_ext(safe_basename(output[[1]])), repair = TRUE),
-      path = normalize_relative_path(output[[1]]),
-      type = infer_output_type(tools::file_path_sans_ext(safe_basename(output[[1]])), type)
+      name = validate_project_object_name(tools::file_path_sans_ext(safe_basename(output_path[[1]])), repair = TRUE),
+      path = normalize_relative_path(output_path[[1]]),
+      type = infer_output_type(tools::file_path_sans_ext(safe_basename(output_path[[1]])), script_type)
     )
-    outputs <- explicit_output$name
+    output_names <- explicit_output$name
   }
 
   if (isTRUE(dry_run)) {
@@ -2020,9 +2052,10 @@ new_project_script <- function(name,
       root = root,
       dry_run = TRUE,
       details = list(
-        type = type,
+        script_type = script_type,
         order = if (is.null(order)) next_script_order(registry) else order,
-        outputs = outputs
+        output_names = output_names,
+        output_path = output_path
       )
     ))
   }
@@ -2030,26 +2063,30 @@ new_project_script <- function(name,
   if (!isTRUE(repair)) {
     write_template_file(
       source_path,
-      script_template(name = name, type = type, outputs = outputs, template = template, title = name),
+      make_script_template(
+        name = name,
+        script_type = script_type,
+        outputs = output_names,
+        script_template = script_template,
+        title = name,
+        template_path = template_path,
+        template_text = template_text
+      ),
       overwrite = overwrite
     )
   } else if (!project_relative_path_exists(root, relative_path)) {
     rlang::abort(paste0("Cannot repair script `", name, "` because the file does not exist: ", normalize_relative_path(relative_path)))
   }
 
-  if (is.null(order)) {
-    order <- next_script_order(registry)
-  }
-
   registry$scripts[[name]] <- list(
     path = normalize_relative_path(relative_path),
-    type = type,
+    type = script_type,
     order = order,
-    outputs = outputs
+    outputs = output_names
   )
 
-  if (length(outputs) > 0L) {
-    for (output_name in outputs) {
+  if (length(output_names) > 0L) {
+    for (output_name in output_names) {
       if (!is.null(registry$outputs[[output_name]]) && !isTRUE(overwrite)) {
         rlang::abort(paste0("Output `", output_name, "` is already registered."))
       }
@@ -2058,8 +2095,8 @@ new_project_script <- function(name,
         explicit_output
       } else {
         list(
-          path = normalize_relative_path(default_output_path(output_name, infer_output_type(output_name, type))),
-          type = infer_output_type(output_name, type)
+          path = normalize_relative_path(default_output_path(output_name, infer_output_type(output_name, script_type))),
+          type = infer_output_type(output_name, script_type)
         )
       }
 
@@ -2077,7 +2114,7 @@ new_project_script <- function(name,
     object_type = "script",
     object_id = name,
     object_name = name,
-    details = list(path = normalize_relative_path(relative_path), type = type, outputs = outputs),
+    details = list(path = normalize_relative_path(relative_path), script_type = script_type, output_names = output_names),
     root = root
   )
 
@@ -2086,6 +2123,54 @@ new_project_script <- function(name,
   }
 
   invisible(source_path)
+}
+
+
+
+#' Create a new project script
+#'
+#' @description
+#' \code{new_project_script()} creates a documented, non-executing R script in
+#' an existing \pkg{projflow} project and registers it as a workflow step. The
+#' public interface is intentionally minimal and mirrors \code{\link{new_script}()}.
+#'
+#' @details
+#' The script path is assigned automatically using the next sequential number
+#' under \file{analysis/}. Generated scripts contain comments only and do not
+#' create \file{.rds}, \file{.csv}, \file{.png}, \file{.html}, or other output
+#' artefacts. Register expected outputs separately with
+#' \code{\link{new_project_output}()}, \code{\link{new_output}()},
+#' \code{\link{new_table}()}, or \code{\link{new_figure}()}.
+#'
+#' @param name Script name. The value is normalised to a safe snake_case name
+#'   before creating the file and registry entry.
+#' @param script_type Script type recorded in the registry.
+#' @param root Existing project root where the script should be added.
+#' @param open Logical scalar kept for API compatibility. The script is not
+#'   opened automatically.
+#' @param overwrite Logical scalar. If \code{TRUE}, replace an existing script
+#'   file and registry entry with the same name.
+#'
+#' @return Invisibly returns the created script path.
+#' @examples
+#' \dontrun{
+#' new_project_script("clean_phenotypes", script_type = "data_cleaning", open = FALSE)
+#' new_project_output("cleaned_phenotypes", type = "dataset")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+new_project_script <- function(name,
+                               script_type = "analysis",
+                               root = ".",
+                               open = interactive(),
+                               overwrite = FALSE) {
+  create_project_script_internal(
+    name = name,
+    script_type = script_type,
+    root = root,
+    open = open,
+    overwrite = overwrite
+  )
 }
 
 #' Create a new project report
@@ -2184,7 +2269,7 @@ new_project_report <- function(name,
 #' @author Thiago de Paula Oliveira
 #' @export
 new_project_model <- function(name, root = ".", open = interactive()) {
-  new_project_script(name = name, type = "model", root = root, open = open)
+  new_project_script(name = name, script_type = "model", root = root, open = open)
 }
 
 #' Create a new table-export script
@@ -2201,7 +2286,7 @@ new_project_model <- function(name, root = ".", open = interactive()) {
 #' @author Thiago de Paula Oliveira
 #' @export
 new_project_table <- function(name, root = ".", open = interactive()) {
-  new_project_script(name = name, type = "export", root = root, open = open)
+  new_project_script(name = name, script_type = "export", root = root, open = open)
 }
 
 #' Create a new figure script
@@ -2218,14 +2303,14 @@ new_project_table <- function(name, root = ".", open = interactive()) {
 #' @author Thiago de Paula Oliveira
 #' @export
 new_project_figure <- function(name, root = ".", open = interactive()) {
-  new_project_script(name = name, type = "visualisation", root = root, open = open)
+  new_project_script(name = name, script_type = "visualisation", root = root, open = open)
 }
 
 #' Create a new project idea
 #'
 #' @param name Idea name used either as a script name or as an output registry
 #'   key depending on `create_script`.
-#' @param type Script type to create when `create_script = TRUE`.
+#' @param script_type Script type to create when `create_script = TRUE`.
 #' @param create_script Logical scalar. If `TRUE`, create a script immediately;
 #'   otherwise register a placeholder output object.
 #' @param root Existing project root to update.
@@ -2238,10 +2323,10 @@ new_project_figure <- function(name, root = ".", open = interactive()) {
 #' }
 #' @author Thiago de Paula Oliveira
 #' @export
-new_project_idea <- function(name, type = "analysis", create_script = TRUE, root = ".", open = interactive()) {
+new_project_idea <- function(name, script_type = "analysis", create_script = TRUE, root = ".", open = interactive()) {
   validate_logical_scalar(create_script, "create_script")
   if (isTRUE(create_script)) {
-    return(new_project_script(name = name, type = type, root = root, open = open))
+    return(new_project_script(name = name, script_type = script_type, root = root, open = open))
   }
 
   new_project_output(
@@ -2345,7 +2430,7 @@ new_project_object <- function(name, type, root = ".", overwrite = FALSE) {
   type <- validate_project_object_type(type)
 
   if (type %in% project_script_types()) {
-    return(new_project_script(name = name, type = type, root = root, open = FALSE))
+    return(new_project_script(name = name, script_type = type, root = root, open = FALSE))
   }
 
   if (identical(type, "report")) {
@@ -2440,7 +2525,20 @@ rename_registry_entry <- function(section, from, to, root = ".", overwrite = FAL
   extension <- fs::path_ext(entry$path)
   new_relative_path <- switch(
     section,
-    script = normalize_relative_path(fs::path("analysis", paste0(to, ".", extension))),
+    script = {
+      directory <- fs::path_dir(entry$path %||% "analysis")
+      if (identical(directory, ".")) {
+        directory <- "analysis"
+      }
+      stem <- tools::file_path_sans_ext(safe_basename(entry$path))
+      prefix <- sub("^([0-9]+)[_-].*$", "\\1", stem)
+      basename <- if (grepl("^[0-9]+[_-]", stem)) {
+        paste0(prefix, "_", to, ".", extension)
+      } else {
+        paste0(to, ".", extension)
+      }
+      normalize_relative_path(fs::path(directory, basename))
+    },
     report = normalize_relative_path(fs::path("reports", paste0(to, ".", extension))),
     output = normalize_relative_path(default_output_path(to, entry$type))
   )
@@ -3648,19 +3746,49 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
     }
   }
 
-  component_required_files <- list(
-    data_preparation = "analysis/01_prepare_inputs.R",
-    quality_control = "analysis/02_quality_control.R",
-    exploratory_analysis = "analysis/03_exploratory_analysis.R",
-    statistical_analysis = "analysis/04_analysis.R",
-    model_diagnostics = "analysis/05_model_diagnostics.R",
+  script_components <- c(
+    "data_preparation",
+    "quality_control",
+    "exploratory_analysis",
+    "statistical_analysis",
+    "model_diagnostics"
+  )
+  registered_scripts <- registry$scripts %||% list()
+  registered_script_types <- vapply(
+    registered_scripts,
+    function(entry) entry$type %||% NA_character_,
+    character(1)
+  )
+
+  for (component_name in intersect(script_components, components_selected)) {
+    script_names <- names(registered_scripts)[registered_script_types == component_name]
+    script_paths <- vapply(
+      registered_scripts[script_names],
+      function(entry) entry$path %||% NA_character_,
+      character(1)
+    )
+    script_paths <- script_paths[!is.na(script_paths)]
+    existing_paths <- script_paths[fs::file_exists(fs::path(root, script_paths))]
+
+    if (length(existing_paths) == 0L) {
+      errors <- append_issue(
+        errors,
+        paste0("component_", component_name),
+        paste0("Component `", component_name, "` requires at least one registered script file."),
+        paste(script_paths, collapse = ", "),
+        "Create the missing script, add the component again, or remove the component from the plan."
+      )
+    }
+  }
+
+  report_required_files <- list(
     report = "reports/main_report.qmd",
     manuscript = "manuscript/manuscript.qmd",
     shiny_app = "app/app.R"
   )
 
-  for (component_name in intersect(names(component_required_files), components_selected)) {
-    required_file <- component_required_files[[component_name]]
+  for (component_name in intersect(names(report_required_files), components_selected)) {
+    required_file <- report_required_files[[component_name]]
     if (!fs::file_exists(fs::path(root, required_file))) {
       errors <- append_issue(
         errors,
@@ -3672,13 +3800,11 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
     }
   }
 
-  if ("data_preparation" %in% components_selected &&
-      nrow(data_sources) == 0L &&
-      !fs::file_exists(fs::path(root, "analysis", "example_analysis.R"))) {
+  if ("data_preparation" %in% components_selected && nrow(data_sources) == 0L) {
     warnings <- append_issue(
       warnings,
       "external_data_configured",
-      "The project includes `data_preparation`, but no external data root is configured and no example mode file is present.",
+      "The project includes `data_preparation`, but no external data root is configured.",
       project_local_config_relative_path(root),
       'Run `projflow::set_project_data_root("path/to/external/data")`.'
     )

@@ -6,7 +6,7 @@
 \usage{
 new_project_idea(
   name,
-  type = "analysis",
+  script_type = "analysis",
   create_script = TRUE,
   root = ".",
   open = interactive()
@@ -16,7 +16,7 @@ new_project_idea(
 \item{name}{Idea name used either as a script name or as an output registry
 key depending on \code{create_script}.}
 
-\item{type}{Script type to create when \code{create_script = TRUE}.}
+\item{script_type}{Script type to create when \code{create_script = TRUE}.}
 
 \item{create_script}{Logical scalar. If \code{TRUE}, create a script immediately;
 otherwise register a placeholder output object.}

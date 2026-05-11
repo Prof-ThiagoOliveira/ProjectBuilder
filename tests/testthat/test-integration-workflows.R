@@ -9,14 +9,16 @@ test_that("project object lifecycle helpers keep registry and files consistent",
     open = FALSE
   )
 
-  expect_no_error(new_script("analysis_01", type = "statistical_analysis", root = project_path, open = FALSE))
+  expect_no_error(new_script("analysis_01", script_type = "statistical_analysis", root = project_path, open = FALSE))
+  registry <- read_project_registry(project_path)
+  analysis_path <- registry$scripts$analysis_01$path
   expect_no_error(new_report("supplementary_note", root = project_path, open = FALSE))
   expect_no_error(new_table("summary_statistics", root = project_path))
   expect_no_error(new_figure("heritability_plot", root = project_path))
   expect_no_error(new_app(root = project_path, type = "shiny", open = FALSE))
   expect_no_error(new_output("model_fit", type = "model", path = "outputs/models/model_fit.rds", root = project_path))
 
-  expect_true(file.exists(file.path(project_path, "analysis", "analysis_01.R")))
+  expect_true(file.exists(file.path(project_path, analysis_path)))
   expect_true(file.exists(file.path(project_path, "reports", "supplementary_note.qmd")))
   expect_true(file.exists(file.path(project_path, "app", "app.R")))
   expect_false(file.exists(file.path(project_path, "outputs", "analysis_01.rds")))
@@ -26,11 +28,13 @@ test_that("project object lifecycle helpers keep registry and files consistent",
 
   rename_plan <- rename_project_script("analysis_01", "analysis_02", root = project_path, dry_run = TRUE)
   expect_identical(rename_plan$new_name, "analysis_02")
-  expect_true(file.exists(file.path(project_path, "analysis", "analysis_01.R")))
+  expect_true(file.exists(file.path(project_path, analysis_path)))
 
   expect_no_error(rename_project_script("analysis_01", "analysis_02", root = project_path))
-  expect_false(file.exists(file.path(project_path, "analysis", "analysis_01.R")))
-  expect_true(file.exists(file.path(project_path, "analysis", "analysis_02.R")))
+  expect_false(file.exists(file.path(project_path, analysis_path)))
+  registry <- read_project_registry(project_path)
+  renamed_path <- registry$scripts$analysis_02$path
+  expect_true(file.exists(file.path(project_path, renamed_path)))
   expect_true("analysis_02" %in% names(read_project_registry(project_path)$scripts))
 
   remove_plan <- remove_project_output("summary_statistics", root = project_path, dry_run = TRUE)
@@ -41,7 +45,7 @@ test_that("project object lifecycle helpers keep registry and files consistent",
   expect_false("summary_statistics" %in% names(read_project_registry(project_path)$outputs))
 
   expect_no_error(remove_project_script("analysis_02", root = project_path, delete_files = TRUE, confirm = TRUE))
-  expect_false(file.exists(file.path(project_path, "analysis", "analysis_02.R")))
+  expect_false(file.exists(file.path(project_path, renamed_path)))
   expect_false("analysis_02" %in% names(read_project_registry(project_path)$scripts))
 })
 

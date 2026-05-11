@@ -64,15 +64,16 @@ test_that("new_script creates a parseable script and registers it", {
   )
 
   withr::local_dir(project_path)
-  expect_no_error(new_script("Clean Phenotypes", type = "data_cleaning", open = FALSE))
-
-  expect_true(file.exists("analysis/clean_phenotypes.R"))
-  expect_no_error(parse(file = "analysis/clean_phenotypes.R"))
-
+  expect_no_error(new_script("Clean Phenotypes", script_type = "data_cleaning", open = FALSE))
   registry <- yaml::read_yaml(".projflow/project_registry.yml")
+  script_path <- registry$scripts$clean_phenotypes$path
+
+  expect_true(file.exists(script_path))
+  expect_no_error(parse(file = script_path))
+
   expect_true("clean_phenotypes" %in% names(registry$scripts))
   expect_identical(registry$scripts$clean_phenotypes$type, "data_cleaning")
   expect_length(registry$scripts$clean_phenotypes$outputs, 0L)
   expect_false("clean_phenotypes" %in% names(registry$outputs))
-  expect_false(any(grepl("save_project_object", readLines("analysis/clean_phenotypes.R", warn = FALSE), fixed = TRUE)))
+  expect_false(any(grepl("save_project_object", readLines(script_path, warn = FALSE), fixed = TRUE)))
 })

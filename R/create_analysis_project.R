@@ -72,7 +72,7 @@ filesystem_normalize <- function(paths) {
 #'   \file{data/processed/} directories. The default \code{FALSE} reflects the
 #'   package preference for external data roots.
 #' @param include_example Logical scalar. If \code{TRUE} and \code{plan = NULL},
-#'   include the built-in \file{analysis/example_analysis.R} script.
+#'   include a numbered, comment-only example analysis script.
 #' @param plan Optional object of class \code{"project_plan"}, usually created
 #'   by \code{\link{plan_project}()}. When supplied, \code{new_project()}
 #'   applies this exact plan to disk and does not recompute the scaffold from
