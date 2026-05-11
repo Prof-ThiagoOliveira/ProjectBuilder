@@ -95,20 +95,57 @@ dashboard_empty_data_frame <- function() {
   data.frame(stringsAsFactors = FALSE)
 }
 
+dashboard_flatten_table_cell <- function(value, collapse = "; ") {
+  if (is.null(value) || length(value) == 0L) {
+    return(NA_character_)
+  }
+
+  if (is.list(value) && !is.data.frame(value)) {
+    value <- unlist(value, use.names = FALSE, recursive = TRUE)
+  }
+
+  if (length(value) == 0L) {
+    return(NA_character_)
+  }
+
+  value <- as.character(value)
+  value <- value[!is.na(value)]
+  if (length(value) == 0L) {
+    return(NA_character_)
+  }
+
+  paste(value, collapse = collapse)
+}
+
+dashboard_normalise_table_columns <- function(data) {
+  if (!is.data.frame(data)) {
+    return(data)
+  }
+
+  for (column in names(data)) {
+    values <- data[[column]]
+    if (is.list(values) && !is.data.frame(values)) {
+      data[[column]] <- vapply(values, dashboard_flatten_table_cell, character(1))
+    }
+  }
+
+  data
+}
+
 dashboard_safe_data_frame <- function(x) {
   if (is.null(x)) {
     return(dashboard_empty_data_frame())
   }
   if (is.data.frame(x)) {
-    return(x)
+    return(dashboard_normalise_table_columns(x))
   }
   if (is.list(x)) {
     out <- tryCatch(as.data.frame(x, stringsAsFactors = FALSE), error = function(error) NULL)
     if (is.data.frame(out)) {
-      return(out)
+      return(dashboard_normalise_table_columns(out))
     }
   }
-  data.frame(value = as.character(x), stringsAsFactors = FALSE)
+  data.frame(value = dashboard_flatten_table_cell(x), stringsAsFactors = FALSE)
 }
 
 dashboard_selected_row <- function(input, table_id, data) {
@@ -341,7 +378,12 @@ dashboard_named_counts <- function(x, column) {
   if (nrow(x) == 0L || !column %in% names(x)) {
     return(data.frame(value = character(), n = integer(), stringsAsFactors = FALSE))
   }
-  counts <- sort(table(x[[column]], useNA = "no"), decreasing = TRUE)
+  values <- vapply(x[[column]], dashboard_flatten_table_cell, character(1))
+  values <- values[!is.na(values) & nzchar(values)]
+  if (length(values) == 0L) {
+    return(data.frame(value = character(), n = integer(), stringsAsFactors = FALSE))
+  }
+  counts <- sort(table(values, useNA = "no"), decreasing = TRUE)
   data.frame(value = names(counts), n = as.integer(counts), stringsAsFactors = FALSE)
 }
 
@@ -351,26 +393,19 @@ dashboard_filter_data <- function(data, column, selected) {
   if (!nzchar(selected) || identical(selected, "All") || !column %in% names(data)) {
     return(data)
   }
-  data[data[[column]] == selected, , drop = FALSE]
+  values <- vapply(data[[column]], dashboard_flatten_table_cell, character(1))
+  data[values == selected, , drop = FALSE]
 }
 
 dashboard_cell <- function(row, column, default = "") {
   if (is.null(row) || !is.data.frame(row) || !column %in% names(row) || nrow(row) < 1L) {
     return(default)
   }
-  value <- row[[column]][[1]]
-  if (is.null(value) || length(value) == 0L) {
+  value <- dashboard_flatten_table_cell(row[[column]][[1]])
+  if (is.na(value) || !nzchar(value)) {
     return(default)
   }
-  if (is.list(value)) {
-    value <- unlist(value, use.names = FALSE)
-  }
-  value <- as.character(value)
-  value <- value[!is.na(value)]
-  if (length(value) == 0L) {
-    return(default)
-  }
-  paste(value, collapse = "; ")
+  value
 }
 
 dashboard_choice_or_default <- function(value, choices, default) {

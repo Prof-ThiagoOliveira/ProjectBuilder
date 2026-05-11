@@ -463,8 +463,9 @@ dashboard_pid_running <- function(pid) {
 
   if (identical(.Platform$OS.type, "windows")) {
     result <- tryCatch(
-      system2("tasklist", c("/FI", paste0("PID eq ", pid)), stdout = TRUE, stderr = FALSE),
-      error = function(error) character()
+      suppressWarnings(system2("tasklist", c("/FI", paste0("PID eq ", pid)), stdout = TRUE, stderr = FALSE)),
+      error = function(error) character(),
+      warning = function(warning) character()
     )
     return(any(grepl(paste0("\\b", pid, "\\b"), result)))
   }
@@ -484,8 +485,9 @@ dashboard_stop_pid <- function(pid) {
 
   if (identical(.Platform$OS.type, "windows")) {
     status <- tryCatch(
-      system2("taskkill", c("/PID", as.character(pid), "/T", "/F"), stdout = FALSE, stderr = FALSE),
-      error = function(error) 1L
+      suppressWarnings(system2("taskkill", c("/PID", as.character(pid), "/T", "/F"), stdout = FALSE, stderr = FALSE)),
+      error = function(error) 1L,
+      warning = function(warning) 1L
     )
     return(identical(status, 0L) || !dashboard_pid_running(pid))
   }

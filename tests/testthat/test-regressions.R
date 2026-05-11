@@ -202,3 +202,37 @@ test_that("script creation public API remains minimal", {
   expect_false(any(removed_args %in% names(formals(new_script))))
   expect_true(all(c("name", "script_type", "root", "open", "overwrite") %in% names(formals(new_script))))
 })
+
+test_that("add_project_decision accepts a single user-facing statement", {
+  project_path <- make_project_path("decision-single-statement")
+
+  new_project(
+    path = project_path,
+    components = c("project_management"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  decision_id <- add_project_decision("Use REML for the mixed model", root = project_path)
+  decisions <- project_decisions(project_path)
+
+  expect_true(decision_id %in% decisions$id)
+  expect_equal(decisions$title[[1]], "Use REML for the mixed model")
+  expect_equal(decisions$decision[[1]], "Use REML for the mixed model")
+})
+
+test_that("dashboard data frames flatten list columns before rendering", {
+  data <- data.frame(
+    id = "task_0001",
+    title = "Review model diagnostics",
+    stringsAsFactors = FALSE
+  )
+  data$linked_objects <- I(list(c("analysis_results", "diagnostic_plot")))
+
+  out <- dashboard_safe_data_frame(data)
+
+  expect_s3_class(out, "data.frame")
+  expect_type(out$linked_objects, "character")
+  expect_equal(out$linked_objects[[1]], "analysis_results; diagnostic_plot")
+})

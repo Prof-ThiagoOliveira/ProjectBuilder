@@ -814,7 +814,7 @@ project_decisions <- function(root = ".") {
 #' Record a project decision
 #'
 #' @param title Human-readable decision title.
-#' @param decision Decision statement.
+#' @param decision Optional decision statement. If omitted, the decision statement defaults to \code{title}.
 #' @param root Existing project root.
 #' @param rationale Optional rationale.
 #' @param consequences Optional consequences.
@@ -824,18 +824,21 @@ project_decisions <- function(root = ".") {
 #' @return Invisibly returns the created decision id.
 #' @examples
 #' \dontrun{
-#' record_project_decision("Use external data", "Keep raw data outside the repository")
+#' record_project_decision("Keep raw data outside the repository")
 #' }
 #' @author Thiago de Paula Oliveira
 #' @export
 record_project_decision <- function(title,
-                                    decision,
+                                    decision = NULL,
                                     root = ".",
                                     rationale = NULL,
                                     consequences = NULL,
                                     linked_objects = NULL,
                                     status = "active") {
   validate_character_vector(title, "title")
+  if (is.null(decision)) {
+    decision <- title
+  }
   validate_character_vector(decision, "decision")
   status <- validate_governance_status(status, "decision")
   rationale <- validate_optional_text(rationale, "rationale")
@@ -869,12 +872,12 @@ record_project_decision <- function(title,
 #' @return Invisibly returns the created decision id.
 #' @examples
 #' \dontrun{
-#' add_project_decision("Use external data", "Keep raw data outside the repository")
+#' add_project_decision("Keep raw data outside the repository")
 #' }
 #' @author Thiago de Paula Oliveira
 #' @export
 add_project_decision <- function(title,
-                                 decision,
+                                 decision = NULL,
                                  root = ".",
                                  rationale = NULL,
                                  consequences = NULL,
