@@ -46,12 +46,12 @@ new_analysis_project_scaffold <- function(
 
 #' Print an analysis project scaffold result
 #'
-#' @param x An object of class `"analysis_project_scaffold"`, typically the
-#'   result returned by [new_project()].
+#' @param x An object of class \code{"analysis_project_scaffold"}, typically the
+#'   result returned by \code{new_project()}.
 #' @param ... Additional arguments accepted for S3 compatibility but ignored by
 #'   this method.
 #'
-#' @return `x`, invisibly.
+#' @return \code{x}, invisibly.
 #' @examples
 #' \dontrun{
 #' result <- new_project(

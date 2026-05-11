@@ -2,10 +2,10 @@
 #'
 #' @param path Project root path where a Git repository should be initialised if
 #'   one does not already exist.
-#' @param strict Logical scalar. If `TRUE`, Git initialisation failures raise an
+#' @param strict Logical scalar. If \code{TRUE}, Git initialisation failures raise an
 #'   error; otherwise a warning-style message is returned.
 #'
-#' @return `NULL` on success or a warning message when Git was not initialised.
+#' @return \code{NULL} on success or a warning message when Git was not initialised.
 #' @examples
 #' \dontrun{
 #' tmp <- tempfile("projflow-git-init-")

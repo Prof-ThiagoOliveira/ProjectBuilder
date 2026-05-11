@@ -1,8 +1,8 @@
 #' List machine-readable project check items
 #'
 #' @param root Existing project root.
-#' @param deep Logical scalar passed to [check_project()].
-#' @param render_reports Logical scalar passed to [check_project()].
+#' @param deep Logical scalar passed to \code{check_project()}.
+#' @param render_reports Logical scalar passed to \code{check_project()}.
 #'
 #' @return Data frame of project check items.
 #' @examples
@@ -18,9 +18,9 @@ project_check_items <- function(root = ".", deep = FALSE, render_reports = FALSE
 #' Apply conservative project repairs
 #'
 #' @param root Existing project root.
-#' @param dry_run Logical scalar. If `TRUE`, return planned repairs without
+#' @param dry_run Logical scalar. If \code{TRUE}, return planned repairs without
 #'   modifying files.
-#' @param confirm Logical scalar. Must be `TRUE` to perform the repair.
+#' @param confirm Logical scalar. Must be \code{TRUE} to perform the repair.
 #'
 #' @return A list describing the repair actions.
 #' @examples
@@ -75,8 +75,8 @@ repair_project <- function(root = ".", dry_run = FALSE, confirm = FALSE) {
 #' Reorganise generated project outputs into the canonical layout
 #'
 #' @description
-#' `organise_project_outputs()` migrates registered output paths and rendered
-#' report artefacts to the current `projflow` output layout. The function is
+#' \code{organise_project_outputs()} migrates registered output paths and rendered
+#' report artefacts to the current \code{projflow} output layout. The function is
 #' conservative: it does not delete analytical outputs, and it only removes known
 #' Quarto duplicate report artefacts after a canonical report copy exists.
 #'
@@ -96,13 +96,13 @@ repair_project <- function(root = ".", dry_run = FALSE, confirm = FALSE) {
 #' }
 #'
 #' @param root Existing project root.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned actions without
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned actions without
 #'   changing files or the registry.
-#' @param move Logical scalar. If `TRUE`, move existing registered output files
-#'   from old paths to canonical paths when possible. If `FALSE`, update only the
-#'   planned action table when `dry_run = TRUE`.
-#' @param clean_report_noise Logical scalar. If `TRUE`, remove known duplicated
-#'   Quarto report artefacts such as `outputs/reports/reports/<name>.html` after
+#' @param move Logical scalar. If \code{TRUE}, move existing registered output files
+#'   from old paths to canonical paths when possible. If \code{FALSE}, update only the
+#'   planned action table when \code{dry_run = TRUE}.
+#' @param clean_report_noise Logical scalar. If \code{TRUE}, remove known duplicated
+#'   Quarto report artefacts such as \code{outputs/reports/reports/<name>.html} after
 #'   the canonical report exists.
 #'
 #' @return A data frame describing the planned or applied actions.

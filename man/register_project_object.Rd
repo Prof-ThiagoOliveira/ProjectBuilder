@@ -10,7 +10,7 @@ register_project_object(name, path, type, root = ".", overwrite = FALSE)
 \item{name}{Output object name to store in the registry.}
 
 \item{path}{Project-relative output path, typically somewhere under
-\verb{outputs/}.}
+\code{outputs/}.}
 
 \item{type}{Output object type, such as \code{"table"}, \code{"figure"}, or
 \code{"analysis"}.}

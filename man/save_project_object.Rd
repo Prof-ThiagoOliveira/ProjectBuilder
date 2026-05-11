@@ -24,7 +24,7 @@ the inferred file extension.}
 \item{root}{Existing project root where the output should be registered or
 resolved.}
 
-\item{location}{Save either inside the project \verb{outputs/} directory or under
+\item{location}{Save either inside the project \code{outputs/} directory or under
 a configured external data source.}
 
 \item{source}{External data source name to use when \code{location = "external"}.}

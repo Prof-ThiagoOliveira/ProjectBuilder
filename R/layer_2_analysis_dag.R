@@ -77,8 +77,8 @@ dag_make_edge <- function(from, to, relationship) {
 #' Build the executable analysis DAG
 #'
 #' @description
-#' `project_analysis_dag()` builds the strict execution graph for an existing
-#' projflow project. Unlike `project_network_data()`, which also includes tasks,
+#' \code{project_analysis_dag()} builds the strict execution graph for an existing
+#' projflow project. Unlike \code{project_network_data()}, which also includes tasks,
 #' risks, decisions and milestones, this function only includes nodes that can
 #' affect analysis execution or deliverable production.
 #'
@@ -86,14 +86,14 @@ dag_make_edge <- function(from, to, relationship) {
 #' The graph direction follows analytical causality: external data and declared
 #' inputs point to scripts; scripts point to outputs; outputs point to reports;
 #' reports point to deliverables. The returned graph is designed for validation,
-#' topological ordering and `targets` generation.
+#' topological ordering and \code{targets} generation.
 #'
 #' @param root Path inside an existing projflow project.
-#' @param include_deliverables Logical scalar. If `TRUE`, include registered
+#' @param include_deliverables Logical scalar. If \code{TRUE}, include registered
 #'   deliverables as terminal DAG nodes.
 #'
-#' @return A list with `nodes` and `edges` data frames and class
-#'   `"project_analysis_dag"`.
+#' @return A list with \code{nodes} and \code{edges} data frames and class
+#'   \code{"project_analysis_dag"}.
 #' @examples
 #' \dontrun{
 #' dag <- project_analysis_dag()
@@ -315,17 +315,17 @@ dag_topological_sort <- function(nodes, edges) {
 #' Validate the executable analysis DAG
 #'
 #' @description
-#' `validate_project_dag()` checks that the executable project graph is valid:
+#' \code{validate_project_dag()} checks that the executable project graph is valid:
 #' every edge endpoint must be present, outputs should not have multiple
 #' producers, and the execution graph must be acyclic.
 #'
-#' @param root Path inside an existing projflow project. Ignored when `dag` is
+#' @param root Path inside an existing projflow project. Ignored when \code{dag} is
 #'   supplied.
-#' @param dag Optional object returned by `project_analysis_dag()`.
-#' @param strict Logical scalar. If `TRUE`, abort when DAG errors are found.
+#' @param dag Optional object returned by \code{project_analysis_dag()}.
+#' @param strict Logical scalar. If \code{TRUE}, abort when DAG errors are found.
 #'
-#' @return A structured object with `ok`, `errors`, `warnings`, `info`, and
-#'   `issues` fields.
+#' @return A structured object with \code{ok}, \code{errors}, \code{warnings}, \code{info}, and
+#'   \code{issues} fields.
 #' @examples
 #' \dontrun{
 #' validate_project_dag()
@@ -414,7 +414,7 @@ validate_project_dag <- function(root = ".", dag = NULL, strict = FALSE) {
 #' Return the project topological execution order
 #'
 #' @description
-#' `topological_project_order()` returns the DAG order for scripts, reports or
+#' \code{topological_project_order()} returns the DAG order for scripts, reports or
 #' all executable nodes. Scripts with explicit dependencies or input/output links
 #' are ordered by graph topology rather than by filename alone.
 #'
@@ -448,15 +448,15 @@ topological_project_order <- function(root = ".", type = c("all", "scripts", "re
 #' Plot or return the executable analysis DAG
 #'
 #' @description
-#' `plot_project_dag()` gives a lightweight visual entry point to the analysis
-#' DAG. If `visNetwork` is installed, an interactive network is returned;
+#' \code{plot_project_dag()} gives a lightweight visual entry point to the analysis
+#' DAG. If \code{visNetwork} is installed, an interactive network is returned;
 #' otherwise the function prints the ordered edge table and invisibly returns the
 #' DAG object.
 #'
 #' @param root Path inside an existing projflow project.
 #' @param ... Reserved for future plotting options.
 #'
-#' @return Invisibly returns the DAG object, or a `visNetwork` object when that
+#' @return Invisibly returns the DAG object, or a \code{visNetwork} object when that
 #' optional package is available.
 #' @examples
 #' \dontrun{
@@ -511,16 +511,16 @@ script_target_dependencies <- function(script_name, registry) {
 #' Write a targets pipeline from the project DAG
 #'
 #' @description
-#' `write_targets_pipeline()` converts the registered analysis DAG into a
-#' minimal `_targets.R` file. The generated file delegates execution to
-#' `projflow::run_project_object()` while preserving graph dependencies among
-#' scripts where the registry declares `depends_on`, `inputs`, `outputs`, or
-#' `generated_by` fields.
+#' \code{write_targets_pipeline()} converts the registered analysis DAG into a
+#' minimal \code{_targets.R} file. The generated file delegates execution to
+#' \code{projflow::run_project_object()} while preserving graph dependencies among
+#' scripts where the registry declares \code{depends_on}, \code{inputs}, \code{outputs}, or
+#' \code{generated_by} fields.
 #'
 #' @param root Path inside an existing projflow project.
-#' @param path Output path for the targets pipeline, relative to `root` unless
+#' @param path Output path for the targets pipeline, relative to \code{root} unless
 #'   an absolute path is supplied.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing file.
+#' @param overwrite Logical scalar. If \code{TRUE}, replace an existing file.
 #'
 #' @return Invisibly returns the written file path.
 #' @examples

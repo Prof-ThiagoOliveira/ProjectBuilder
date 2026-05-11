@@ -8,7 +8,7 @@
 }
 \arguments{
 \item{x}{An object of class \code{"analysis_project_scaffold"}, typically the
-result returned by \code{\link[=new_project]{new_project()}}.}
+result returned by \code{new_project()}.}
 
 \item{...}{Additional arguments accepted for S3 compatibility but ignored by
 this method.}

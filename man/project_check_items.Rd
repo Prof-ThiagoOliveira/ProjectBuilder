@@ -9,9 +9,9 @@ project_check_items(root = ".", deep = FALSE, render_reports = FALSE)
 \arguments{
 \item{root}{Existing project root.}
 
-\item{deep}{Logical scalar passed to \code{\link[=check_project]{check_project()}}.}
+\item{deep}{Logical scalar passed to \code{check_project()}.}
 
-\item{render_reports}{Logical scalar passed to \code{\link[=check_project]{check_project()}}.}
+\item{render_reports}{Logical scalar passed to \code{check_project()}.}
 }
 \value{
 Data frame of project check items.

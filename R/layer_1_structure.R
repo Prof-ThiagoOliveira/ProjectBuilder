@@ -6,7 +6,7 @@
 #' Describe the four projflow architecture layers
 #'
 #' @description
-#' `project_layers()` returns the package architecture used by the redesigned
+#' \code{project_layers()} returns the package architecture used by the redesigned
 #' interface. The layers separate durable project structure, the executable
 #' analysis DAG, governance records, and interactive/integration interfaces.
 #'
@@ -43,7 +43,7 @@ project_layers <- function() {
 #' Inspect the project structure layer
 #'
 #' @description
-#' `project_structure()` returns the canonical filesystem and metadata contract
+#' \code{project_structure()} returns the canonical filesystem and metadata contract
 #' for an existing projflow project. It is intended for users who need a compact
 #' view of what the scaffold owns and what is missing before they inspect the
 #' analysis DAG or governance layer.

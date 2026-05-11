@@ -1,23 +1,23 @@
 #' Launch the projflow Project Manager
 #'
 #' @param root Existing project root to inspect and manage.
-#' @param mode Launch mode. Use `"manage"` for the full control centre or
-#'   `"diagnose"` for a read-only diagnostic view.
-#' @param host Host interface passed to [shiny::runApp()].
-#' @param port Optional port passed to [shiny::runApp()]. If `NULL`, a free
+#' @param mode Launch mode. Use \code{"manage"} for the full control centre or
+#'   \code{"diagnose"} for a read-only diagnostic view.
+#' @param host Host interface passed to \code{shiny::runApp()}.
+#' @param port Optional port passed to \code{shiny::runApp()}. If \code{NULL}, a free
 #'   local port is selected where possible.
 #' @param launch.browser Logical scalar indicating whether the dashboard should
 #'   open in a browser automatically.
-#' @param background Logical scalar. If `TRUE`, the dashboard is started in a
-#'   separate R process using [callr::r_bg()], leaving the current R session
-#'   available for scripts and project work. If `FALSE`, the dashboard is run in
+#' @param background Logical scalar. If \code{TRUE}, the dashboard is started in a
+#'   separate R process using \code{callr::r_bg()}, leaving the current R session
+#'   available for scripts and project work. If \code{FALSE}, the dashboard is run in
 #'   the current R session, which is useful for debugging.
-#' @param ... Additional arguments passed to [shiny::runApp()] when
-#'   `background = FALSE`.
+#' @param ... Additional arguments passed to \code{shiny::runApp()} when
+#'   \code{background = FALSE}.
 #'
-#' @return If `background = TRUE`, invisibly returns the `callr` background
-#'   process handle. If `background = FALSE`, invisibly returns the launched
-#'   `shiny.appobj` after the app stops.
+#' @return If \code{background = TRUE}, invisibly returns the \pkg{callr} background
+#'   process handle. If \code{background = FALSE}, invisibly returns the launched
+#'   \code{shiny.appobj} after the app stops.
 #' @examples
 #' \dontrun{
 #' launch_project_manager()
@@ -103,8 +103,8 @@ open_dashboard <- function(...) {
 #'
 #' @param root Existing project root.
 #'
-#' @return Invisibly returns `TRUE` if a recorded process was stopped, otherwise
-#'   `FALSE`.
+#' @return Invisibly returns \code{TRUE} if a recorded process was stopped, otherwise
+#'   \code{FALSE}.
 #' @examples
 #' \dontrun{
 #' stop_dashboard()
@@ -175,9 +175,9 @@ dashboard_status <- function(root = ".") {
 #' @param root Existing project root to inspect.
 #' @param launch Logical scalar indicating whether the Shiny application should
 #'   be launched immediately.
-#' @param ... Additional arguments passed to the launcher when `launch = TRUE`.
+#' @param ... Additional arguments passed to the launcher when \code{launch = TRUE}.
 #'
-#' @return A `shiny.appobj` when `launch = FALSE`, otherwise launches the app.
+#' @return A \code{shiny.appobj} when \code{launch = FALSE}, otherwise launches the app.
 #' @examples
 #' \dontrun{
 #' project_diagnostics_app()

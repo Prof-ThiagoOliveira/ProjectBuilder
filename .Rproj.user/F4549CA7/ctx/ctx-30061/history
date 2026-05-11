@@ -1,0 +1,39 @@
+devtools::install()
+plan <- plan_project(
+path = "./../my_analysis",
+components = c("data_preparation", "statistical_analysis", "report"),
+infrastructure = character()
+)
+library(projflow)
+plan <- plan_project(
+path = "./../my_analysis",
+components = c("data_preparation", "statistical_analysis", "report"),
+infrastructure = character()
+)
+new_project(
+path = "my_analysis",
+components = c("data_preparation", "statistical_analysis", "report"),
+infrastructure = character(),
+open = FALSE
+)
+devtools::build(); devtools::check()
+devtools::build(); devtools::check()
+?new_project
+?plan_project
+?new_script
+?new_project_script
+projflow::stop_dashboard()
+devtools::install();devtools::build(); devtools::check()
+devtools::install();devtools::build(); devtools::check()
+plan <- plan_project(
+path = "./../my_analysis",
+components = c("data_preparation", "statistical_analysis", "report"),
+infrastructure = character()
+)
+new_project(plan = plan)
+plot(plan)
+?new_script
+devtools::install();devtools::build(); devtools::check()
+devtools::install();devtools::build(); devtools::check()
+devtools::install();devtools::build(); devtools::check()
+devtools::check()

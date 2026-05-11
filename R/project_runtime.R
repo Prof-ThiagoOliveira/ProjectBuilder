@@ -158,9 +158,9 @@ project_marker_path <- function(path) {
 
 #' Find a project root directory
 #'
-#' @param root Starting path from which `projflow` should search upwards for a
-#'   project marker such as `project.yml`, `.projflow/project_registry.yml`,
-#'   `.here`, or an `.Rproj` file.
+#' @param root Starting path from which \code{projflow} should search upwards for a
+#'   project marker such as \code{project.yml}, \code{.projflow/project_registry.yml},
+#'   \code{.here}, or an \code{.Rproj} file.
 #'
 #' @return Absolute project root path.
 #' @examples
@@ -524,12 +524,12 @@ remove_project_package <- function(package, root = ".") {
 #' Set up a project for use
 #'
 #' @param root Existing project root to initialise for the current R session.
-#' @param install_missing Logical scalar. If `TRUE`, missing packages declared
+#' @param install_missing Logical scalar. If \code{TRUE}, missing packages declared
 #'   in the project configuration are installed automatically.
-#' @param check_paths Logical scalar. If `TRUE`, key project directories are
+#' @param check_paths Logical scalar. If \code{TRUE}, key project directories are
 #'   created if they are missing.
-#' @param set_seed Logical scalar. If `TRUE`, set the configured project random
-#'   seed when one is defined in `project.yml`.
+#' @param set_seed Logical scalar. If \code{TRUE}, set the configured project random
+#'   seed when one is defined in \code{project.yml}.
 #'
 #' @return Project metadata, paths, registry, and package status.
 #' @examples
@@ -606,8 +606,8 @@ missing_data_root_message <- function() {
 #'
 #' @param path Path to the external data directory for the current machine. The
 #'   stored value is normalised to an absolute path.
-#' @param name Data source name, such as `"default"` or `"reference"`.
-#' @param root Existing project root whose `.projflow/local.yml` file should be
+#' @param name Data source name, such as \code{"default"} or \code{"reference"}.
+#' @param root Existing project root whose \code{.projflow/local.yml} file should be
 #'   updated.
 #'
 #' @return Invisibly returns the stored absolute path.
@@ -643,7 +643,7 @@ set_project_data_root <- function(path, name = "default", root = ".") {
 
 #' Read a configured external data root
 #'
-#' @param name Data source name to retrieve from `.projflow/local.yml`.
+#' @param name Data source name to retrieve from \code{.projflow/local.yml}.
 #' @param root Existing project root.
 #'
 #' @return Absolute path.
@@ -732,7 +732,7 @@ list_project_data_sources <- function(root = ".") {
 
 #' Remove a configured external data source
 #'
-#' @param name Data source name to remove from `.projflow/local.yml`.
+#' @param name Data source name to remove from \code{.projflow/local.yml}.
 #' @param root Existing project root whose local data-source configuration
 #'   should be updated.
 #'
@@ -1154,7 +1154,7 @@ list_project_objects <- function(root = ".") {
 #'
 #' @param name Object name to retrieve.
 #' @param root Existing project root.
-#' @param section Optional section filter: `"script"`, `"report"`, or `"output"`.
+#' @param section Optional section filter: \code{"script"}, \code{"report"}, or \code{"output"}.
 #'
 #' @return A named list describing the object.
 #' @examples
@@ -1234,11 +1234,11 @@ list_project_reports <- function(root = ".") {
 #'
 #' @param name Output object name to store in the registry.
 #' @param path Project-relative output path, typically somewhere under
-#'   `outputs/`.
-#' @param type Output object type, such as `"table"`, `"figure"`, or
-#'   `"analysis"`.
+#'   \code{outputs/}.
+#' @param type Output object type, such as \code{"table"}, \code{"figure"}, or
+#'   \code{"analysis"}.
 #' @param root Existing project root whose registry should be updated.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing registry
+#' @param overwrite Logical scalar. If \code{TRUE}, replace an existing registry
 #'   entry with the same name.
 #'
 #' @return Invisibly returns the registry entry.
@@ -1321,7 +1321,7 @@ unregister_project_object <- function(name, root = ".") {
 #'
 #' @param name Output object name to update.
 #' @param ... Named fields to merge into the existing registry entry, such as
-#'   `path`, `type`, or `generated_by`.
+#'   \code{path}, \code{type}, or \code{generated_by}.
 #' @param root Existing project root whose registry should be updated.
 #'
 #' @return Invisibly returns the updated entry.
@@ -1511,15 +1511,15 @@ load_object_from_path <- function(path) {
 
 #' Save a project object
 #'
-#' @param object R object to save. Supported output formats depend on `type` and
+#' @param object R object to save. Supported output formats depend on \code{type} and
 #'   the inferred file extension.
 #' @param name Output object name recorded in the registry.
 #' @param type Output object type, used to infer the default output file path.
 #' @param root Existing project root where the output should be registered or
 #'   resolved.
-#' @param location Save either inside the project `outputs/` directory or under
+#' @param location Save either inside the project \code{outputs/} directory or under
 #'   a configured external data source.
-#' @param source External data source name to use when `location = "external"`.
+#' @param source External data source name to use when \code{location = "external"}.
 #'
 #' @return Invisibly returns the saved path.
 #' @examples
@@ -2176,16 +2176,16 @@ new_project_script <- function(name,
 #' Create a new project report
 #'
 #' @param name Report name used as the filename stem and registry key.
-#' @param format Source format to create. Supported values are `"qmd"` and
-#'   `"Rmd"`.
+#' @param format Source format to create. Supported values are \code{"qmd"} and
+#'   \code{"Rmd"}.
 #' @param root Existing project root where the report should be added.
 #' @param open Logical scalar kept for API compatibility. The report file is not
 #'   opened automatically.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing report file
+#' @param overwrite Logical scalar. If \code{TRUE}, replace an existing report file
 #'   and registry entry with the same name.
-#' @param repair Logical scalar. If `TRUE`, register an existing report file
+#' @param repair Logical scalar. If \code{TRUE}, register an existing report file
 #'   without overwriting it.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned change without
 #'   writing files.
 #'
 #' @return Invisibly returns the created report path.
@@ -2309,9 +2309,9 @@ new_project_figure <- function(name, root = ".", open = interactive()) {
 #' Create a new project idea
 #'
 #' @param name Idea name used either as a script name or as an output registry
-#'   key depending on `create_script`.
-#' @param script_type Script type to create when `create_script = TRUE`.
-#' @param create_script Logical scalar. If `TRUE`, create a script immediately;
+#'   key depending on \code{create_script}.
+#' @param script_type Script type to create when \code{create_script = TRUE}.
+#' @param create_script Logical scalar. If \code{TRUE}, create a script immediately;
 #'   otherwise register a placeholder output object.
 #' @param root Existing project root to update.
 #' @param open Logical scalar kept for API compatibility.
@@ -2343,16 +2343,16 @@ new_project_idea <- function(name, script_type = "analysis", create_script = TRU
 #'
 #' @param name Output object name used as the registry key and default filename
 #'   stem.
-#' @param type Output type such as `"table"`, `"figure"`, `"model"`, or
-#'   `"output"`.
+#' @param type Output type such as \code{"table"}, \code{"figure"}, \code{"model"}, or
+#'   \code{"output"}.
 #' @param path Optional explicit project-relative path for the output. When
-#'   omitted, `projflow` uses the default location for the selected `type`.
+#'   omitted, \code{projflow} uses the default location for the selected \code{type}.
 #' @param root Existing project root to update.
-#' @param overwrite Logical scalar. If `TRUE`, replace an existing registry
+#' @param overwrite Logical scalar. If \code{TRUE}, replace an existing registry
 #'   entry for the same output name.
-#' @param repair Logical scalar. If `TRUE`, register an existing output file
+#' @param repair Logical scalar. If \code{TRUE}, register an existing output file
 #'   without overwriting it.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned change without
 #'   modifying the project.
 #'
 #' @return Invisibly returns the registered output path, or a dry-run plan.
@@ -2412,10 +2412,10 @@ new_project_output <- function(name,
 #' Create and register a project object
 #'
 #' @param name Object name used as the registry key and default filename stem.
-#' @param type Object type to create. Script-like types create scripts, `"report"`
+#' @param type Object type to create. Script-like types create scripts, \code{"report"}
 #'   creates a report, and other types register an output artefact.
 #' @param root Existing project root to update.
-#' @param overwrite Logical scalar. If `TRUE`, allow an existing file at the
+#' @param overwrite Logical scalar. If \code{TRUE}, allow an existing file at the
 #'   inferred path to be replaced.
 #'
 #' @return Invisibly returns the created path.
@@ -2579,13 +2579,13 @@ rename_registry_entry <- function(section, from, to, root = ".", overwrite = FAL
 #'
 #' @param name Object name to remove.
 #' @param root Existing project root to update.
-#' @param section Object section to remove: `"script"`, `"report"`, or
-#'   `"output"`.
-#' @param delete_files Logical scalar. If `TRUE`, delete the corresponding file
+#' @param section Object section to remove: \code{"script"}, \code{"report"}, or
+#'   \code{"output"}.
+#' @param delete_files Logical scalar. If \code{TRUE}, delete the corresponding file
 #'   after validating the path and requiring confirmation.
 #' @param confirm Logical scalar confirming file deletion when
-#'   `delete_files = TRUE`.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#'   \code{delete_files = TRUE}.
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned change without
 #'   modifying the project.
 #'
 #' @return Invisibly returns the removed entry, or a dry-run plan.
@@ -2655,11 +2655,11 @@ remove_project_output <- function(name, root = ".", delete_files = FALSE, confir
 #' @param from Existing object name.
 #' @param to Replacement object name.
 #' @param root Existing project root to update.
-#' @param section Object section to rename: `"script"`, `"report"`, or
-#'   `"output"`.
-#' @param overwrite Logical scalar. If `TRUE`, allow an existing destination
+#' @param section Object section to rename: \code{"script"}, \code{"report"}, or
+#'   \code{"output"}.
+#' @param overwrite Logical scalar. If \code{TRUE}, allow an existing destination
 #'   registry entry or file path to be replaced.
-#' @param dry_run Logical scalar. If `TRUE`, return the planned change without
+#' @param dry_run Logical scalar. If \code{TRUE}, return the planned change without
 #'   modifying the project.
 #'
 #' @return Invisibly returns the updated entry, or a dry-run plan.
@@ -2745,7 +2745,7 @@ update_project_output <- function(name, ..., root = ".") {
 #'
 #' @param name Report name.
 #' @param root Existing project root.
-#' @param overwrite Logical scalar. If `TRUE`, allow file-path changes to
+#' @param overwrite Logical scalar. If \code{TRUE}, allow file-path changes to
 #'   replace an existing destination.
 #' @param path Optional replacement report source path.
 #' @param type Optional replacement report type.
@@ -2919,7 +2919,7 @@ run_project_object <- function(name, root = ".") {
 #' Run a registered project step
 #'
 #' @param name Registered step name. This is an alias for
-#'   [run_project_object()] kept for workflow readability.
+#'   \code{run_project_object()} kept for workflow readability.
 #' @param root Existing project root whose registry should be consulted.
 #'
 #' @return Invisibly returns the executed path.
@@ -2936,7 +2936,7 @@ run_project_step <- function(name, root = ".") {
 #' Run the project workflow
 #'
 #' @description
-#' `run_project()` executes registered analysis scripts in topological DAG order.
+#' \code{run_project()} executes registered analysis scripts in topological DAG order.
 #' If the registry does not contain enough dependency information to build a
 #' valid DAG, the function falls back to the explicit registry order.
 #'
@@ -3463,7 +3463,7 @@ github_workflow_contents <- function(workflow, use_renv = FALSE) {
 #'
 #' @param root Existing project root where the workflow file should be created.
 #' @param workflow Workflow name to create. Supported values are
-#'   `"check-project"` and `"render-reports"`.
+#'   \code{"check-project"} and \code{"render-reports"}.
 #'
 #' @return Invisibly returns the created workflow path.
 #' @examples
@@ -4240,13 +4240,13 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
 #' Check project health
 #'
 #' @param root Existing project root to validate.
-#' @param deep Logical scalar. If `TRUE`, run deeper static checks such as
+#' @param deep Logical scalar. If \code{TRUE}, run deeper static checks such as
 #'   validating report source structure in addition to the default checks.
-#' @param render_reports Logical scalar. If `TRUE`, render registered reports as
+#' @param render_reports Logical scalar. If \code{TRUE}, render registered reports as
 #'   part of the health check.
-#' @param strict Logical scalar. If `TRUE`, abort when critical errors are
+#' @param strict Logical scalar. If \code{TRUE}, abort when critical errors are
 #'   found; otherwise return a structured result object.
-#' @param repair Logical scalar. If `TRUE`, apply safe repairs such as creating
+#' @param repair Logical scalar. If \code{TRUE}, apply safe repairs such as creating
 #'   missing project metadata directories and default config files.
 #'
 #' @return Structured project-check result.
@@ -4287,11 +4287,11 @@ project_status <- function(root = ".") {
 
 #' Print a project check summary
 #'
-#' @param x A `"project_check"` object, usually created by [check_project()].
+#' @param x A \code{"project_check"} object, usually created by \code{check_project()}.
 #' @param ... Additional arguments accepted for S3 compatibility but ignored by
 #'   this method.
 #'
-#' @return `x`, invisibly.
+#' @return \code{x}, invisibly.
 #' @examples
 #' \dontrun{
 #' x <- check_project()
@@ -4334,11 +4334,11 @@ print.project_check <- function(x, ...) {
 
 #' Print a project status summary
 #'
-#' @param x A `"project_status"` object, usually created by [project_status()].
+#' @param x A \code{"project_status"} object, usually created by \code{project_status()}.
 #' @param ... Additional arguments accepted for S3 compatibility but ignored by
 #'   this method.
 #'
-#' @return `x`, invisibly.
+#' @return \code{x}, invisibly.
 #' @examples
 #' \dontrun{
 #' x <- project_status()

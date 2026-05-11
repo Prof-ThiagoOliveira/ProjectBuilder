@@ -71,7 +71,7 @@ backup_project_file <- function(path, prefix, root = ".") {
 #'
 #' @param root Existing project root.
 #'
-#' @return Absolute backup path, or `NULL` if the source file does not exist.
+#' @return Absolute backup path, or \code{NULL} if the source file does not exist.
 #' @examples
 #' \dontrun{
 #' backup_project_registry()
@@ -86,7 +86,7 @@ backup_project_registry <- function(root = ".") {
 #'
 #' @param root Existing project root.
 #'
-#' @return Absolute backup path, or `NULL` if the source file does not exist.
+#' @return Absolute backup path, or \code{NULL} if the source file does not exist.
 #' @examples
 #' \dontrun{
 #' backup_project_local_config()
@@ -101,7 +101,7 @@ backup_project_local_config <- function(root = ".") {
 #'
 #' @param root Existing project root.
 #'
-#' @return Absolute backup path, or `NULL` if the source file does not exist.
+#' @return Absolute backup path, or \code{NULL} if the source file does not exist.
 #' @examples
 #' \dontrun{
 #' backup_project_tasks_data()
@@ -151,7 +151,7 @@ list_project_backups <- function(root = ".") {
 #'
 #' @param backup Backup file path or backup file name.
 #' @param root Existing project root.
-#' @param confirm Logical scalar. Must be `TRUE` to perform the restore.
+#' @param confirm Logical scalar. Must be \code{TRUE} to perform the restore.
 #'
 #' @return Invisibly returns the restored destination path.
 #' @examples
@@ -357,7 +357,7 @@ activity_log_recommendation <- function(action, object_type, details) {
 #' @param object_type Object type involved in the action.
 #' @param object_id Optional object identifier.
 #' @param object_name Optional display name.
-#' @param source Action source, usually `"cli"` or `"dashboard"`.
+#' @param source Action source, usually \code{"cli"} or \code{"dashboard"}.
 #' @param details Optional named list with extra action metadata.
 #' @param root Existing project root.
 #'
@@ -399,10 +399,10 @@ append_project_activity <- function(action,
 #' @param root Existing project root.
 #'
 #' @return A data frame of activity-log entries. In addition to the core audit
-#'   fields (`timestamp`, `action`, `object_type`, `object_id`, `object_name`,
-#'   and `source`), the returned table includes derived fields used by the
-#'   dashboard: `entry`, `action_label`, `affected_path`, `status`, `summary`,
-#'   `details`, and `recommendation`.
+#'   fields (\code{timestamp}, \code{action}, \code{object_type}, \code{object_id}, \code{object_name},
+#'   and \code{source}), the returned table includes derived fields used by the
+#'   dashboard: \code{entry}, \code{action_label}, \code{affected_path}, \code{status}, \code{summary},
+#'   \code{details}, and \code{recommendation}.
 #' @examples
 #' \dontrun{
 #' list_project_activity()
@@ -471,7 +471,7 @@ list_project_activity <- function(root = ".") {
 #' Clear the project activity log
 #'
 #' @param root Existing project root.
-#' @param confirm Logical scalar. Must be `TRUE` to clear the log.
+#' @param confirm Logical scalar. Must be \code{TRUE} to clear the log.
 #'
 #' @return Invisibly returns the cleared log path.
 #' @examples

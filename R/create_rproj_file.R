@@ -1,8 +1,8 @@
 #' Create an RStudio project file
 #'
-#' @param path Project root path where the `.Rproj` file should be written.
-#' @param project_name Project name used as the `.Rproj` filename stem.
-#' @param overwrite Logical scalar. If `TRUE`, an existing `.Rproj` file with
+#' @param path Project root path where the \code{.Rproj} file should be written.
+#' @param project_name Project name used as the \code{.Rproj} filename stem.
+#' @param overwrite Logical scalar. If \code{TRUE}, an existing \code{.Rproj} file with
 #'   the same name is replaced.
 #'
 #' @return A list describing the write outcome.

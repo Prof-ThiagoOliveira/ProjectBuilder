@@ -1,7 +1,7 @@
 #' Validate a project path
 #'
 #' @param path Target project path supplied by the user. This may be relative,
-#'   contain `~`, or include redundant whitespace; the function normalises it to
+#'   contain \code{~}, or include redundant whitespace; the function normalises it to
 #'   an absolute path representation.
 #'
 #' @return A normalized project path.
@@ -42,8 +42,8 @@ detect_path_construction_warning <- function(raw_path, resolved_path) {
 #' Validate whether a project path can be used
 #'
 #' @param path Target project path after normalisation.
-#' @param overwrite Logical scalar. If `TRUE`, existing non-empty directories
-#'   are accepted; if `FALSE`, `projflow` refuses to write into a non-empty
+#' @param overwrite Logical scalar. If \code{TRUE}, existing non-empty directories
+#'   are accepted; if \code{FALSE}, \code{projflow} refuses to write into a non-empty
 #'   target directory.
 #'
 #' @return Invisibly returns the validated path.
@@ -111,7 +111,7 @@ validate_project_name <- function(project_name) {
 #' @param x Object to validate as a single non-missing logical value.
 #' @param arg Argument name used in the error message when validation fails.
 #'
-#' @return Invisibly returns `TRUE`.
+#' @return Invisibly returns \code{TRUE}.
 #' @examples
 #' projflow:::validate_logical_scalar(TRUE, "overwrite")
 #' @author Thiago de Paula Oliveira
@@ -125,12 +125,12 @@ validate_logical_scalar <- function(x, arg) {
 
 #' Validate a character vector
 #'
-#' @param x Object to validate as a character vector without `NA` or empty
+#' @param x Object to validate as a character vector without \code{NA} or empty
 #'   entries.
 #' @param arg Argument name used in the error message when validation fails.
-#' @param allow_null Logical scalar indicating whether `NULL` is accepted.
+#' @param allow_null Logical scalar indicating whether \code{NULL} is accepted.
 #'
-#' @return Invisibly returns `TRUE`.
+#' @return Invisibly returns \code{TRUE}.
 #' @examples
 #' projflow:::validate_character_vector(c("analysis", "report"), "components")
 #' @author Thiago de Paula Oliveira
@@ -159,7 +159,7 @@ validate_character_vector <- function(x, arg, allow_null = FALSE) {
 #' Validate package names
 #'
 #' @param packages Character vector of package names to validate and clean.
-#' @param allow_null Logical scalar indicating whether `NULL` is accepted.
+#' @param allow_null Logical scalar indicating whether \code{NULL} is accepted.
 #'
 #' @return Cleaned package names.
 #' @examples
@@ -190,7 +190,7 @@ validate_package_names <- function(packages, allow_null = TRUE) {
 
 #' Validate a single choice
 #'
-#' @param x Single character value to match against `choices`.
+#' @param x Single character value to match against \code{choices}.
 #' @param choices Character vector of allowed values.
 #' @param arg Argument name used in the error message when validation fails.
 #'

@@ -185,7 +185,7 @@ plan_project <- function(
 #' Create and register a new project script
 #'
 #' @description
-#' `new_script()` adds a documented, non-executing R script to an existing
+#' \code{new_script()} adds a documented, non-executing R script to an existing
 #' \pkg{projflow} project and records it in the project registry. The public
 #' interface is intentionally small: the function creates one script and does
 #' not register outputs, choose templates, repair registry state, or expose

@@ -7,7 +7,7 @@
 \method{print}{project_check}(x, ...)
 }
 \arguments{
-\item{x}{A \code{"project_check"} object, usually created by \code{\link[=check_project]{check_project()}}.}
+\item{x}{A \code{"project_check"} object, usually created by \code{check_project()}.}
 
 \item{...}{Additional arguments accepted for S3 compatibility but ignored by
 this method.}

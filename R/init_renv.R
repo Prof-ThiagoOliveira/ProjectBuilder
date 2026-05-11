@@ -1,14 +1,14 @@
 #' Initialise renv when available
 #'
-#' @param path Project root path where `renv` should be initialised.
+#' @param path Project root path where \code{renv} should be initialised.
 #' @param packages Character vector of package names to install into the project
-#'   library immediately after `renv::init(project = path, bare = TRUE)`.
-#' @param snapshot Logical scalar. If `TRUE`, run `renv::snapshot()` after the
+#'   library immediately after \code{renv::init(project = path, bare = TRUE)}.
+#' @param snapshot Logical scalar. If \code{TRUE}, run \code{renv::snapshot()} after the
 #'   optional package installation step.
-#' @param strict Logical scalar. If `TRUE`, initialisation failures raise an
+#' @param strict Logical scalar. If \code{TRUE}, initialisation failures raise an
 #'   error; otherwise a warning-style message is returned.
 #'
-#' @return `NULL` on success or a warning message when renv was not initialised.
+#' @return \code{NULL} on success or a warning message when renv was not initialised.
 #' @examples
 #' \dontrun{
 #' tmp <- tempfile("projflow-renv-")

@@ -39,16 +39,16 @@ gitignore_template <- function(
 
 #' Create Git support files
 #'
-#' @param path Project root path where `.gitignore`, `.Rbuildignore`, and
-#'   `.gitattributes` should be written.
-#' @param overwrite Logical scalar. If `TRUE`, existing Git support files are
-#'   replaced; if `FALSE`, existing files are preserved.
+#' @param path Project root path where \code{.gitignore}, \code{.Rbuildignore}, and
+#'   \code{.gitattributes} should be written.
+#' @param overwrite Logical scalar. If \code{TRUE}, existing Git support files are
+#'   replaced; if \code{FALSE}, existing files are preserved.
 #' @param use_internal_data_dirs Logical scalar indicating whether the scaffold
-#'   includes internal `data/` folders that should be ignored explicitly in the
-#'   generated `.gitignore`.
+#'   includes internal \code{data/} folders that should be ignored explicitly in the
+#'   generated \code{.gitignore}.
 #' @param deliverables Character vector of project deliverables. This is used to
 #'   decide whether output tables should remain ignored broadly or whether
-#'   selected `outputs/tables/` files should be allow-listed for tracking.
+#'   selected \code{outputs/tables/} files should be allow-listed for tracking.
 #'
 #' @return A list with created and skipped file paths.
 #' @examples

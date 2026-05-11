@@ -22,7 +22,7 @@ from old paths to canonical paths when possible. If \code{FALSE}, update only th
 planned action table when \code{dry_run = TRUE}.}
 
 \item{clean_report_noise}{Logical scalar. If \code{TRUE}, remove known duplicated
-Quarto report artefacts such as \verb{outputs/reports/reports/<name>.html} after
+Quarto report artefacts such as \code{outputs/reports/reports/<name>.html} after
 the canonical report exists.}
 }
 \value{

@@ -19,12 +19,12 @@ create_git_files(
 replaced; if \code{FALSE}, existing files are preserved.}
 
 \item{use_internal_data_dirs}{Logical scalar indicating whether the scaffold
-includes internal \verb{data/} folders that should be ignored explicitly in the
+includes internal \code{data/} folders that should be ignored explicitly in the
 generated \code{.gitignore}.}
 
 \item{deliverables}{Character vector of project deliverables. This is used to
 decide whether output tables should remain ignored broadly or whether
-selected \verb{outputs/tables/} files should be allow-listed for tracking.}
+selected \code{outputs/tables/} files should be allow-listed for tracking.}
 }
 \value{
 A list with created and skipped file paths.

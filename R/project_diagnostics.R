@@ -126,7 +126,7 @@ support_project_files <- function(root = ".", registry = read_project_registry(r
 #'
 #' @param root Existing project root.
 #'
-#' @return A list with `nodes` and `edges` data frames.
+#' @return A list with \code{nodes} and \code{edges} data frames.
 #' @examples
 #' \dontrun{
 #' network <- project_network_data()
@@ -353,15 +353,15 @@ diagnostics_summary_frame <- function(diagnostics) {
 #' Collect structured project diagnostics data
 #'
 #' @param root Existing project root to inspect.
-#' @param include_file_hashes Logical scalar. If `TRUE`, include MD5 hashes for
+#' @param include_file_hashes Logical scalar. If \code{TRUE}, include MD5 hashes for
 #'   registered files that exist locally.
-#' @param include_git Logical scalar. If `TRUE`, include Git status data.
-#' @param include_packages Logical scalar. If `TRUE`, include package status
+#' @param include_git Logical scalar. If \code{TRUE}, include Git status data.
+#' @param include_packages Logical scalar. If \code{TRUE}, include package status
 #'   data.
-#' @param include_network Logical scalar. If `TRUE`, include project network
+#' @param include_network Logical scalar. If \code{TRUE}, include project network
 #'   data.
 #'
-#' @return An object of class `"projflow_diagnostics"`.
+#' @return An object of class \code{"projflow_diagnostics"}.
 #' @examples
 #' \dontrun{
 #' diagnostics <- project_diagnostics_data()
@@ -565,7 +565,7 @@ render_diagnostics_html <- function(diagnostics, file = NULL) {
 #'
 #' @param root Existing project root to inspect.
 #' @param output Diagnostic output mode.
-#' @param file Optional output file used when `output = "html"`.
+#' @param file Optional output file used when \code{output = "html"}.
 #' @param ... Reserved for future extensions.
 #'
 #' @return Diagnostics in the requested format.

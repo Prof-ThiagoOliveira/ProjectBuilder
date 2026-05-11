@@ -7,7 +7,7 @@
 \method{print}{project_status}(x, ...)
 }
 \arguments{
-\item{x}{A \code{"project_status"} object, usually created by \code{\link[=project_status]{project_status()}}.}
+\item{x}{A \code{"project_status"} object, usually created by \code{project_status()}.}
 
 \item{...}{Additional arguments accepted for S3 compatibility but ignored by
 this method.}

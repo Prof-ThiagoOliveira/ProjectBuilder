@@ -21,7 +21,7 @@ A character vector of valid keyword values.
 }
 \description{
 These helpers return the controlled vocabularies accepted by
-\code{\link[=plan_project]{plan_project()}} and \code{\link[=new_project]{new_project()}}. They are primarily intended for
+\code{plan_project()} and \code{new_project()}. They are primarily intended for
 interactive use, documentation examples, validation messages, and tests.
 }
 \examples{

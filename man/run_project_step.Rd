@@ -8,7 +8,7 @@ run_project_step(name, root = ".")
 }
 \arguments{
 \item{name}{Registered step name. This is an alias for
-\code{\link[=run_project_object]{run_project_object()}} kept for workflow readability.}
+\code{run_project_object()} kept for workflow readability.}
 
 \item{root}{Existing project root whose registry should be consulted.}
 }

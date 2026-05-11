@@ -313,7 +313,7 @@ registered_project_components <- function() {
 #' List project planning keywords
 #'
 #' These helpers return the controlled vocabularies accepted by
-#' [plan_project()] and [new_project()]. They are primarily intended for
+#' \code{plan_project()} and \code{new_project()}. They are primarily intended for
 #' interactive use, documentation examples, validation messages, and tests.
 #'
 #' @return A character vector of valid keyword values.
