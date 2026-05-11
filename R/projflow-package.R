@@ -1,30 +1,21 @@
-#' projflow: Component-driven analysis project scaffolding
+#' projflow: DAG-first analysis project scaffolding
 #'
 #' @description
-#' `projflow` creates analysis project scaffolds that keep code, reports, and
-#' lightweight outputs in the repository while treating raw and large data as
-#' external by default. The package registry links scripts, reports, and output
-#' artefacts so projects can be built and checked reproducibly without forcing
-#' unnecessary files into a new scaffold. Project metadata live in
-#' `.projflow/`, with machine-local paths stored in `.projflow/local.yml`.
+#' `projflow` creates reproducible R analysis project scaffolds organised around
+#' four layers: project structure, executable analysis DAG, governance, and
+#' interfaces/integrations. The executable DAG links data inputs, scripts,
+#' outputs, reports and deliverables so projects can be checked, run and
+#' translated into `targets` pipelines.
 #'
 #' @section Typical workflow:
-#' 1. Create a project with [new_project()] or inspect a plan with [plan_project()].
-#' 2. Configure machine-local data roots with [set_project_data_root()].
-#' 3. Add scripts with [new_script()] and save artefacts explicitly with
-#'    [save_project_object()].
-#' 4. Build registered scripts and reports with [build_project()].
-#' 5. Check project structure and registered outputs with [check_project()].
+#' 1. Inspect a plan with [plan_project()], then create it with [new_project()].
+#' 2. Inspect durable files and metadata with [project_structure()].
+#' 3. Add scripts, outputs and reports with [new_script()], [new_output()] and
+#'    [new_report()].
+#' 4. Validate execution with [project_analysis_dag()] and [validate_project_dag()].
+#' 5. Build the project with [run_project()] or [build_project()].
+#' 6. Manage governance with tasks, risks, decisions and milestones.
 #'
-#' @examples
-#' \dontrun{
-#' plan_project(
-#'   path = "demo-project",
-#'   preset = "basic_analysis",
-#'   infrastructure = character(),
-#'   include_example = FALSE
-#' )
-#' }
 #' @author Thiago de Paula Oliveira
-#' @importFrom stats setNames
-"_PACKAGE"
+#' @keywords internal
+"projflow"

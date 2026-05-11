@@ -2935,8 +2935,12 @@ run_project_step <- function(name, root = ".") {
 
 #' Run the project workflow
 #'
-#' @param root Existing project root whose registered scripts should be run in
-#'   execution order.
+#' @description
+#' `run_project()` executes registered analysis scripts in topological DAG order.
+#' If the registry does not contain enough dependency information to build a
+#' valid DAG, the function falls back to the explicit registry order.
+#'
+#' @param root Existing project root whose registered scripts should be run.
 #'
 #' @return Invisibly returns executed script paths.
 #' @examples
@@ -2972,8 +2976,19 @@ run_project <- function(root = ".") {
     return(invisible(scripts_run))
   }
 
-  ordering <- order(vapply(registry$scripts, `[[`, numeric(1), "order"))
-  for (name in script_names[ordering]) {
+  dag_check <- validate_project_dag(root = root, strict = FALSE)
+  if (isTRUE(dag_check$ok)) {
+    ordered_names <- topological_project_order(root = root, type = "scripts")
+    script_names <- ordered_names[ordered_names %in% names(registry$scripts)]
+  } else {
+    warning(
+      "The analysis DAG is invalid; falling back to registry script order. Run `validate_project_dag()` for details.",
+      call. = FALSE
+    )
+    script_names <- registry_script_names_by_order(registry)
+  }
+
+  for (name in script_names) {
     entry <- registry$scripts[[name]]
     script_path <- fs::path(root, entry$path)
     scripts_run <- c(scripts_run, script_path)
@@ -4187,6 +4202,11 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
       "Create `_targets.R` or remove the infrastructure entry."
     )
   }
+
+  dag_check <- validate_project_dag(root = root, strict = FALSE)
+  errors <- rbind(errors, dag_check$errors)
+  warnings <- rbind(warnings, dag_check$warnings)
+  info <- rbind(info, dag_check$info)
 
   result <- structure(
     list(

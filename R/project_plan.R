@@ -543,7 +543,7 @@ validate_project_components <- function(components) resolve_project_component_de
 validate_project_deliverables <- function(deliverables) list(values = order_keywords(normalise_project_deliverables(deliverables), canonical_deliverable_order()), messages = character())
 validate_project_infrastructure <- function(infrastructure) resolve_project_infrastructure_dependencies(normalise_project_infrastructure(infrastructure))
 
-validate_project_plan <- function(components, deliverables, infrastructure) {
+validate_project_plan_keywords <- function(components, deliverables, infrastructure) {
   list(
     components = validate_project_components(components),
     deliverables = validate_project_deliverables(deliverables),

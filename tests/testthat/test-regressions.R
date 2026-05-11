@@ -47,7 +47,7 @@ test_that("new_script creation and output registration are separate", {
     open = FALSE
   )
 
-  new_project_script(
+  new_script(
     name = "model_fit",
     script_type = "model",
     root = project_path,
@@ -200,7 +200,5 @@ test_that("script creation public API remains minimal", {
   )
 
   expect_false(any(removed_args %in% names(formals(new_script))))
-  expect_false(any(removed_args %in% names(formals(new_project_script))))
   expect_true(all(c("name", "script_type", "root", "open", "overwrite") %in% names(formals(new_script))))
-  expect_true(all(c("name", "script_type", "root", "open", "overwrite") %in% names(formals(new_project_script))))
 })
