@@ -2,10 +2,11 @@
 #'
 #' @description
 #' \pkg{projflow} creates reproducible R analysis project scaffolds organised
-#' around four layers: project structure, executable analysis DAG, governance,
-#' and interfaces or integrations. The executable DAG links data inputs,
-#' scripts, outputs, reports and deliverables so projects can be checked, run
-#' and translated into \pkg{targets} pipelines.
+#' around four layers: (i) project structure, (ii) executable analysis DAG, 
+#' (iii) governance, and (iv) interfaces or integrations. 
+#' The executable DAG links data inputs, scripts, outputs, reports and 
+#' deliverables so projects can be checked, run and translated into 
+#' \pkg{targets} pipelines.
 #'
 #' @section Typical workflow:
 #' \enumerate{

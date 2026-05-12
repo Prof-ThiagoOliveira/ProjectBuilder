@@ -10,7 +10,7 @@ project_structure(root = ".")
 \item{root}{Path inside an existing projflow project.}
 }
 \value{
-A data frame describing canonical project paths and their existence.
+A data frame of class \code{"projflow_structure"} describing canonical project paths and their existence. It prints as a compact checklist.
 }
 \description{
 \code{project_structure()} returns the canonical filesystem and metadata contract

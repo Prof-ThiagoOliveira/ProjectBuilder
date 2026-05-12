@@ -10,13 +10,13 @@
 #' interface. The layers separate durable project structure, the executable
 #' analysis DAG, governance records, and interactive/integration interfaces.
 #'
-#' @return A data frame with one row per architectural layer.
+#' @return A data frame of class \code{"projflow_layers"} with one row per architectural layer. It prints as a compact user-facing summary.
 #' @examples
 #' project_layers()
 #' @author Thiago de Paula Oliveira
 #' @export
 project_layers <- function() {
-  data.frame(
+  layers <- data.frame(
     layer = 1:4,
     name = c(
       "project_structure",
@@ -38,6 +38,50 @@ project_layers <- function() {
     ),
     stringsAsFactors = FALSE
   )
+
+  structure(layers, class = c("projflow_layers", class(layers)))
+}
+
+#' Print projflow architecture layers
+#'
+#' @description
+#' Prints \code{project_layers()} as a compact user-facing summary rather than a
+#' wide data frame. The underlying object remains tabular and can be inspected
+#' with \code{as.data.frame()} or \code{unclass()}.
+#'
+#' @param x A \code{"projflow_layers"} object returned by \code{project_layers()}.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' layers <- project_layers()
+#' print(layers)
+#' as.data.frame(layers)
+#' @author Thiago de Paula Oliveira
+#' @export
+print.projflow_layers <- function(x, ...) {
+  cat("projflow architecture layers\n")
+  cat("----------------------------\n")
+
+  for (i in seq_len(nrow(x))) {
+    layer_label <- paste0("Layer ", x$layer[[i]], ": ", x$name[[i]])
+    cat("\n", layer_label, "\n", sep = "")
+    cat(paste(strwrap(
+      paste0("Responsibility: ", x$responsibility[[i]]),
+      width = getOption("width", 80L),
+      indent = 2L,
+      exdent = 2L
+    ), collapse = "\n"), "\n", sep = "")
+    cat(paste(strwrap(
+      paste0("Primary functions: ", x$primary_functions[[i]]),
+      width = getOption("width", 80L),
+      indent = 2L,
+      exdent = 2L
+    ), collapse = "\n"), "\n", sep = "")
+  }
+
+  cat("\nUse as.data.frame(x) for the underlying table.\n")
+  invisible(x)
 }
 
 #' Inspect the project structure layer
@@ -50,7 +94,7 @@ project_layers <- function() {
 #'
 #' @param root Path inside an existing projflow project.
 #'
-#' @return A data frame describing canonical project paths and their existence.
+#' @return A data frame of class \code{"projflow_structure"} describing canonical project paths and their existence. It prints as a compact checklist.
 #' @examples
 #' \dontrun{
 #' project_structure()
@@ -129,9 +173,97 @@ project_structure <- function(root = ".") {
     },
     logical(1)
   )
-  core$registered_scripts <- length(registry$scripts %||% list())
-  core$registered_reports <- length(registry$reports %||% list())
-  core$registered_outputs <- length(registry$outputs %||% list())
+  registered <- c(
+    scripts = length(registry$scripts %||% list()),
+    reports = length(registry$reports %||% list()),
+    outputs = length(registry$outputs %||% list())
+  )
 
-  core
+  core$registered_scripts <- unname(registered[["scripts"]])
+  core$registered_reports <- unname(registered[["reports"]])
+  core$registered_outputs <- unname(registered[["outputs"]])
+
+  structure(
+    core,
+    class = c("projflow_structure", class(core)),
+    root = normalizePath(root, winslash = "/", mustWork = FALSE),
+    registered = registered
+  )
+}
+
+#' Print a projflow project structure summary
+#'
+#' @description
+#' Prints \code{project_structure()} as a compact project-structure checklist.
+#' The underlying object remains tabular and can be inspected with
+#' \code{as.data.frame()} or \code{unclass()}.
+#'
+#' @param x A \code{"projflow_structure"} object returned by
+#'   \code{project_structure()}.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' structure <- project_structure()
+#' print(structure)
+#' as.data.frame(structure)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.projflow_structure <- function(x, ...) {
+  root <- attr(x, "root", exact = TRUE)
+  registered <- attr(x, "registered", exact = TRUE)
+
+  if (is.null(root) || !nzchar(root)) {
+    root <- "."
+  }
+
+  if (is.null(registered)) {
+    registered <- c(
+      scripts = if ("registered_scripts" %in% names(x)) x$registered_scripts[[1]] else NA_integer_,
+      reports = if ("registered_reports" %in% names(x)) x$registered_reports[[1]] else NA_integer_,
+      outputs = if ("registered_outputs" %in% names(x)) x$registered_outputs[[1]] else NA_integer_
+    )
+  }
+
+  cat("projflow project structure\n")
+  cat("--------------------------\n")
+  cat("Root: ", root, "\n", sep = "")
+  cat(
+    "Registered objects: ",
+    registered[["scripts"]], " scripts; ",
+    registered[["reports"]], " reports; ",
+    registered[["outputs"]], " outputs\n",
+    sep = ""
+  )
+
+  cat("\nStructure checklist:\n")
+
+  roles <- as.character(x$role)
+  paths <- as.character(x$path)
+  exists <- as.logical(x$exists)
+  exists[is.na(exists)] <- FALSE
+  status <- ifelse(exists, "ok", "missing")
+  role_width <- max(nchar(roles), na.rm = TRUE)
+
+  for (i in seq_along(roles)) {
+    cat(sprintf(
+      "  [%-7s] %-*s %s\n",
+      status[[i]],
+      role_width,
+      roles[[i]],
+      paths[[i]]
+    ))
+  }
+
+  missing_n <- sum(!exists)
+  if (missing_n > 0L) {
+    cat("\nMissing paths: ", missing_n, "\n", sep = "")
+  } else {
+    cat("\nAll registered structure paths exist.\n")
+  }
+
+  cat("Use as.data.frame(x) for the underlying table.\n")
+  invisible(x)
 }

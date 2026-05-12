@@ -6,7 +6,7 @@
 \usage{
 add_project_decision(
   title,
-  decision,
+  decision = NULL,
   root = ".",
   rationale = NULL,
   consequences = NULL,
@@ -17,7 +17,7 @@ add_project_decision(
 \arguments{
 \item{title}{Human-readable decision title.}
 
-\item{decision}{Decision statement.}
+\item{decision}{Optional decision statement. If omitted, the decision statement defaults to \code{title}.}
 
 \item{root}{Existing project root.}
 
@@ -37,7 +37,7 @@ Add a project decision
 }
 \examples{
 \dontrun{
-add_project_decision("Use external data", "Keep raw data outside the repository")
+add_project_decision("Keep raw data outside the repository")
 }
 }
 \author{

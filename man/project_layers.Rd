@@ -7,7 +7,7 @@
 project_layers()
 }
 \value{
-A data frame with one row per architectural layer.
+A data frame of class \code{"projflow_layers"} with one row per architectural layer. It prints as a compact user-facing summary.
 }
 \description{
 \code{project_layers()} returns the package architecture used by the redesigned

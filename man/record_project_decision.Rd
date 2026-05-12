@@ -6,7 +6,7 @@
 \usage{
 record_project_decision(
   title,
-  decision,
+  decision = NULL,
   root = ".",
   rationale = NULL,
   consequences = NULL,
@@ -17,7 +17,7 @@ record_project_decision(
 \arguments{
 \item{title}{Human-readable decision title.}
 
-\item{decision}{Decision statement.}
+\item{decision}{Optional decision statement. If omitted, the decision statement defaults to \code{title}.}
 
 \item{root}{Existing project root.}
 
@@ -37,7 +37,7 @@ Record a project decision
 }
 \examples{
 \dontrun{
-record_project_decision("Use external data", "Keep raw data outside the repository")
+record_project_decision("Keep raw data outside the repository")
 }
 }
 \author{
