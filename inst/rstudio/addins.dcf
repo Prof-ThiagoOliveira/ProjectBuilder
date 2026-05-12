@@ -1,6 +1,6 @@
 Name: Open projflow Project Manager
 Description: Open the interactive projflow Project Manager.
-Binding: open_projflow_project_manager
+Binding: open_dashboard
 Interactive: true
 
 Name: Run projflow Check

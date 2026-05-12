@@ -24,7 +24,7 @@ escape_html_text <- function(text) {
   text
 }
 
-project_registered_files <- function(root = ".", registry = read_project_registry(root)) {
+project_registry_files <- function(root = ".", registry = read_project_registry(root)) {
   root <- find_project_root(root)
   object_paths <- unique(c(
     vapply(registry$scripts %||% list(), `[[`, character(1), "path"),
@@ -40,7 +40,7 @@ project_registered_files <- function(root = ".", registry = read_project_registr
 
 project_files_data <- function(root = ".", include_file_hashes = FALSE, registry = read_project_registry(root)) {
   root <- find_project_root(root)
-  files <- project_registered_files(root, registry)
+  files <- project_registry_files(root, registry)
   full_paths <- fs::path(root, files)
   exists <- file.exists(full_paths)
   info <- file.info(full_paths)
@@ -110,14 +110,14 @@ is_project_workflow_file <- function(path) {
 
 orphan_project_files <- function(root = ".", registry = read_project_registry(root)) {
   root <- find_project_root(root)
-  registered <- project_registered_files(root, registry)
+  registered <- project_registry_files(root, registry)
   candidates <- setdiff(all_project_files_for_review(root), registered)
   candidates[is_project_workflow_file(candidates)]
 }
 
 support_project_files <- function(root = ".", registry = read_project_registry(root)) {
   root <- find_project_root(root)
-  registered <- project_registered_files(root, registry)
+  registered <- project_registry_files(root, registry)
   candidates <- setdiff(all_project_files_for_review(root), registered)
   candidates[is_project_support_file(candidates)]
 }
@@ -318,36 +318,6 @@ check_dashboard_dependencies <- function(
   }
 
   invisible(TRUE)
-}
-
-diagnostics_summary_frame <- function(diagnostics) {
-  data.frame(
-    metric = c(
-      "errors",
-      "warnings",
-      "suggestions",
-      "open_tasks",
-      "overdue_tasks",
-      "open_risks",
-      "missing_outputs",
-      "stale_outputs",
-      "missing_packages",
-      "unavailable_data_sources"
-    ),
-    value = c(
-      nrow(diagnostics$checks[diagnostics$checks$severity == "error", , drop = FALSE]),
-      nrow(diagnostics$checks[diagnostics$checks$severity == "warning", , drop = FALSE]),
-      nrow(diagnostics$checks[diagnostics$checks$severity == "suggestion", , drop = FALSE]),
-      diagnostics$summary$open_tasks[[1]],
-      diagnostics$summary$overdue_tasks[[1]],
-      diagnostics$summary$open_risks[[1]],
-      diagnostics$summary$missing_outputs[[1]],
-      diagnostics$summary$stale_outputs[[1]],
-      diagnostics$summary$missing_packages[[1]],
-      diagnostics$summary$data_sources_unavailable[[1]]
-    ),
-    stringsAsFactors = FALSE
-  )
 }
 
 #' Collect structured project diagnostics data
@@ -595,5 +565,5 @@ diagnose_project <- function(
     return(render_diagnostics_html(diagnostics, file = file))
   }
 
-  launch_project_manager(root = root, mode = "diagnose", ...)
+  open_dashboard(root = root, mode = "diagnose", ...)
 }

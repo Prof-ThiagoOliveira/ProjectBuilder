@@ -12,7 +12,69 @@
 #' @author Thiago de Paula Oliveira
 #' @export
 project_check_items <- function(root = ".", deep = FALSE, render_reports = FALSE) {
-  check_project(root = root, deep = deep, render_reports = render_reports, strict = FALSE, repair = FALSE)$issues
+  result <- check_project(root = root, deep = deep, render_reports = render_reports, strict = FALSE, repair = FALSE)
+  issues <- result$issues
+  structure(
+    issues,
+    class = c("project_check_items", class(issues)),
+    root = result$root %||% "",
+    ok = isTRUE(result$ok),
+    summary = c(
+      errors = nrow(result$errors %||% empty_issue_table()),
+      warnings = nrow(result$warnings %||% empty_issue_table()),
+      suggestions = nrow(result$suggestions %||% empty_issue_table()),
+      info = nrow(result$info %||% empty_issue_table())
+    )
+  )
+}
+
+#' Print project check items
+#'
+#' @description
+#' Prints \code{project_check_items()} as a grouped checklist by severity rather
+#' than as a wide data frame. The returned object remains data-frame-like.
+#'
+#' @param x A \code{"project_check_items"} object.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' items <- project_check_items()
+#' print(items)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.project_check_items <- function(x, ...) {
+  root <- attr(x, "root", exact = TRUE) %||% ""
+  ok <- isTRUE(attr(x, "ok", exact = TRUE))
+  summary <- attr(x, "summary", exact = TRUE) %||% c(errors = 0L, warnings = 0L, suggestions = 0L, info = 0L)
+
+  cat("projflow project check items
+")
+  cat("----------------------------
+")
+  if (nzchar(root)) {
+    cat("Root: ", root, "
+", sep = "")
+  }
+  cat("Status: ", if (ok) "OK" else "Needs attention", "
+", sep = "")
+  cat(
+    "Items: ",
+    summary[["errors"]], " error(s); ",
+    summary[["warnings"]], " warning(s); ",
+    summary[["suggestions"]], " suggestion(s); ",
+    summary[["info"]], " info item(s)
+",
+    sep = ""
+  )
+
+  print_issue_sections(x)
+  cat("
+Use as.data.frame(x) for the underlying table.
+")
+  invisible(x)
 }
 
 #' Apply conservative project repairs

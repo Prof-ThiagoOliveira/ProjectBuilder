@@ -201,7 +201,7 @@ test_that("plan_project and high-level verbs grow the project", {
   )
 
   local_mock_quarto_render()
-  expect_no_error(serve_project(project_path, watch = FALSE))
+  expect_no_error(serve_project(project_path))
 
   withr::local_dir(project_path)
   expect_no_error(new_script("secondary_analysis", script_type = "analysis", open = FALSE))
@@ -220,6 +220,7 @@ test_that("serve_project handles report, shiny and plain project targets", {
   report_path <- make_project_path("serve-report")
   plain_path <- make_project_path("serve-plain")
   shiny_path <- make_project_path("serve-shiny")
+  dashboard_path <- make_project_path("serve-dashboard")
 
   new_project(
     path = report_path,
@@ -239,9 +240,22 @@ test_that("serve_project handles report, shiny and plain project targets", {
     infrastructure = character(),
     open = FALSE
   )
+  new_project(
+    path = dashboard_path,
+    components = c("statistical_analysis"),
+    infrastructure = character(),
+    open = FALSE
+  )
+  new_app(
+    name = "operations_dashboard",
+    type = "quarto_dashboard",
+    root = dashboard_path,
+    open = FALSE
+  )
 
-  expect_no_error(serve_project(report_path, target = "reports", watch = FALSE, render = FALSE))
-  expect_no_error(serve_project(plain_path, target = "project", watch = FALSE, render = FALSE))
+  expect_no_error(serve_project(report_path, target = "reports", render = FALSE))
+  expect_no_error(serve_project(plain_path, target = "project", render = FALSE))
+  expect_no_error(serve_project(dashboard_path, target = "dashboard", render = FALSE))
 
   skip_if_not_installed("shiny")
   called <- FALSE
@@ -252,7 +266,7 @@ test_that("serve_project handles report, shiny and plain project targets", {
     },
     .package = "shiny"
   )
-  expect_no_error(serve_project(shiny_path, target = "shiny_app", watch = FALSE, render = FALSE))
+  expect_no_error(serve_project(shiny_path, target = "shiny_app", render = FALSE))
   expect_true(called)
 })
 

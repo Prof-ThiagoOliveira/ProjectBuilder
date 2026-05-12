@@ -156,38 +156,6 @@ validate_character_vector <- function(x, arg, allow_null = FALSE) {
   invisible(TRUE)
 }
 
-#' Validate package names
-#'
-#' @param packages Character vector of package names to validate and clean.
-#' @param allow_null Logical scalar indicating whether \code{NULL} is accepted.
-#'
-#' @return Cleaned package names.
-#' @examples
-#' projflow:::validate_package_names(c("fs", "yaml", "fs"))
-#' @author Thiago de Paula Oliveira
-validate_package_names <- function(packages, allow_null = TRUE) {
-  validate_character_vector(packages, "packages", allow_null = allow_null)
-
-  if (is.null(packages)) {
-    return(NULL)
-  }
-
-  cleaned <- unique(trimws(packages))
-
-  invalid <- !grepl("^[A-Za-z][A-Za-z0-9.]*$", cleaned)
-
-  if (any(invalid)) {
-    rlang::abort(
-      paste0(
-        "Invalid package names: ",
-        paste(cleaned[invalid], collapse = ", ")
-      )
-    )
-  }
-
-  cleaned
-}
-
 #' Validate a single choice
 #'
 #' @param x Single character value to match against \code{choices}.

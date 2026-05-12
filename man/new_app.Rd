@@ -58,9 +58,9 @@ Supported application types are:
 returns the expected \file{app/app.R} path. The application can later be
 launched through \code{\link[shiny:runApp]{shiny::runApp}()} by
 \code{\link{serve_project}()}.
-\item \code{"quarto_dashboard"}: adds the dashboard deliverable and creates
-a \file{.qmd} dashboard file when a non-default dashboard name is
-requested.
+\item \code{"quarto_dashboard"}: creates a registered dashboard source under
+\file{dashboard/<name>.qmd}. The rendered dashboard is treated as a report-like
+output and defaults to \file{outputs/reports/<name>/<name>.html}.
 }
 }
 \examples{

@@ -431,18 +431,317 @@ validate_project_dag <- function(root = ".", dag = NULL, strict = FALSE) {
 #' @export
 topological_project_order <- function(root = ".", type = c("all", "scripts", "reports")) {
   type <- match.arg(type)
+  root <- find_project_root(root)
   dag <- project_analysis_dag(root = root)
   validate_project_dag(dag = dag, strict = TRUE)
   ordered <- dag_topological_sort(dag$nodes, dag$edges)$order
+  registered <- project_registered_files(root = root, dag = dag, ordered = ordered)
 
   if (identical(type, "scripts")) {
-    return(sub("^script:", "", ordered[grepl("^script:", ordered)]))
-  }
-  if (identical(type, "reports")) {
-    return(sub("^report:", "", ordered[grepl("^report:", ordered)]))
+    out <- sub("^script:", "", ordered[grepl("^script:", ordered)])
+  } else if (identical(type, "reports")) {
+    out <- sub("^report:", "", ordered[grepl("^report:", ordered)])
+  } else {
+    out <- ordered
   }
 
-  ordered
+  structure(
+    out,
+    class = c("project_topological_order", class(out)),
+    type = type,
+    root = normalizePath(root, winslash = "/", mustWork = FALSE),
+    registered_files = registered,
+    dag_summary = c(nodes = nrow(dag$nodes), edges = nrow(dag$edges))
+  )
+}
+
+node_kind_label <- function(kind) {
+  labels <- c(
+    data_source = "Data sources",
+    input = "Inputs",
+    script = "Scripts",
+    output = "Outputs",
+    table = "Tables",
+    figure = "Figures",
+    report = "Reports",
+    deliverable = "Deliverables"
+  )
+  labels[[kind]] %||% paste0(tools::toTitleCase(gsub("_", " ", kind)), "s")
+}
+
+node_kind_order <- function(kind) {
+  order <- c(
+    data_source = 1L,
+    input = 2L,
+    script = 3L,
+    output = 4L,
+    table = 4L,
+    figure = 4L,
+    report = 5L,
+    deliverable = 6L
+  )
+  unname(order[kind] %||% 99L)
+}
+
+compact_node_status <- function(status, path = NA_character_) {
+  status <- as.character(status %||% NA_character_)
+  path <- as.character(path %||% NA_character_)
+  if (is.na(status) || !nzchar(status)) {
+    if (is.na(path) || !nzchar(path)) {
+      return("registered")
+    }
+    return("unknown")
+  }
+  status
+}
+
+status_marker <- function(status) {
+  status <- as.character(status %||% "")
+  if (status %in% c("exists", "available", "ok")) {
+    return("ok")
+  }
+  if (status %in% c("missing", "unavailable")) {
+    return("missing")
+  }
+  status
+}
+
+collapse_names <- function(x) {
+  x <- unique(stats::na.omit(as.character(x)))
+  x <- x[nzchar(x)]
+  if (length(x) == 0L) "" else paste(x, collapse = ", ")
+}
+
+#' List registered executable project files
+#'
+#' @description
+#' \code{project_registered_files()} returns the registered files and terminal
+#' objects that participate in the executable analysis DAG. It is a user-facing
+#' companion to \code{project_analysis_dag()}: the DAG remains the formal graph,
+#' while this function prints a compact execution-oriented checklist.
+#'
+#' @param root Path inside an existing projflow project.
+#' @param dag Optional object returned by \code{project_analysis_dag()}. Used
+#'   internally to avoid rebuilding the graph.
+#' @param ordered Optional topological order of DAG node IDs. Used internally.
+#'
+#' @return A data frame of class \code{"projflow_registered_files"}. It remains
+#'   suitable for programmatic use with \code{as.data.frame()}.
+#' @examples
+#' \dontrun{
+#' project_registered_files()
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+project_registered_files <- function(root = ".", dag = NULL, ordered = NULL) {
+  root <- find_project_root(root)
+  if (is.null(dag)) {
+    dag <- project_analysis_dag(root = root)
+  }
+  if (!inherits(dag, "project_analysis_dag")) {
+    rlang::abort("`dag` must be an object created by `project_analysis_dag()`.")
+  }
+  if (is.null(ordered)) {
+    ordered <- dag_topological_sort(dag$nodes, dag$edges)$order
+  }
+
+  nodes <- dag$nodes
+  if (nrow(nodes) == 0L) {
+    out <- data.frame(
+      execution_order = integer(),
+      layer = character(),
+      type = character(),
+      name = character(),
+      path = character(),
+      status = character(),
+      produced_by = character(),
+      used_by = character(),
+      stringsAsFactors = FALSE
+    )
+    return(structure(out, class = c("projflow_registered_files", class(out)), root = normalizePath(root, winslash = "/", mustWork = FALSE), dag_summary = c(nodes = 0L, edges = 0L)))
+  }
+
+  edges <- dag$edges
+  node_id <- as.character(nodes$id)
+  produced_by <- stats::setNames(rep("", length(node_id)), node_id)
+  used_by <- stats::setNames(rep("", length(node_id)), node_id)
+
+  if (nrow(edges) > 0L) {
+    for (id in node_id) {
+      producers <- edges$from[edges$to == id & edges$relationship %in% c("script_to_output", "output_to_report", "report_to_deliverable")]
+      consumers <- edges$to[edges$from == id]
+      produced_by[[id]] <- collapse_names(sub("^[^:]+:", "", producers))
+      used_by[[id]] <- collapse_names(sub("^[^:]+:", "", consumers))
+    }
+  }
+
+  kind <- as.character(nodes$type)
+  out <- data.frame(
+    execution_order = match(node_id, ordered),
+    layer = "analysis_dag",
+    type = kind,
+    name = as.character(nodes$label),
+    path = as.character(nodes$path),
+    status = vapply(seq_len(nrow(nodes)), function(i) compact_node_status(nodes$status[[i]], nodes$path[[i]]), character(1)),
+    produced_by = unname(produced_by[node_id]),
+    used_by = unname(used_by[node_id]),
+    stringsAsFactors = FALSE
+  )
+  out$path[is.na(out$path)] <- ""
+  out$kind_order <- vapply(out$type, node_kind_order, integer(1))
+  out <- out[order(out$execution_order, out$kind_order, out$name, na.last = TRUE), , drop = FALSE]
+  row.names(out) <- NULL
+  out$kind_order <- NULL
+
+  structure(
+    out,
+    class = c("projflow_registered_files", class(out)),
+    root = normalizePath(root, winslash = "/", mustWork = FALSE),
+    dag_summary = c(nodes = nrow(dag$nodes), edges = nrow(dag$edges))
+  )
+}
+
+#' Print registered executable project files
+#'
+#' @description
+#' Prints \code{project_registered_files()} as a grouped execution checklist.
+#'
+#' @param x A \code{"projflow_registered_files"} object.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' files <- project_registered_files()
+#' print(files)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.projflow_registered_files <- function(x, ...) {
+  root <- attr(x, "root", exact = TRUE) %||% "."
+  summary <- attr(x, "dag_summary", exact = TRUE) %||% c(nodes = nrow(x), edges = NA_integer_)
+
+  cat("projflow registered analysis files
+")
+  cat("----------------------------------
+")
+  cat("Root: ", root, "
+", sep = "")
+  cat("DAG: ", summary[["nodes"]], " node(s)", sep = "")
+  if (!is.na(summary[["edges"]])) {
+    cat("; ", summary[["edges"]], " edge(s)", sep = "")
+  }
+  cat("
+")
+
+  if (nrow(x) == 0L) {
+    cat("
+No registered analysis files found.
+")
+    return(invisible(x))
+  }
+
+  type_levels <- unique(as.character(x$type[order(vapply(x$type, node_kind_order, integer(1))) ]))
+  for (kind in type_levels) {
+    rows <- x[x$type == kind, , drop = FALSE]
+    if (nrow(rows) == 0L) {
+      next
+    }
+    cat("
+", node_kind_label(kind), "
+", sep = "")
+    for (i in seq_len(nrow(rows))) {
+      order_label <- if (is.na(rows$execution_order[[i]])) "--" else sprintf("%02d", rows$execution_order[[i]])
+      marker <- status_marker(rows$status[[i]])
+      path <- rows$path[[i]]
+      if (is.na(path) || !nzchar(path)) {
+        path <- "<no path>"
+      }
+      cat(sprintf("  %s  [%-10s] %-24s %s
+", order_label, marker, rows$name[[i]], path))
+      if (nzchar(rows$produced_by[[i]])) {
+        cat("      produced by: ", rows$produced_by[[i]], "
+", sep = "")
+      }
+      if (nzchar(rows$used_by[[i]])) {
+        cat("      used by: ", rows$used_by[[i]], "
+", sep = "")
+      }
+    }
+  }
+
+  cat("
+Use as.data.frame(x) for the underlying table.
+")
+  invisible(x)
+}
+
+#' Print a project topological order
+#'
+#' @description
+#' Prints \code{topological_project_order()} as a grouped execution-order summary
+#' instead of a bare character vector. The object is still a character vector and
+#' can be used with \code{as.character()}.
+#'
+#' @param x A \code{"project_topological_order"} object.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' topological_project_order()
+#' topological_project_order(type = "scripts")
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.project_topological_order <- function(x, ...) {
+  type <- attr(x, "type", exact = TRUE) %||% "all"
+  root <- attr(x, "root", exact = TRUE) %||% "."
+  registered <- attr(x, "registered_files", exact = TRUE)
+  summary <- attr(x, "dag_summary", exact = TRUE) %||% c(nodes = length(x), edges = NA_integer_)
+
+  cat("projflow topological execution order
+")
+  cat("-----------------------------------
+")
+  cat("Root: ", root, "
+", sep = "")
+  cat("View: ", type, "
+", sep = "")
+  cat("DAG: ", summary[["nodes"]], " node(s)", sep = "")
+  if (!is.na(summary[["edges"]])) {
+    cat("; ", summary[["edges"]], " edge(s)", sep = "")
+  }
+  cat("
+")
+
+  if (length(x) == 0L) {
+    cat("
+No executable nodes found.
+")
+    return(invisible(x))
+  }
+
+  if (inherits(registered, "projflow_registered_files")) {
+    if (identical(type, "scripts")) {
+      registered <- registered[registered$type == "script", , drop = FALSE]
+    } else if (identical(type, "reports")) {
+      registered <- registered[registered$type == "report", , drop = FALSE]
+    }
+    print(structure(registered, class = class(attr(x, "registered_files", exact = TRUE)), root = root, dag_summary = summary))
+  } else {
+    cat("
+")
+    for (i in seq_along(x)) {
+      cat(sprintf("  %02d  %s
+", i, x[[i]]))
+    }
+  }
+
+  cat("
+Use as.character(x) for the ordered vector.
+")
+  invisible(x)
 }
 
 #' Plot or return the executable analysis DAG

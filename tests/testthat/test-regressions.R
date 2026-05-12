@@ -99,6 +99,35 @@ test_that("default project with report does not imply tables or figures", {
   expect_false("analysis/2_summarise_results.R" %in% script_paths)
 })
 
+test_that("project plans do not add synthetic governance tasks", {
+  plan <- plan_project(
+    path = tempfile(),
+    components = c("statistical_analysis", "project_management"),
+    infrastructure = character()
+  )
+
+  expect_equal(length(plan$tasks$tasks), 0L)
+  expect_equal(length(plan$tasks$milestones), 0L)
+  expect_equal(length(plan$tasks$decisions), 0L)
+  expect_equal(length(plan$tasks$risks), 0L)
+})
+
+test_that("governance files are added without duplication", {
+  plan <- plan_project(
+    path = tempfile(),
+    components = c("project_management"),
+    infrastructure = character()
+  )
+
+  expect_equal(length(plan$files), length(unique(plan$files)))
+  expect_true(all(c(
+    "docs/project_plan.md",
+    "docs/assumptions.md",
+    "docs/decisions.md",
+    "docs/risks.md"
+  ) %in% plan$files))
+})
+
 test_that("component script template creates all registered placeholder outputs when examples are enabled", {
   plan <- plan_project(
     path = tempfile(),
@@ -187,6 +216,25 @@ test_that("project management helpers are exported", {
   expect_true("project_status_report" %in% exports)
 })
 
+test_that("legacy object-creation and dashboard aliases are not exported", {
+  exports <- getNamespaceExports("projflow")
+
+  removed_exports <- c(
+    "new_project_object",
+    "new_project_model",
+    "new_project_table",
+    "new_project_figure",
+    "new_project_script",
+    "new_project_report",
+    "new_project_output",
+    "launch_project_manager",
+    "open_project_control_centre",
+    "open_projflow_project_manager"
+  )
+
+  expect_false(any(removed_exports %in% exports))
+})
+
 test_that("script creation public API remains minimal", {
   removed_args <- c(
     "order",
@@ -201,6 +249,57 @@ test_that("script creation public API remains minimal", {
 
   expect_false(any(removed_args %in% names(formals(new_script))))
   expect_true(all(c("name", "script_type", "root", "open", "overwrite") %in% names(formals(new_script))))
+})
+
+test_that("serve_project does not expose unsupported watch mode", {
+  expect_false("watch" %in% names(formals(serve_project)))
+})
+
+test_that("new_app registers quarto dashboards consistently", {
+  local_mock_quarto_render()
+
+  project_path <- make_project_path("quarto-dashboard-registration")
+  new_project(
+    path = project_path,
+    components = c("statistical_analysis"),
+    infrastructure = character(),
+    open = FALSE
+  )
+
+  expect_no_error(new_app(
+    name = "operations_dashboard",
+    type = "quarto_dashboard",
+    root = project_path,
+    open = FALSE
+  ))
+
+  registry <- read_project_registry(project_path)
+  expect_true("dashboard" %in% registry$components)
+  expect_true("dashboard" %in% registry$deliverables)
+  expect_true("operations_dashboard" %in% names(registry$reports))
+  expect_identical(registry$reports$operations_dashboard$path, "dashboard/operations_dashboard.qmd")
+  expect_identical(registry$reports$operations_dashboard$type, "dashboard")
+  expect_true(file.exists(file.path(project_path, "dashboard", "operations_dashboard.qmd")))
+
+  reports <- list_project_reports(project_path)
+  row <- reports[reports$name == "operations_dashboard", , drop = FALSE]
+  expect_identical(as.character(row$output[[1]]), "outputs/reports/operations_dashboard/operations_dashboard.html")
+
+  expect_no_error(render_project_reports(project_path))
+  expect_true(file.exists(file.path(
+    project_path,
+    "outputs",
+    "reports",
+    "operations_dashboard",
+    "operations_dashboard.html"
+  )))
+})
+
+test_that("dashboard preset does not mix shiny and quarto semantics", {
+  plan <- plan_project(path = tempfile(), preset = "dashboard")
+
+  expect_true("dashboard" %in% plan$components)
+  expect_false("shiny_app" %in% plan$components)
 })
 
 test_that("add_project_decision accepts a single user-facing statement", {

@@ -59,25 +59,6 @@ run_project_template <- function() {
 }
 
 
-example_analysis_template <- function() {
-  paste(
-    "# Example analysis",
-    paste0("# Created: ", as.character(Sys.Date())),
-    "#",
-    "# This optional example file is intentionally comment-only.",
-    "# It documents where a user may place executable analysis code, but it does",
-    "# not create `.rds`, `.csv`, `.png`, or other generated artefacts.",
-    "#",
-    "# Suggested structure:",
-    "# 1. Configure project state with projflow::setup_project().",
-    "# 2. Access external data with projflow::project_data_path().",
-    "# 3. Fit, summarise, and validate the analysis explicitly.",
-    "# 4. Save outputs deliberately only after reviewing what should be produced.",
-    sep = "\n"
-  )
-}
-
-
 base_script_template <- function(script) {
   template <- script$script_template %||% script$template %||% "documented"
   custom_template <- read_custom_script_template(
@@ -288,12 +269,12 @@ write_plan_files <- function(path, plan, overwrite = FALSE) {
 
   track_result(write_template_file(fs::path(path, "README.md"), project_readme_template(plan), overwrite = overwrite))
   track_result(write_template_file(fs::path(path, "run_project.R"), run_project_template(), overwrite = overwrite))
-  track_result(write_yaml_file(fs::path(path, "project.yml"), project_config_from_plan(plan), overwrite = overwrite))
-  track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "project_registry.yml"), plan$registry, overwrite = overwrite))
-  track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "local.yml"), default_local_config(), overwrite = overwrite))
+  track_result(write_yaml_file(fs::path(path, "project.yml"), project_config_from_plan(plan), overwrite = TRUE))
+  track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "project_registry.yml"), plan$registry, overwrite = TRUE))
+  track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "local.yml"), default_local_config(), overwrite = FALSE))
 
   if ("project_management" %in% plan$components) {
-    track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "tasks.yml"), plan$tasks, overwrite = overwrite))
+    track_result(write_yaml_file(fs::path(path, default_project_metadata_dir(), "tasks.yml"), plan$tasks, overwrite = FALSE))
   }
 
   for (script in plan$scripts) {
@@ -320,6 +301,13 @@ write_plan_files <- function(path, plan, overwrite = FALSE) {
   }
 
   list(files_created = unique(files_created), files_skipped = unique(files_skipped))
+}
+
+merge_existing_registry_into_plan <- function(plan, root) {
+  root <- find_project_root(root)
+  existing_registry <- read_project_registry(root)
+  plan$registry <- utils::modifyList(existing_registry, plan$registry)
+  plan
 }
 
 finalise_project_scaffold <- function(
@@ -460,6 +448,7 @@ add_project_component <- function(component, root = ".", open = interactive(), o
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
     include_example = any(vapply(plan$scripts, function(script) identical(script$name, "example_analysis"), logical(1)))
   )
+  plan <- merge_existing_registry_into_plan(plan, root)
   apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
 }
 
@@ -474,61 +463,6 @@ add_project_deliverable <- function(deliverable, root = ".", open = interactive(
     use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
     include_example = any(vapply(plan$scripts, function(script) identical(script$name, "example_analysis"), logical(1)))
   )
+  plan <- merge_existing_registry_into_plan(plan, root)
   apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
-}
-
-add_project_infrastructure <- function(infrastructure, root = ".", open = interactive(), overwrite = FALSE, dry_run = FALSE) {
-  plan <- rebuild_project_plan(root)
-  plan <- build_project_plan(
-    path = plan$path,
-    title = plan$title,
-    components = plan$components,
-    deliverables = plan$deliverables,
-    infrastructure = unique(c(plan$infrastructure, infrastructure)),
-    use_internal_data_dirs = any(plan$folders %in% c("data/raw", "data/processed")),
-    include_example = any(vapply(plan$scripts, function(script) identical(script$name, "example_analysis"), logical(1)))
-  )
-  apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = dry_run)
-}
-
-remove_project_component <- function(component, root = ".", delete_files = FALSE, dry_run = FALSE) {
-  component <- normalise_project_components(component)
-  registry <- read_project_registry(root)
-  if (isTRUE(dry_run)) {
-    return(list(action = "remove_component", components = component, root = find_project_root(root), dry_run = TRUE))
-  }
-  registry$components <- setdiff(project_components(root), component)
-  write_project_registry(registry, root = root, overwrite = TRUE)
-  config <- read_project_config(root)
-  config$components <- registry$components
-  write_project_config(config, root = root, overwrite = TRUE)
-  invisible(registry$components)
-}
-
-remove_project_deliverable <- function(deliverable, root = ".", delete_files = FALSE, dry_run = FALSE) {
-  deliverable <- normalise_project_deliverables(deliverable)
-  registry <- read_project_registry(root)
-  if (isTRUE(dry_run)) {
-    return(list(action = "remove_deliverable", deliverables = deliverable, root = find_project_root(root), dry_run = TRUE))
-  }
-  registry$deliverables <- setdiff(project_deliverables(root), deliverable)
-  write_project_registry(registry, root = root, overwrite = TRUE)
-  config <- read_project_config(root)
-  config$deliverables <- registry$deliverables
-  write_project_config(config, root = root, overwrite = TRUE)
-  invisible(registry$deliverables)
-}
-
-remove_project_infrastructure <- function(infrastructure, root = ".", delete_files = FALSE, dry_run = FALSE) {
-  infrastructure <- normalise_project_infrastructure(infrastructure)
-  registry <- read_project_registry(root)
-  if (isTRUE(dry_run)) {
-    return(list(action = "remove_infrastructure", infrastructure = infrastructure, root = find_project_root(root), dry_run = TRUE))
-  }
-  registry$infrastructure <- setdiff(project_infrastructure(root), infrastructure)
-  write_project_registry(registry, root = root, overwrite = TRUE)
-  config <- read_project_config(root)
-  config$infrastructure <- registry$infrastructure
-  write_project_config(config, root = root, overwrite = TRUE)
-  invisible(registry$infrastructure)
 }

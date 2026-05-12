@@ -1,4 +1,4 @@
-#' Launch the projflow Project Manager
+#' Open the projflow dashboard
 #'
 #' @param root Existing project root to inspect and manage.
 #' @param mode Launch mode. Use \code{"manage"} for the full control centre or
@@ -20,13 +20,13 @@
 #'   \code{shiny.appobj} after the app stops.
 #' @examples
 #' \dontrun{
-#' launch_project_manager()
-#' launch_project_manager(mode = "diagnose")
-#' launch_project_manager(background = FALSE)
+#' open_dashboard()
+#' open_dashboard(mode = "diagnose")
+#' open_dashboard(background = FALSE)
 #' }
 #' @author Thiago de Paula Oliveira
 #' @export
-launch_project_manager <- function(
+open_dashboard <- function(
     root = ".",
     mode = c("manage", "diagnose"),
     host = "127.0.0.1",
@@ -65,38 +65,6 @@ launch_project_manager <- function(
   )
 
   invisible(app)
-}
-
-#' Open the projflow Project Control Centre
-#'
-#' @inheritParams launch_project_manager
-#'
-#' @return Invisibly returns the dashboard process handle when launched in the
-#'   background, or the app object when launched in the foreground.
-#' @examples
-#' \dontrun{
-#' open_project_control_centre()
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-open_project_control_centre <- function(...) {
-  launch_project_manager(...)
-}
-
-#' Open the projflow dashboard
-#'
-#' @inheritParams launch_project_manager
-#'
-#' @return Invisibly returns the dashboard process handle when launched in the
-#'   background, or the app object when launched in the foreground.
-#' @examples
-#' \dontrun{
-#' open_dashboard()
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-open_dashboard <- function(...) {
-  launch_project_manager(...)
 }
 
 #' Stop a background projflow dashboard
@@ -187,7 +155,7 @@ dashboard_status <- function(root = ".") {
 project_diagnostics_app <- function(root = ".", launch = interactive(), ...) {
   root <- find_project_root(root)
   if (isTRUE(launch)) {
-    return(launch_project_manager(root = root, mode = "diagnose", ...))
+    return(open_dashboard(root = root, mode = "diagnose", ...))
   }
   project_manager_app(root = root, mode = "diagnose")
 }
@@ -375,7 +343,7 @@ launch_project_manager_background <- function(root,
       if (!requireNamespace("projflow", quietly = TRUE)) {
         stop("The `projflow` package must be installed in the background R process.", call. = FALSE)
       }
-      projflow::launch_project_manager(
+      projflow::open_dashboard(
         root = root,
         mode = mode,
         host = host,

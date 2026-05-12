@@ -886,6 +886,25 @@ default_report_output_path <- function(name, extension = "html") {
   fs::path("outputs", "reports", name, paste0(name, ".", extension))
 }
 
+dashboard_report_entries <- function(registry) {
+  reports <- registry$reports %||% list()
+  if (length(reports) == 0L) {
+    return(list())
+  }
+
+  keep <- vapply(
+    reports,
+    function(entry) {
+      entry_type <- entry$type %||% ""
+      entry_path <- normalize_relative_path(entry$path %||% "")
+      identical(entry_type, "dashboard") || startsWith(entry_path, "dashboard/")
+    },
+    logical(1)
+  )
+
+  reports[keep]
+}
+
 default_output_path <- function(name, type) {
   type <- validate_project_object_type(type)
 
@@ -2157,8 +2176,8 @@ create_project_script_internal <- function(name,
 #' new_project_script("clean_phenotypes", script_type = "data_cleaning", open = FALSE)
 #' new_project_output("cleaned_phenotypes", type = "dataset")
 #' }
-#' @author Thiago de Paula Oliveira
-#' @export
+#' @keywords internal
+#' @noRd
 new_project_script <- function(name,
                                script_type = "analysis",
                                root = ".",
@@ -2193,8 +2212,8 @@ new_project_script <- function(name,
 #' \dontrun{
 #' new_project_report("supplementary_note", format = "qmd", open = FALSE)
 #' }
-#' @author Thiago de Paula Oliveira
-#' @export
+#' @keywords internal
+#' @noRd
 new_project_report <- function(name,
                                format = c("qmd", "Rmd"),
                                root = ".",
@@ -2255,57 +2274,6 @@ new_project_report <- function(name,
   invisible(fs::path(root, relative_path))
 }
 
-#' Create a new model script
-#'
-#' @param name Script name for the new model step.
-#' @param root Existing project root where the script should be added.
-#' @param open Logical scalar kept for API compatibility.
-#'
-#' @return Invisibly returns the created script path.
-#' @examples
-#' \dontrun{
-#' new_project_model("genomic_model", open = FALSE)
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-new_project_model <- function(name, root = ".", open = interactive()) {
-  new_project_script(name = name, script_type = "model", root = root, open = open)
-}
-
-#' Create a new table-export script
-#'
-#' @param name Script name for the new export step.
-#' @param root Existing project root where the script should be added.
-#' @param open Logical scalar kept for API compatibility.
-#'
-#' @return Invisibly returns the created script path.
-#' @examples
-#' \dontrun{
-#' new_project_table("export_tables", open = FALSE)
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-new_project_table <- function(name, root = ".", open = interactive()) {
-  new_project_script(name = name, script_type = "export", root = root, open = open)
-}
-
-#' Create a new figure script
-#'
-#' @param name Script name for the new visualisation step.
-#' @param root Existing project root where the script should be added.
-#' @param open Logical scalar kept for API compatibility.
-#'
-#' @return Invisibly returns the created script path.
-#' @examples
-#' \dontrun{
-#' new_project_figure("plot_results", open = FALSE)
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-new_project_figure <- function(name, root = ".", open = interactive()) {
-  new_project_script(name = name, script_type = "visualisation", root = root, open = open)
-}
-
 #' Create a new project idea
 #'
 #' @param name Idea name used either as a script name or as an output registry
@@ -2361,8 +2329,8 @@ new_project_idea <- function(name, script_type = "analysis", create_script = TRU
 #' new_project_output("model_fit", type = "model")
 #' new_project_output("weekly_summary", type = "table", path = "outputs/tables/weekly_summary.csv")
 #' }
-#' @author Thiago de Paula Oliveira
-#' @export
+#' @keywords internal
+#' @noRd
 new_project_output <- function(name,
                                type = "output",
                                path = NULL,
@@ -2403,42 +2371,6 @@ new_project_output <- function(name,
   register_project_object(
     name = name,
     path = relative_path,
-    type = type,
-    root = root,
-    overwrite = overwrite
-  )
-}
-
-#' Create and register a project object
-#'
-#' @param name Object name used as the registry key and default filename stem.
-#' @param type Object type to create. Script-like types create scripts, \code{"report"}
-#'   creates a report, and other types register an output artefact.
-#' @param root Existing project root to update.
-#' @param overwrite Logical scalar. If \code{TRUE}, allow an existing file at the
-#'   inferred path to be replaced.
-#'
-#' @return Invisibly returns the created path.
-#' @examples
-#' \dontrun{
-#' new_project_object("custom_table", type = "table", overwrite = FALSE)
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-new_project_object <- function(name, type, root = ".", overwrite = FALSE) {
-  validate_logical_scalar(overwrite, "overwrite")
-  type <- validate_project_object_type(type)
-
-  if (type %in% project_script_types()) {
-    return(new_project_script(name = name, script_type = type, root = root, open = FALSE))
-  }
-
-  if (identical(type, "report")) {
-    return(new_project_report(name = name, root = root, open = FALSE))
-  }
-
-  new_project_output(
-    name = name,
     type = type,
     root = root,
     overwrite = overwrite
@@ -3516,10 +3448,12 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
     result <- structure(
       list(
         ok = FALSE,
+        root = "",
         errors = errors,
         warnings = warnings,
         suggestions = suggestions,
         info = info,
+        registered_files = NULL,
         issues = rbind(
           issue_table_with_severity(errors, "error"),
           issue_table_with_severity(warnings, "warning"),
@@ -3891,14 +3825,14 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
   }
 
   if ("dashboard" %in% deliverables_selected &&
-      !fs::file_exists(fs::path(root, "dashboard", "dashboard.qmd")) &&
+      length(dashboard_report_entries(registry)) == 0L &&
       !fs::file_exists(fs::path(root, "app", "app.R"))) {
     warnings <- append_issue(
       warnings,
       "dashboard_deliverable",
       "The project includes the `dashboard` deliverable, but no dashboard report or Shiny app was found.",
       "",
-      "Create `dashboard/dashboard.qmd` or `app/app.R`."
+      "Create a registered dashboard source under `dashboard/` or add `app/app.R`."
     )
   }
 
@@ -4208,13 +4142,20 @@ check_project_impl <- function(root = ".", deep = FALSE, render_reports = FALSE,
   warnings <- rbind(warnings, dag_check$warnings)
   info <- rbind(info, dag_check$info)
 
+  registered_files <- tryCatch(
+    project_registered_files(root = root),
+    error = function(error) NULL
+  )
+
   result <- structure(
     list(
       ok = nrow(errors) == 0L,
+      root = normalizePath(root, winslash = "/", mustWork = FALSE),
       errors = errors,
       warnings = warnings,
       suggestions = suggestions,
       info = info,
+      registered_files = registered_files,
       issues = rbind(
         issue_table_with_severity(errors, "error"),
         issue_table_with_severity(warnings, "warning"),
@@ -4285,6 +4226,60 @@ project_status <- function(root = ".") {
   )
 }
 
+issue_section_title <- function(severity) {
+  switch(
+    severity,
+    error = "Errors",
+    warning = "Warnings",
+    suggestion = "Suggestions",
+    info = "Information",
+    tools::toTitleCase(severity)
+  )
+}
+
+severity_order_value <- function(severity) {
+  order <- c(error = 1L, warning = 2L, suggestion = 3L, info = 4L)
+  unname(order[severity] %||% 99L)
+}
+
+print_issue_sections <- function(issues, include_info = TRUE) {
+  if (is.null(issues) || nrow(issues) == 0L) {
+    cat("\nNo check items.\n")
+    return(invisible(NULL))
+  }
+
+  if (!isTRUE(include_info)) {
+    issues <- issues[issues$severity != "info", , drop = FALSE]
+  }
+
+  if (nrow(issues) == 0L) {
+    return(invisible(NULL))
+  }
+
+  severities <- unique(as.character(issues$severity[order(vapply(issues$severity, severity_order_value, integer(1))) ]))
+  for (severity in severities) {
+    rows <- issues[issues$severity == severity, , drop = FALSE]
+    if (nrow(rows) == 0L) {
+      next
+    }
+    cat("\n", issue_section_title(severity), " (", nrow(rows), ")\n", sep = "")
+    for (i in seq_len(nrow(rows))) {
+      check <- rows$check[[i]] %||% ""
+      message <- rows$message[[i]] %||% ""
+      path <- rows$path[[i]] %||% ""
+      fix <- rows$fix[[i]] %||% ""
+      cat("  - [", check, "] ", message, "\n", sep = "")
+      if (nzchar(path)) {
+        cat("      path: ", path, "\n", sep = "")
+      }
+      if (nzchar(fix)) {
+        cat("      fix:  ", fix, "\n", sep = "")
+      }
+    }
+  }
+  invisible(NULL)
+}
+
 #' Print a project check summary
 #'
 #' @param x A \code{"project_check"} object, usually created by \code{check_project()}.
@@ -4300,33 +4295,40 @@ project_status <- function(root = ".") {
 #' @author Thiago de Paula Oliveira
 #' @export
 print.project_check <- function(x, ...) {
-  cat("Project check\n\n")
-  cat("OK: ", if (isTRUE(x$ok)) "yes" else "no", "\n", sep = "")
+  cat("projflow project check\n")
+  cat("----------------------\n")
+  if (!is.null(x$root) && nzchar(x$root)) {
+    cat("Root: ", x$root, "\n", sep = "")
+  }
+  cat("Status: ", if (isTRUE(x$ok)) "OK" else "Needs attention", "\n", sep = "")
   cat(
     "Issues: ",
-    nrow(x$errors), " error(s), ",
-    nrow(x$warnings), " warning(s), ",
-    nrow(x$suggestions), " suggestion(s), ",
+    nrow(x$errors %||% empty_issue_table()), " error(s); ",
+    nrow(x$warnings %||% empty_issue_table()), " warning(s); ",
+    nrow(x$suggestions %||% empty_issue_table()), " suggestion(s); ",
     nrow(x$info %||% empty_issue_table()), " info item(s)\n",
     sep = ""
   )
 
-  if (nrow(x$errors) > 0L) {
-    cat("\nErrors:\n")
-    cat(paste0("- ", x$errors$message), sep = "\n")
-    cat("\n")
+  if (inherits(x$registered_files, "projflow_registered_files")) {
+    cat("\nRegistered execution graph\n")
+    cat("--------------------------\n")
+    visible_files <- x$registered_files[x$registered_files$type %in% c("script", "output", "table", "figure", "report", "deliverable"), , drop = FALSE]
+    if (nrow(visible_files) > 0L) {
+      for (kind in unique(as.character(visible_files$type[order(vapply(visible_files$type, node_kind_order, integer(1))) ]))) {
+        rows <- visible_files[visible_files$type == kind, , drop = FALSE]
+        cat(node_kind_label(kind), ": ", nrow(rows), "
+", sep = "")
+      }
+    } else {
+      cat("No registered executable files found.\n")
+    }
   }
 
-  if (nrow(x$warnings) > 0L) {
-    cat("\nWarnings:\n")
-    cat(paste0("- ", x$warnings$message), sep = "\n")
-    cat("\n")
-  }
+  print_issue_sections(x$issues, include_info = FALSE)
 
-  if (nrow(x$suggestions) > 0L) {
-    cat("\nSuggestions:\n")
-    cat(paste0("- ", x$suggestions$message), sep = "\n")
-    cat("\n")
+  if (nrow(x$info %||% empty_issue_table()) > 0L) {
+    cat("\nUse project_check_items() for the full issue table, including information items.\n")
   }
 
   invisible(x)
@@ -4348,15 +4350,4 @@ print.project_check <- function(x, ...) {
 #' @export
 print.project_status <- function(x, ...) {
   print.project_check(x, ...)
-}
-
-migrate_internal_data_to_external <- function(root = ".", external_path) {
-  validate_character_vector(external_path, "external_path")
-  rlang::abort(
-    paste(
-      "`migrate_internal_data_to_external()` is not implemented yet.",
-      "The intended behaviour is to create the external folder, confirm copy or move operations explicitly,",
-      "and update `.projflow/local.yml` without deleting user files automatically."
-    )
-  )
 }

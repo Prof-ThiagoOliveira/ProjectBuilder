@@ -206,18 +206,3 @@ dashboard_status_theme <- function(status) {
   }
   "secondary"
 }
-
-dashboard_header <- function(root, mode, manage = TRUE) {
-  shiny::div(
-    class = "projflow-hero",
-    shiny::h1("projflow Project Manager"),
-    shiny::p("Operational control centre for project structure, governance, outputs, reports, data sources and diagnostics."),
-    shiny::div(
-      class = "projflow-hero-meta",
-      shiny::span(class = "projflow-hero-pill", shiny::strong("Project"), safe_basename(root)),
-      shiny::span(class = "projflow-hero-pill", shiny::strong("Root"), shiny::code(normalize_absolute_path(root))),
-      shiny::span(class = "projflow-hero-pill", shiny::strong("Mode"), if (isTRUE(manage)) "Manage" else "Diagnose"),
-      shiny::span(class = "projflow-hero-pill", shiny::strong("Metadata"), project_metadata_relative_dir(root))
-    )
-  )
-}

@@ -175,7 +175,7 @@ project_presets <- function() {
       infrastructure = c("git", "renv")
     ),
     dashboard = list(
-      components = c("data_preparation", "statistical_analysis", "figures", "shiny_app"),
+      components = c("data_preparation", "statistical_analysis", "figures", "dashboard"),
       deliverables = c("dashboard", "figures"),
       infrastructure = c("git")
     ),
@@ -542,14 +542,6 @@ resolve_project_infrastructure_dependencies <- function(infrastructure) {
 validate_project_components <- function(components) resolve_project_component_dependencies(normalise_project_components(components))
 validate_project_deliverables <- function(deliverables) list(values = order_keywords(normalise_project_deliverables(deliverables), canonical_deliverable_order()), messages = character())
 validate_project_infrastructure <- function(infrastructure) resolve_project_infrastructure_dependencies(normalise_project_infrastructure(infrastructure))
-
-validate_project_plan_keywords <- function(components, deliverables, infrastructure) {
-  list(
-    components = validate_project_components(components),
-    deliverables = validate_project_deliverables(deliverables),
-    infrastructure = validate_project_infrastructure(infrastructure)
-  )
-}
 
 explain_project_component <- function(component) {
   specs <- component_specs()
@@ -973,40 +965,6 @@ task_key_from_title <- function(title) {
   key
 }
 
-build_default_tasks <- function(script_entries, report_entries) {
-  tasks <- list()
-
-  for (entry in script_entries) {
-    task_name <- entry$name
-    tasks[[task_name]] <- list(
-      title = tools::toTitleCase(gsub("_", " ", task_name)),
-      status = "todo",
-      owner = NULL,
-      due = NULL,
-      related_component = entry$type,
-      related_script = entry$path,
-      priority = "medium",
-      notes = NULL
-    )
-  }
-
-  for (entry in report_entries) {
-    task_name <- paste0("prepare_", entry$name)
-    tasks[[task_name]] <- list(
-      title = paste("Prepare", tools::toTitleCase(gsub("_", " ", entry$name))),
-      status = "todo",
-      owner = NULL,
-      due = NULL,
-      related_component = entry$type,
-      related_report = entry$path,
-      priority = "medium",
-      notes = NULL
-    )
-  }
-
-  tasks
-}
-
 build_project_plan <- function(
     path,
     title = NULL,
@@ -1160,8 +1118,6 @@ build_project_plan <- function(
   tasks <- list()
 
   project_name <- validate_project_name(basename(path))
-  governance_files <- governance_file_templates()
-  files <- c(files, intersect(names(governance_files), files))
 
   custom_component_names <- setdiff(names(component_map), names(built_in_component_specs()))
 

@@ -175,10 +175,6 @@ update_governance_docs <- function(root = ".") {
   invisible(root)
 }
 
-list_project_tasks <- function(root = ".") {
-  project_tasks(root)
-}
-
 #' List project tasks
 #'
 #' @param root Existing project root.
@@ -385,10 +381,6 @@ remove_project_task <- function(task, root = ".") {
   invisible(entry$id)
 }
 
-list_project_milestones <- function(root = ".") {
-  project_milestones(root)
-}
-
 #' List project milestones
 #'
 #' @param root Existing project root.
@@ -550,10 +542,6 @@ remove_project_milestone <- function(milestone, root = ".") {
   write_project_tasks_data(data, root = root, overwrite = TRUE)
   log_governance_action("remove_milestone", "milestone", entry$id, entry$title, root = root)
   invisible(entry$id)
-}
-
-list_project_risks <- function(root = ".") {
-  project_risks(root)
 }
 
 #' List project risks
@@ -787,10 +775,6 @@ remove_project_risk <- function(risk, root = ".") {
   write_project_tasks_data(data, root = root, overwrite = TRUE)
   log_governance_action("remove_risk", "risk", entry$id, entry$title, root = root)
   invisible(entry$id)
-}
-
-list_project_decisions <- function(root = ".") {
-  project_decisions(root)
 }
 
 #' List project decisions
@@ -1073,19 +1057,4 @@ project_status_report <- function(root = ".", output = c("markdown", "html", "da
   }
 
   paste0("<pre>", escape_html_text(markdown), "</pre>")
-}
-
-sync_project_tasks_to_github <- function(root = ".", dry_run = TRUE) {
-  validate_logical_scalar(dry_run, "dry_run")
-  list(dry_run = dry_run, tasks = project_tasks(root))
-}
-
-sync_github_issues_to_project_tasks <- function(root = ".", dry_run = TRUE) {
-  validate_logical_scalar(dry_run, "dry_run")
-  list(dry_run = dry_run)
-}
-
-create_github_milestones_from_project <- function(root = ".", dry_run = TRUE) {
-  validate_logical_scalar(dry_run, "dry_run")
-  list(dry_run = dry_run, milestones = project_milestones(root))
 }

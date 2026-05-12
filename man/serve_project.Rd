@@ -7,7 +7,6 @@
 serve_project(
   root = ".",
   target = c("auto", "reports", "shiny_app", "dashboard", "project"),
-  watch = interactive(),
   render = TRUE
 )
 }
@@ -21,11 +20,6 @@ The project root is located before any target is served or rendered.}
 \code{"shiny_app"} to launch \file{app/app.R}, \code{"dashboard"} to
 render or return the dashboard path, or \code{"project"} to run a one-shot
 build.}
-
-\item{watch}{Logical scalar. Retained for future interactive workflows.
-Continuous watching is not currently implemented; when \code{TRUE}, the
-function performs a single preview or build and reports that watch mode is
-unavailable.}
 
 \item{render}{Logical scalar. If \code{TRUE}, reports or dashboards are
 rendered as part of the preview step. If \code{FALSE}, the function returns
@@ -51,16 +45,12 @@ render a Quarto dashboard, render reports, or run a one-shot project build.
 The function resolves \code{target = "auto"} using the following priority:
 \itemize{
 \item if \file{app/app.R} exists, serve the Shiny application;
-\item otherwise, if \file{dashboard/dashboard.qmd} exists, preview the
-dashboard;
+\item otherwise, if one or more dashboard reports are registered, preview the
+default dashboard target;
 \item otherwise, if registered or discoverable report files exist, render or
 return the report target;
 \item otherwise, run a one-shot project build.
 }
-
-Continuous watch mode is not currently implemented. If \code{watch = TRUE},
-the function emits an informational message and performs a single preview or
-build action.
 
 For Shiny applications, the \pkg{shiny} package must be installed because the
 app is launched using \code{\link[shiny:runApp]{shiny::runApp}()}. For

@@ -381,6 +381,105 @@ new_report <- function(
   new_project_report(name = name, format = "qmd", root = root, open = open, overwrite = overwrite, repair = repair, dry_run = dry_run)
 }
 
+project_plan_uses_internal_data_dirs <- function(plan) {
+  any(plan$folders %in% c("data/raw", "data/processed"))
+}
+
+project_plan_includes_example <- function(plan) {
+  any(vapply(plan$scripts, function(script) identical(script$name, "example_analysis"), logical(1)))
+}
+
+upsert_plan_report_entry <- function(plan, report_entry, drop_default_dashboard = FALSE) {
+  existing_names <- if (length(plan$reports) == 0L) character() else vapply(plan$reports, `[[`, character(1), "name")
+
+  if (isTRUE(drop_default_dashboard) && length(plan$reports) > 0L) {
+    keep <- !(existing_names == "dashboard" &
+      vapply(plan$reports, function(report) identical(report$type %||% "", "dashboard"), logical(1)))
+    plan$reports <- plan$reports[keep]
+    plan$registry$reports$dashboard <- NULL
+    existing_names <- if (length(plan$reports) == 0L) character() else vapply(plan$reports, `[[`, character(1), "name")
+  }
+
+  index <- match(report_entry$name, existing_names)
+  if (is.na(index)) {
+    plan$reports[[length(plan$reports) + 1L]] <- report_entry
+  } else {
+    plan$reports[[index]] <- report_entry
+  }
+
+  plan$registry$reports[[report_entry$name]] <- list(
+    path = report_entry$path,
+    type = report_entry$type,
+    deliverable = report_entry$deliverable %||% NA_character_,
+    inputs = report_entry$inputs %||% character()
+  )
+  plan$files <- unique(c(plan$files, report_entry$path))
+  plan
+}
+
+quarto_dashboard_plan <- function(root, name) {
+  current_plan <- rebuild_project_plan(root)
+  current_registry <- read_project_registry(root)
+  existing_dashboards <- dashboard_report_entries(current_registry)
+  dashboard_name <- validate_project_object_name(name, repair = TRUE)
+  had_dashboard <- "dashboard" %in% current_plan$components ||
+    length(existing_dashboards) > 0L
+
+  plan <- build_project_plan(
+    path = current_plan$path,
+    title = current_plan$title,
+    components = unique(c(current_plan$components, "dashboard")),
+    deliverables = unique(c(current_plan$deliverables, "dashboard")),
+    infrastructure = current_plan$infrastructure,
+    use_internal_data_dirs = project_plan_uses_internal_data_dirs(current_plan),
+    include_example = project_plan_includes_example(current_plan)
+  )
+  plan <- merge_existing_registry_into_plan(plan, root)
+
+  if (length(existing_dashboards) > 0L) {
+    for (existing_name in names(existing_dashboards)) {
+      existing_entry <- existing_dashboards[[existing_name]]
+      plan <- upsert_plan_report_entry(
+        plan = plan,
+        report_entry = list(
+          name = existing_name,
+          path = existing_entry$path,
+          type = existing_entry$type %||% "dashboard",
+          deliverable = existing_entry$deliverable %||% "dashboard",
+          inputs = existing_entry$inputs %||% character()
+        )
+      )
+    }
+
+    if (!"dashboard" %in% names(existing_dashboards)) {
+      plan <- upsert_plan_report_entry(
+        plan = plan,
+        report_entry = list(
+          name = dashboard_name,
+          path = normalize_relative_path(fs::path("dashboard", paste0(dashboard_name, ".qmd"))),
+          type = "dashboard",
+          deliverable = "dashboard"
+        ),
+        drop_default_dashboard = TRUE
+      )
+      return(plan)
+    }
+  }
+
+  report_entry <- list(
+    name = dashboard_name,
+    path = normalize_relative_path(fs::path("dashboard", paste0(dashboard_name, ".qmd"))),
+    type = "dashboard",
+    deliverable = "dashboard"
+  )
+
+  upsert_plan_report_entry(
+    plan = plan,
+    report_entry = report_entry,
+    drop_default_dashboard = !had_dashboard && !identical(dashboard_name, "dashboard")
+  )
+}
+
 #' Create a project Shiny application or Quarto dashboard
 #'
 #' @description
@@ -401,9 +500,9 @@ new_report <- function(
 #'     returns the expected \file{app/app.R} path. The application can later be
 #'     launched through \code{\link[shiny:runApp]{shiny::runApp}()} by
 #'     \code{\link{serve_project}()}.
-#'   \item \code{"quarto_dashboard"}: adds the dashboard deliverable and creates
-#'     a \file{.qmd} dashboard file when a non-default dashboard name is
-#'     requested.
+#'   \item \code{"quarto_dashboard"}: creates a registered dashboard source under
+#'     \file{dashboard/<name>.qmd}. The rendered dashboard is treated as a report-like
+#'     output and defaults to \file{outputs/reports/<name>/<name>.html}.
 #' }
 #'
 #' @param name Character scalar. Application or dashboard name. For Quarto
@@ -461,21 +560,14 @@ new_app <- function(
     return(invisible(fs::path(root, "app", "app.R")))
   }
 
-  add_project_deliverable("dashboard", root = root, open = FALSE, overwrite = overwrite, dry_run = dry_run)
-  if (!identical(name, "dashboard") &&
-      !fs::file_exists(fs::path(root, "dashboard", paste0(name, ".qmd")))) {
-    if (isTRUE(dry_run)) {
-      return(new_registry_action("create_dashboard", "report", name, fs::path("dashboard", paste0(name, ".qmd")), root, TRUE))
-    }
-    write_template_file(
-      fs::path(root, "dashboard", paste0(name, ".qmd")),
-      report_template_for_plan(list(name = name, path = fs::path("dashboard", paste0(name, ".qmd")), type = "dashboard")),
-      overwrite = overwrite
-    )
-    return(invisible(fs::path(root, "dashboard", paste0(name, ".qmd"))))
+  plan <- quarto_dashboard_plan(root = root, name = name)
+
+  if (isTRUE(dry_run)) {
+    return(plan)
   }
 
-  invisible(fs::path(root, "dashboard", "dashboard.qmd"))
+  apply_project_plan(plan, open = open, overwrite = overwrite, dry_run = FALSE)
+  invisible(fs::path(root, "dashboard", paste0(validate_project_object_name(name, repair = TRUE), ".qmd")))
 }
 
 #' Add a component to an existing project
@@ -781,7 +873,7 @@ build_project <- function(root = ".", render_reports = TRUE, run_apps = FALSE) {
   }
 
   if (isTRUE(run_apps)) {
-    serve_project(root = root, watch = FALSE)
+    serve_project(root = root)
   }
 
   invisible(list(root = root, rendered = rendered, status = status))
@@ -799,16 +891,12 @@ build_project <- function(root = ".", render_reports = TRUE, run_apps = FALSE) {
 #' The function resolves \code{target = "auto"} using the following priority:
 #' \itemize{
 #'   \item if \file{app/app.R} exists, serve the Shiny application;
-#'   \item otherwise, if \file{dashboard/dashboard.qmd} exists, preview the
-#'     dashboard;
+#'   \item otherwise, if one or more dashboard reports are registered, preview the
+#'     default dashboard target;
 #'   \item otherwise, if registered or discoverable report files exist, render or
 #'     return the report target;
 #'   \item otherwise, run a one-shot project build.
 #' }
-#'
-#' Continuous watch mode is not currently implemented. If \code{watch = TRUE},
-#' the function emits an informational message and performs a single preview or
-#' build action.
 #'
 #' For Shiny applications, the \pkg{shiny} package must be installed because the
 #' app is launched using \code{\link[shiny:runApp]{shiny::runApp}()}. For
@@ -824,10 +912,6 @@ build_project <- function(root = ".", render_reports = TRUE, run_apps = FALSE) {
 #'   \code{"shiny_app"} to launch \file{app/app.R}, \code{"dashboard"} to
 #'   render or return the dashboard path, or \code{"project"} to run a one-shot
 #'   build.
-#' @param watch Logical scalar. Retained for future interactive workflows.
-#'   Continuous watching is not currently implemented; when \code{TRUE}, the
-#'   function performs a single preview or build and reports that watch mode is
-#'   unavailable.
 #' @param render Logical scalar. If \code{TRUE}, reports or dashboards are
 #'   rendered as part of the preview step. If \code{FALSE}, the function returns
 #'   the relevant path or project status without rendering where supported.
@@ -859,15 +943,15 @@ build_project <- function(root = ".", render_reports = TRUE, run_apps = FALSE) {
 serve_project <- function(
     root = ".",
     target = c("auto", "reports", "shiny_app", "dashboard", "project"),
-    watch = interactive(),
     render = TRUE) {
   target <- match.arg(target)
-  validate_logical_scalar(watch, "watch")
   validate_logical_scalar(render, "render")
   root <- find_project_root(root)
+  registry <- read_project_registry(root)
   has_shiny <- fs::file_exists(fs::path(root, "app", "app.R"))
-  has_dashboard <- fs::file_exists(fs::path(root, "dashboard", "dashboard.qmd"))
-  has_reports <- length(read_project_registry(root)$reports) > 0L || length(list.files(fs::path(root, "reports"), pattern = "\\.(qmd|Rmd)$")) > 0L
+  dashboards <- dashboard_report_entries(registry)
+  has_dashboard <- length(dashboards) > 0L
+  has_reports <- length(registry$reports) > 0L || length(list.files(fs::path(root, "reports"), pattern = "\\.(qmd|Rmd)$")) > 0L
 
   resolved_target <- target
   if (identical(target, "auto")) {
@@ -898,30 +982,18 @@ serve_project <- function(
     if (!has_dashboard) {
       rlang::abort("This project does not contain a Quarto dashboard.")
     }
-    if (isTRUE(watch)) {
-      cli::cli_alert_info("Continuous dashboard watch mode is not implemented; previewing the current dashboard once.")
-    }
+    dashboard_name <- if ("dashboard" %in% names(dashboards)) "dashboard" else names(dashboards)[[1]]
     if (isTRUE(render)) {
-      return(invisible(render_one_report(
-        fs::path(root, "dashboard", "dashboard.qmd"),
-        fs::path(root, "outputs", "reports", "dashboard.html")
-      )))
+      return(invisible(run_registered_report(dashboard_name, root)))
     }
-    return(invisible(fs::path(root, "dashboard", "dashboard.qmd")))
+    return(invisible(fs::path(root, dashboards[[dashboard_name]]$path)))
   }
 
   if (identical(resolved_target, "reports")) {
-    if (isTRUE(watch)) {
-      cli::cli_alert_info("Continuous report watch mode is not implemented; rendering current reports once.")
-    }
     if (isTRUE(render)) {
       return(invisible(render_project_reports(root = root)))
     }
     return(invisible(project_status(root)))
-  }
-
-  if (isTRUE(watch)) {
-    cli::cli_alert_info("Continuous project watch mode is not implemented; running a one-shot build.")
   }
 
   invisible(build_project(root = root, render_reports = render, run_apps = FALSE))

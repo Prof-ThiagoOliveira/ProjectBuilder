@@ -4,15 +4,42 @@
 \alias{open_dashboard}
 \title{Open the projflow dashboard}
 \usage{
-open_dashboard(...)
+open_dashboard(
+  root = ".",
+  mode = c("manage", "diagnose"),
+  host = "127.0.0.1",
+  port = NULL,
+  launch.browser = interactive(),
+  background = TRUE,
+  ...
+)
 }
 \arguments{
+\item{root}{Existing project root to inspect and manage.}
+
+\item{mode}{Launch mode. Use \code{"manage"} for the full control centre or
+\code{"diagnose"} for a read-only diagnostic view.}
+
+\item{host}{Host interface passed to \code{shiny::runApp()}.}
+
+\item{port}{Optional port passed to \code{shiny::runApp()}. If \code{NULL}, a free
+local port is selected where possible.}
+
+\item{launch.browser}{Logical scalar indicating whether the dashboard should
+open in a browser automatically.}
+
+\item{background}{Logical scalar. If \code{TRUE}, the dashboard is started in a
+separate R process using \code{callr::r_bg()}, leaving the current R session
+available for scripts and project work. If \code{FALSE}, the dashboard is run in
+the current R session, which is useful for debugging.}
+
 \item{...}{Additional arguments passed to \code{shiny::runApp()} when
 \code{background = FALSE}.}
 }
 \value{
-Invisibly returns the dashboard process handle when launched in the
-background, or the app object when launched in the foreground.
+If \code{background = TRUE}, invisibly returns the \pkg{callr} background
+process handle. If \code{background = FALSE}, invisibly returns the launched
+\code{shiny.appobj} after the app stops.
 }
 \description{
 Open the projflow dashboard
@@ -20,6 +47,8 @@ Open the projflow dashboard
 \examples{
 \dontrun{
 open_dashboard()
+open_dashboard(mode = "diagnose")
+open_dashboard(background = FALSE)
 }
 }
 \author{

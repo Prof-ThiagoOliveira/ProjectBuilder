@@ -1,16 +1,3 @@
-#' Open the projflow Project Manager addin
-#'
-#' @return Invisibly returns the launched dashboard.
-#' @examples
-#' \dontrun{
-#' open_projflow_project_manager()
-#' }
-#' @author Thiago de Paula Oliveira
-#' @export
-open_projflow_project_manager <- function() {
-  launch_project_manager()
-}
-
 #' Run the projflow project check addin
 #'
 #' @return Invisibly returns the printed project-check result.

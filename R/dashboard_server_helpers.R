@@ -373,20 +373,6 @@ dashboard_recent_activity <- function(diagnostics, n = 6L) {
   utils::head(out, n)
 }
 
-dashboard_named_counts <- function(x, column) {
-  x <- dashboard_safe_data_frame(x)
-  if (nrow(x) == 0L || !column %in% names(x)) {
-    return(data.frame(value = character(), n = integer(), stringsAsFactors = FALSE))
-  }
-  values <- vapply(x[[column]], dashboard_flatten_table_cell, character(1))
-  values <- values[!is.na(values) & nzchar(values)]
-  if (length(values) == 0L) {
-    return(data.frame(value = character(), n = integer(), stringsAsFactors = FALSE))
-  }
-  counts <- sort(table(values, useNA = "no"), decreasing = TRUE)
-  data.frame(value = names(counts), n = as.integer(counts), stringsAsFactors = FALSE)
-}
-
 dashboard_filter_data <- function(data, column, selected) {
   data <- dashboard_safe_data_frame(data)
   selected <- dashboard_trim_text(selected)
