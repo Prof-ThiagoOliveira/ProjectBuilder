@@ -29,6 +29,67 @@ test_that("project_analysis_dag builds an executable graph", {
   expect_true(match("prepare_inputs", order) < match("fit_model", order))
 })
 
+test_that("project_analysis_dag prints a compact summary", {
+  project_path <- make_project_path("dag-print")
+
+  new_project(
+    path = project_path,
+    components = c("data_preparation", "statistical_analysis", "report"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  dag <- project_analysis_dag(project_path)
+
+  output <- capture.output(print(dag))
+  expect_true(any(grepl("projflow analysis DAG", output, fixed = TRUE)))
+  expect_true(any(grepl("Node types:", output, fixed = TRUE)))
+  expect_true(any(grepl("Relationships:", output, fixed = TRUE)))
+  expect_true(any(grepl("project_registered_files()", output, fixed = TRUE)))
+  expect_true(any(grepl("topological_project_order()", output, fixed = TRUE)))
+})
+
+test_that("validate_project_dag prints a compact summary", {
+  project_path <- make_project_path("dag-check-print")
+
+  new_project(
+    path = project_path,
+    components = c("data_preparation", "statistical_analysis", "report"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  check <- validate_project_dag(project_path)
+  expect_s3_class(check, "project_dag_check")
+
+  output <- capture.output(print(check))
+  expect_true(any(grepl("projflow DAG check", output, fixed = TRUE)))
+  expect_true(any(grepl("Status:", output, fixed = TRUE)))
+  expect_true(any(grepl("Issues:", output, fixed = TRUE)))
+  expect_true(any(grepl("Information", output, fixed = TRUE)))
+})
+
+test_that("topological_project_order prints mixed node types without failing", {
+  project_path <- make_project_path("topological-print")
+
+  new_project(
+    path = project_path,
+    components = c("data_preparation", "statistical_analysis", "report"),
+    infrastructure = character(),
+    include_example = FALSE,
+    open = FALSE
+  )
+
+  order <- topological_project_order(project_path, type = "all")
+
+  output <- capture.output(print(order))
+  expect_true(any(grepl("projflow topological execution order", output, fixed = TRUE)))
+  expect_true(any(grepl("Ordered nodes:", output, fixed = TRUE)))
+  expect_true(any(grepl("script:prepare_inputs", output, fixed = TRUE)))
+})
+
 test_that("validate_project_dag detects cycles", {
   dag <- structure(
     list(

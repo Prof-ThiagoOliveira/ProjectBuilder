@@ -157,6 +157,10 @@ project_diagnostics_app <- function(root = ".", launch = interactive(), ...) {
   if (isTRUE(launch)) {
     return(open_dashboard(root = root, mode = "diagnose", ...))
   }
+  check_dashboard_dependencies(
+    packages = c("shiny", "bslib", "htmltools"),
+    require_network = FALSE
+  )
   project_manager_app(root = root, mode = "diagnose")
 }
 
@@ -328,14 +332,11 @@ launch_project_manager_background <- function(root,
                                               host,
                                               port,
                                               launch.browser) {
-  if (!requireNamespace("callr", quietly = TRUE)) {
-    rlang::abort(
-      paste0(
-        "The `callr` package is required to launch the dashboard in the background. ",
-        "Install it with install.packages('callr'), or use background = FALSE."
-      )
-    )
-  }
+  abort_missing_optional_packages(
+    "callr",
+    feature = "dashboard background launching",
+    extra = "Alternatively, use background = FALSE."
+  )
 
   url <- sprintf("http://%s:%s", host, port)
   process <- callr::r_bg(

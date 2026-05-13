@@ -254,6 +254,67 @@ project_analysis_dag <- function(root = ".", include_deliverables = TRUE) {
   )
 }
 
+#' Print the executable project analysis DAG
+#'
+#' @description
+#' Prints \code{project_analysis_dag()} as a compact graph summary instead of a
+#' raw nested list. The underlying object remains available with
+#' \code{unclass()}.
+#'
+#' @param x A \code{"project_analysis_dag"} object.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' dag <- project_analysis_dag()
+#' print(dag)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.project_analysis_dag <- function(x, ...) {
+  nodes <- x$nodes %||% dag_empty_nodes()
+  edges <- x$edges %||% dag_empty_edges()
+
+  cat("projflow analysis DAG\n")
+  cat("---------------------\n")
+  cat("Root: ", x$root %||% ".", "\n", sep = "")
+  cat("Nodes: ", nrow(nodes), "\n", sep = "")
+  cat("Edges: ", nrow(edges), "\n", sep = "")
+
+  if (nrow(nodes) == 0L) {
+    cat("\nNo DAG nodes found.\n")
+    return(invisible(x))
+  }
+
+  cat("\nNode types:\n")
+  type_order <- order(vapply(nodes$type, node_kind_order, integer(1)), nodes$label)
+  node_types <- unique(as.character(nodes$type[type_order]))
+  for (kind in node_types) {
+    rows <- nodes[nodes$type == kind, , drop = FALSE]
+    if (nrow(rows) == 0L) {
+      next
+    }
+    missing_n <- sum(rows$status %in% c("missing", "unavailable"), na.rm = TRUE)
+    cat("  - ", node_kind_label(kind), ": ", nrow(rows), sep = "")
+    if (missing_n > 0L) {
+      cat(" (", missing_n, " missing)", sep = "")
+    }
+    cat("\n")
+  }
+
+  if (nrow(edges) > 0L) {
+    cat("\nRelationships:\n")
+    relationship_counts <- sort(table(edges$relationship), decreasing = FALSE)
+    for (name in names(relationship_counts)) {
+      cat("  - ", name, ": ", unname(relationship_counts[[name]]), "\n", sep = "")
+    }
+  }
+
+  cat("\nUse project_registered_files() for execution inventory and topological_project_order() for run order.\n")
+  invisible(x)
+}
+
 dag_topological_sort <- function(nodes, edges) {
   node_ids <- unique(as.character(nodes$id %||% character()))
   edge_ids <- unique(c(as.character(edges$from %||% character()), as.character(edges$to %||% character())))
@@ -411,6 +472,41 @@ validate_project_dag <- function(root = ".", dag = NULL, strict = FALSE) {
   result
 }
 
+#' Print a project DAG validation summary
+#'
+#' @param x A \code{"project_dag_check"} object, usually created by
+#'   \code{validate_project_dag()}.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' check <- validate_project_dag()
+#' print(check)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.project_dag_check <- function(x, ...) {
+  cat("projflow DAG check\n")
+  cat("------------------\n")
+  cat("Status: ", if (isTRUE(x$ok)) "OK" else "Needs attention", "\n", sep = "")
+  cat(
+    "Issues: ",
+    nrow(x$errors %||% empty_issue_table()), " error(s); ",
+    nrow(x$warnings %||% empty_issue_table()), " warning(s); ",
+    nrow(x$info %||% empty_issue_table()), " info item(s)\n",
+    sep = ""
+  )
+
+  issues <- rbind(
+    issue_table_with_severity(x$errors %||% empty_issue_table(), "error"),
+    issue_table_with_severity(x$warnings %||% empty_issue_table(), "warning"),
+    issue_table_with_severity(x$info %||% empty_issue_table(), "info")
+  )
+  print_issue_sections(issues)
+  invisible(x)
+}
+
 #' Return the project topological execution order
 #'
 #' @description
@@ -461,12 +557,17 @@ node_kind_label <- function(kind) {
     input = "Inputs",
     script = "Scripts",
     output = "Outputs",
+    dataset = "Datasets",
+    model = "Models",
     table = "Tables",
     figure = "Figures",
     report = "Reports",
     deliverable = "Deliverables"
   )
-  labels[[kind]] %||% paste0(tools::toTitleCase(gsub("_", " ", kind)), "s")
+  if (kind %in% names(labels)) {
+    return(unname(labels[[kind]]))
+  }
+  paste0(tools::toTitleCase(gsub("_", " ", kind)), "s")
 }
 
 node_kind_order <- function(kind) {
@@ -475,6 +576,8 @@ node_kind_order <- function(kind) {
     input = 2L,
     script = 3L,
     output = 4L,
+    dataset = 4L,
+    model = 4L,
     table = 4L,
     figure = 4L,
     report = 5L,
@@ -641,7 +744,7 @@ No registered analysis files found.
     return(invisible(x))
   }
 
-  type_levels <- unique(as.character(x$type[order(vapply(x$type, node_kind_order, integer(1))) ]))
+  type_levels <- unique(as.character(x$type[order(vapply(x$type, node_kind_order, integer(1)), x$name) ]))
   for (kind in type_levels) {
     rows <- x[x$type == kind, , drop = FALSE]
     if (nrow(rows) == 0L) {
@@ -697,7 +800,6 @@ Use as.data.frame(x) for the underlying table.
 print.project_topological_order <- function(x, ...) {
   type <- attr(x, "type", exact = TRUE) %||% "all"
   root <- attr(x, "root", exact = TRUE) %||% "."
-  registered <- attr(x, "registered_files", exact = TRUE)
   summary <- attr(x, "dag_summary", exact = TRUE) %||% c(nodes = length(x), edges = NA_integer_)
 
   cat("projflow topological execution order
@@ -722,25 +824,12 @@ No executable nodes found.
     return(invisible(x))
   }
 
-  if (inherits(registered, "projflow_registered_files")) {
-    if (identical(type, "scripts")) {
-      registered <- registered[registered$type == "script", , drop = FALSE]
-    } else if (identical(type, "reports")) {
-      registered <- registered[registered$type == "report", , drop = FALSE]
-    }
-    print(structure(registered, class = class(attr(x, "registered_files", exact = TRUE)), root = root, dag_summary = summary))
-  } else {
-    cat("
-")
-    for (i in seq_along(x)) {
-      cat(sprintf("  %02d  %s
-", i, x[[i]]))
-    }
+  cat("\nOrdered nodes:\n")
+  for (i in seq_along(x)) {
+    cat(sprintf("  %02d  %s\n", i, x[[i]]))
   }
 
-  cat("
-Use as.character(x) for the ordered vector.
-")
+  cat("\nUse project_registered_files() for file status and as.character(x) for the ordered vector.\n")
   invisible(x)
 }
 

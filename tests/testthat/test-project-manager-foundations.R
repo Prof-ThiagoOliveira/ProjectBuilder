@@ -77,7 +77,7 @@ test_that("diagnose_project can write a static HTML report", {
 test_that("dashboard dependency checks report missing packages clearly", {
   expect_error(
     check_dashboard_dependencies(c("definitelyMissingProjflowTestPackage")),
-    "optional packages that are not installed"
+    "projflow dashboard requires the following optional package"
   )
 })
 

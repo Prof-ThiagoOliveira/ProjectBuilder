@@ -970,9 +970,7 @@ serve_project <- function(
     if (!has_shiny) {
       rlang::abort("This project does not contain `app/app.R`.")
     }
-    if (!requireNamespace("shiny", quietly = TRUE)) {
-      rlang::abort("The `shiny` package is required to serve this project app.")
-    }
+    abort_missing_optional_packages("shiny", feature = "Shiny app serving")
 
     shiny::runApp(appDir = fs::path(root, "app"), launch.browser = interactive())
     return(invisible(fs::path(root, "app", "app.R")))

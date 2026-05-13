@@ -151,6 +151,155 @@ governance_entries_to_df <- function(entries, fields) {
   as.data.frame(do.call(rbind, rows), stringsAsFactors = FALSE)
 }
 
+new_governance_table <- function(data, class_name, root = ".", status = NULL) {
+  structure(
+    data,
+    class = c(class_name, class(data)),
+    root = normalizePath(root, winslash = "/", mustWork = FALSE),
+    status = status %||% character()
+  )
+}
+
+governance_table_title <- function(x) {
+  switch(
+    class(x)[[1]],
+    projflow_tasks = "projflow project tasks",
+    projflow_milestones = "projflow project milestones",
+    projflow_risks = "projflow project risks",
+    projflow_decisions = "projflow project decisions",
+    "projflow governance table"
+  )
+}
+
+governance_status_counts <- function(x) {
+  statuses <- trimws(as.character(x$status %||% character()))
+  statuses <- statuses[!is.na(statuses) & nzchar(statuses)]
+  if (length(statuses) == 0L) {
+    return(character())
+  }
+  counts <- sort(table(statuses), decreasing = TRUE)
+  paste0(names(counts), "=", as.integer(counts))
+}
+
+governance_summary_lines <- function(x) {
+  if (inherits(x, "projflow_tasks")) {
+    c(
+      paste0("Open: ", sum(x$status %in% c("backlog", "todo", "in_progress", "blocked"), na.rm = TRUE)),
+      paste0("Done: ", sum(x$status == "done", na.rm = TRUE)),
+      paste0("Blocked: ", sum(x$status == "blocked", na.rm = TRUE))
+    )
+  } else if (inherits(x, "projflow_milestones")) {
+    c(
+      paste0("Planned: ", sum(x$status == "planned", na.rm = TRUE)),
+      paste0("In progress: ", sum(x$status == "in_progress", na.rm = TRUE)),
+      paste0("Done: ", sum(x$status == "done", na.rm = TRUE))
+    )
+  } else if (inherits(x, "projflow_risks")) {
+    c(
+      paste0("Open: ", sum(x$status == "open", na.rm = TRUE)),
+      paste0("Mitigating: ", sum(x$status == "mitigating", na.rm = TRUE)),
+      paste0("Closed: ", sum(x$status %in% c("mitigated", "accepted", "closed"), na.rm = TRUE))
+    )
+  } else if (inherits(x, "projflow_decisions")) {
+    c(
+      paste0("Active: ", sum(x$status == "active", na.rm = TRUE)),
+      paste0("Superseded: ", sum(x$status == "superseded", na.rm = TRUE)),
+      paste0("Withdrawn: ", sum(x$status == "withdrawn", na.rm = TRUE))
+    )
+  } else {
+    character()
+  }
+}
+
+governance_preview_lines <- function(x) {
+  if (nrow(x) == 0L) {
+    return(character())
+  }
+
+  title_col <- if ("title" %in% names(x)) "title" else names(x)[[1]]
+  status_col <- if ("status" %in% names(x)) "status" else NULL
+  id_col <- if ("id" %in% names(x)) "id" else NULL
+  preview_n <- min(5L, nrow(x))
+
+  vapply(seq_len(preview_n), function(i) {
+    parts <- character()
+    if (!is.null(id_col)) {
+      parts <- c(parts, paste0("[", x[[id_col]][[i]], "]"))
+    }
+    parts <- c(parts, as.character(x[[title_col]][[i]]))
+    if (!is.null(status_col) && !is.na(x[[status_col]][[i]]) && nzchar(x[[status_col]][[i]])) {
+      parts <- c(parts, paste0("(", x[[status_col]][[i]], ")"))
+    }
+    paste(parts, collapse = " ")
+  }, character(1))
+}
+
+#' Print a governance summary table
+#'
+#' @param x A governance table returned by \code{project_tasks()},
+#'   \code{project_milestones()}, \code{project_risks()}, or
+#'   \code{project_decisions()}.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' print(project_tasks())
+#' }
+#' @author Thiago de Paula Oliveira
+print.projflow_tasks <- function(x, ...) {
+  cat(governance_table_title(x), "\n")
+  cat(strrep("-", nchar(governance_table_title(x))), "\n", sep = "")
+  cat("Root: ", attr(x, "root", exact = TRUE) %||% ".", "\n", sep = "")
+  cat("Entries: ", nrow(x), "\n", sep = "")
+
+  summary_lines <- governance_summary_lines(x)
+  if (length(summary_lines) > 0L) {
+    cat("Summary: ", paste(summary_lines, collapse = "; "), "\n", sep = "")
+  }
+
+  status_counts <- governance_status_counts(x)
+  if (length(status_counts) > 0L) {
+    cat("Statuses: ", paste(status_counts, collapse = "; "), "\n", sep = "")
+  }
+
+  if (nrow(x) == 0L) {
+    cat("\nNo entries recorded.\n")
+    cat("Use as.data.frame(x) for the underlying table.\n")
+    return(invisible(x))
+  }
+
+  cat("\nPreview:\n")
+  preview_lines <- governance_preview_lines(x)
+  for (line in preview_lines) {
+    cat("  - ", line, "\n", sep = "")
+  }
+  if (nrow(x) > length(preview_lines)) {
+    cat("  ... and ", nrow(x) - length(preview_lines), " more\n", sep = "")
+  }
+
+  cat("\nUse as.data.frame(x) for the underlying table.\n")
+  invisible(x)
+}
+
+#' @rdname print.projflow_tasks
+#' @export
+print.projflow_milestones <- function(x, ...) {
+  print.projflow_tasks(x, ...)
+}
+
+#' @rdname print.projflow_tasks
+#' @export
+print.projflow_risks <- function(x, ...) {
+  print.projflow_tasks(x, ...)
+}
+
+#' @rdname print.projflow_tasks
+#' @export
+print.projflow_decisions <- function(x, ...) {
+  print.projflow_tasks(x, ...)
+}
+
 backup_governance_state <- function(root = ".") {
   backup_project_tasks_data(root)
 }
@@ -187,9 +336,13 @@ update_governance_docs <- function(root = ".") {
 #' @author Thiago de Paula Oliveira
 #' @export
 project_tasks <- function(root = ".") {
-  governance_entries_to_df(
+  new_governance_table(
+    governance_entries_to_df(
     read_project_tasks_data(root)$tasks,
     c("id", "title", "description", "status", "priority", "due_date", "assigned_to", "linked_objects", "created_at", "updated_at", "completed_at", "source")
+    ),
+    "projflow_tasks",
+    root = root
   )
 }
 
@@ -393,9 +546,13 @@ remove_project_task <- function(task, root = ".") {
 #' @author Thiago de Paula Oliveira
 #' @export
 project_milestones <- function(root = ".") {
-  governance_entries_to_df(
+  new_governance_table(
+    governance_entries_to_df(
     read_project_tasks_data(root)$milestones,
     c("id", "title", "description", "status", "due_date", "completed_at", "linked_objects", "created_at", "updated_at")
+    ),
+    "projflow_milestones",
+    root = root
   )
 }
 
@@ -556,9 +713,13 @@ remove_project_milestone <- function(milestone, root = ".") {
 #' @author Thiago de Paula Oliveira
 #' @export
 project_risks <- function(root = ".") {
-  governance_entries_to_df(
+  new_governance_table(
+    governance_entries_to_df(
     read_project_tasks_data(root)$risks,
     c("id", "title", "description", "probability", "impact", "severity", "status", "mitigation", "owner", "due_date", "linked_objects", "created_at", "updated_at", "closed_at")
+    ),
+    "projflow_risks",
+    root = root
   )
 }
 
@@ -789,9 +950,13 @@ remove_project_risk <- function(risk, root = ".") {
 #' @author Thiago de Paula Oliveira
 #' @export
 project_decisions <- function(root = ".") {
-  governance_entries_to_df(
+  new_governance_table(
+    governance_entries_to_df(
     read_project_tasks_data(root)$decisions,
     c("id", "title", "decision", "rationale", "consequences", "linked_objects", "created_at", "updated_at", "status")
+    ),
+    "projflow_decisions",
+    root = root
   )
 }
 
@@ -973,6 +1138,186 @@ count_overdue_tasks <- function(tasks_df) {
   sum(!is.na(due) & due < Sys.Date() & !tasks_df$status %in% c("done", "cancelled"), na.rm = TRUE)
 }
 
+status_report_preview_lines <- function(x, title_col = "title", status_col = "status", max_n = 5L) {
+  if (nrow(x) == 0L) {
+    return("- None recorded.")
+  }
+
+  preview_n <- min(max_n, nrow(x))
+  lines <- vapply(seq_len(preview_n), function(i) {
+    title <- as.character(x[[title_col]][[i]] %||% "")
+    status <- if (status_col %in% names(x)) as.character(x[[status_col]][[i]] %||% "") else ""
+    if (nzchar(status)) {
+      paste0("- ", title, " [", status, "]")
+    } else {
+      paste0("- ", title)
+    }
+  }, character(1))
+
+  if (nrow(x) > preview_n) {
+    lines <- c(lines, paste0("- ... and ", nrow(x) - preview_n, " more"))
+  }
+  lines
+}
+
+new_status_report_object <- function(summary, root, format = c("data", "markdown", "html"), rendered = NULL) {
+  format <- match.arg(format)
+  structure(
+    summary,
+    class = c("projflow_status_report", "list"),
+    root = normalizePath(root, winslash = "/", mustWork = FALSE),
+    format = format,
+    rendered = rendered
+  )
+}
+
+new_status_report_text <- function(text, summary, root, class_name) {
+  structure(
+    text,
+    class = c(class_name, "character"),
+    root = normalizePath(root, winslash = "/", mustWork = FALSE),
+    summary = summary
+  )
+}
+
+#' Print a project status report summary
+#'
+#' @param x A \code{"projflow_status_report"} object.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' status <- project_status_report(output = "data")
+#' print(status)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.projflow_status_report <- function(x, ...) {
+  counts <- x$counts %||% list()
+  project_check <- x$project_check %||% list(
+    errors = empty_issue_table(),
+    warnings = empty_issue_table(),
+    suggestions = empty_issue_table()
+  )
+
+  cat("projflow project status report\n")
+  cat("------------------------------\n")
+  cat("Root: ", attr(x, "root", exact = TRUE) %||% ".", "\n", sep = "")
+  cat(
+    "Governance: ",
+    counts$open_tasks %||% 0L, " open task(s); ",
+    counts$overdue_tasks %||% 0L, " overdue; ",
+    counts$open_risks %||% 0L, " open risk(s); ",
+    counts$decisions %||% 0L, " active decision(s)\n",
+    sep = ""
+  )
+  cat(
+    "Project check: ",
+    nrow(project_check$errors %||% empty_issue_table()), " error(s); ",
+    nrow(project_check$warnings %||% empty_issue_table()), " warning(s); ",
+    nrow(project_check$suggestions %||% empty_issue_table()), " suggestion(s)\n",
+    sep = ""
+  )
+
+  cat("\nOpen tasks:\n")
+  tasks <- x$tasks %||% data.frame()
+  open_tasks <- if (nrow(tasks) == 0L) tasks else tasks[tasks$status %in% c("backlog", "todo", "in_progress", "blocked"), , drop = FALSE]
+  for (line in status_report_preview_lines(open_tasks)) {
+    cat(line, "\n", sep = "")
+  }
+
+  cat("\nOpen risks:\n")
+  risks <- x$risks %||% data.frame()
+  open_risks <- if (nrow(risks) == 0L) risks else risks[risks$status %in% c("open", "mitigating"), , drop = FALSE]
+  for (line in status_report_preview_lines(open_risks)) {
+    cat(line, "\n", sep = "")
+  }
+
+  cat("\nUpcoming milestones:\n")
+  for (line in status_report_preview_lines(x$milestones %||% data.frame())) {
+    cat(line, "\n", sep = "")
+  }
+
+  cat("\nActive decisions:\n")
+  decisions <- x$decisions %||% data.frame()
+  active_decisions <- if (nrow(decisions) == 0L) decisions else decisions[decisions$status == "active", , drop = FALSE]
+  for (line in status_report_preview_lines(active_decisions, title_col = "title", status_col = "status")) {
+    cat(line, "\n", sep = "")
+  }
+
+  cat("\nUse project_tasks(), project_risks(), project_milestones(), and project_decisions() for full governance tables.\n")
+  invisible(x)
+}
+
+#' @export
+as.character.projflow_status_report <- function(x, ...) {
+  rendered <- attr(x, "rendered", exact = TRUE)
+  if (!is.null(rendered)) {
+    return(as.character(rendered))
+  }
+
+  counts <- x$counts %||% list()
+  project_check <- x$project_check %||% list(
+    errors = empty_issue_table(),
+    warnings = empty_issue_table(),
+    suggestions = empty_issue_table()
+  )
+
+  paste(
+    "# Project Status Report",
+    "",
+    "## Overview",
+    "",
+    paste0("- Open tasks: ", counts$open_tasks %||% 0L),
+    paste0("- Overdue tasks: ", counts$overdue_tasks %||% 0L),
+    paste0("- Completed tasks: ", counts$completed_tasks %||% 0L),
+    paste0("- Blocked tasks: ", counts$blocked_tasks %||% 0L),
+    paste0("- Open risks: ", counts$open_risks %||% 0L),
+    paste0("- Mitigating risks: ", counts$mitigating_risks %||% 0L),
+    paste0("- Mitigated risks: ", counts$mitigated_risks %||% 0L),
+    paste0("- Accepted risks: ", counts$accepted_risks %||% 0L),
+    paste0("- Closed risks: ", counts$closed_risks %||% 0L),
+    paste0("- Recorded decisions: ", counts$decisions %||% 0L),
+    "",
+    "## Project Checks",
+    "",
+    paste0("- Errors: ", nrow(project_check$errors %||% empty_issue_table())),
+    paste0("- Warnings: ", nrow(project_check$warnings %||% empty_issue_table())),
+    paste0("- Suggestions: ", nrow(project_check$suggestions %||% empty_issue_table())),
+    "",
+    "## Tasks",
+    "",
+    paste(status_report_preview_lines(x$tasks %||% data.frame()), collapse = "\n"),
+    "",
+    "## Risks",
+    "",
+    paste(status_report_preview_lines(x$risks %||% data.frame()), collapse = "\n"),
+    "",
+    "## Milestones",
+    "",
+    paste(status_report_preview_lines(x$milestones %||% data.frame()), collapse = "\n"),
+    "",
+    "## Decisions",
+    "",
+    paste(status_report_preview_lines(x$decisions %||% data.frame()), collapse = "\n"),
+    sep = "\n"
+  )
+}
+
+#' @export
+print.projflow_status_report_markdown <- function(x, ...) {
+  cat(as.character(x), "\n", sep = "")
+  invisible(x)
+}
+
+#' @export
+print.projflow_status_report_html <- function(x, ...) {
+  cat("<projflow HTML status report>\n")
+  cat("Use as.character(x) for the rendered HTML.\n")
+  invisible(x)
+}
+
 #' Create a project status report
 #'
 #' @param root Existing project root.
@@ -987,6 +1332,7 @@ count_overdue_tasks <- function(tasks_df) {
 #' @export
 project_status_report <- function(root = ".", output = c("markdown", "html", "data")) {
   output <- match.arg(output)
+  root <- find_project_root(root)
   tasks <- project_tasks(root)
   milestones <- project_milestones(root)
   decisions <- project_decisions(root)
@@ -1015,46 +1361,18 @@ project_status_report <- function(root = ".", output = c("markdown", "html", "da
   )
 
   if (identical(output, "data")) {
-    return(summary)
+    return(new_status_report_object(summary, root = root, format = "data"))
   }
-
-  markdown <- paste(
-    "# Project Status Report",
-    "",
-    paste0("- Open tasks: ", summary$counts$open_tasks),
-    paste0("- Overdue tasks: ", summary$counts$overdue_tasks),
-    paste0("- Completed tasks: ", summary$counts$completed_tasks),
-    paste0("- Blocked tasks: ", summary$counts$blocked_tasks),
-    paste0("- Open risks: ", summary$counts$open_risks),
-    paste0("- Mitigating risks: ", summary$counts$mitigating_risks),
-    paste0("- Mitigated risks: ", summary$counts$mitigated_risks),
-    paste0("- Accepted risks: ", summary$counts$accepted_risks),
-    paste0("- Closed risks: ", summary$counts$closed_risks),
-    paste0("- Recorded decisions: ", summary$counts$decisions),
-    "",
-    "## Project checks",
-    "",
-    paste0("- Errors: ", nrow(status$errors)),
-    paste0("- Warnings: ", nrow(status$warnings)),
-    paste0("- Suggestions: ", nrow(status$suggestions)),
-    "",
-    "## Tasks",
-    "",
-    if (nrow(tasks) == 0L) "- No tasks recorded." else paste0("- ", tasks$title, " [", tasks$status, "]"),
-    "",
-    "## Risks",
-    "",
-    if (nrow(risks) == 0L) "- No risks recorded." else paste0("- ", risks$title, " [", risks$status, "]"),
-    "",
-    "## Milestones",
-    "",
-    if (nrow(milestones) == 0L) "- No milestones recorded." else paste0("- ", milestones$title, " [", milestones$status, "]"),
-    sep = "\n"
-  )
+  markdown <- as.character(new_status_report_object(summary, root = root, format = "markdown"))
 
   if (identical(output, "markdown")) {
-    return(markdown)
+    return(new_status_report_text(markdown, summary = summary, root = root, class_name = "projflow_status_report_markdown"))
   }
 
-  paste0("<pre>", escape_html_text(markdown), "</pre>")
+  new_status_report_text(
+    paste0("<pre>", escape_html_text(markdown), "</pre>"),
+    summary = summary,
+    root = root,
+    class_name = "projflow_status_report_html"
+  )
 }

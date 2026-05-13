@@ -478,6 +478,79 @@ check_project_packages <- function(root = ".") {
   )
 }
 
+missing_optional_packages <- function(packages) {
+  packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]
+}
+
+abort_missing_optional_packages <- function(packages, feature, extra = NULL) {
+  missing <- missing_optional_packages(packages)
+  if (length(missing) == 0L) {
+    return(invisible(TRUE))
+  }
+
+  message <- paste0(
+    "The ", feature, " requires the following optional package",
+    if (length(missing) == 1L) "" else "s",
+    ":\n- ",
+    paste(missing, collapse = "\n- "),
+    "\n\nInstall ",
+    if (length(missing) == 1L) "it" else "them",
+    " with:\ninstall.packages(c(",
+    paste(sprintf('\"%s\"', missing), collapse = ", "),
+    "))"
+  )
+
+  if (!is.null(extra) && nzchar(extra)) {
+    message <- paste0(message, "\n\n", extra)
+  }
+
+  rlang::abort(message)
+}
+
+format_package_status_line <- function(x) {
+  status <- if (isTRUE(x$ok)) "OK" else "Missing packages"
+  paste0(
+    status,
+    ": ",
+    length(x$installed %||% character()), "/",
+    length(x$packages %||% character()),
+    " installed"
+  )
+}
+
+#' Print a project package check summary
+#'
+#' @param x A \code{"project_package_check"} object.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' status <- check_project_packages()
+#' print(status)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.project_package_check <- function(x, ...) {
+  cat("projflow project packages\n")
+  cat("-------------------------\n")
+  cat("Status: ", format_package_status_line(x), "\n", sep = "")
+
+  if (length(x$packages %||% character()) > 0L) {
+    cat("Declared: ", paste(x$packages, collapse = ", "), "\n", sep = "")
+  } else {
+    cat("Declared: none\n")
+  }
+
+  if (length(x$missing %||% character()) > 0L) {
+    cat("Missing: ", paste(x$missing, collapse = ", "), "\n", sep = "")
+  } else {
+    cat("Missing: none\n")
+  }
+
+  invisible(x)
+}
+
 install_project_packages <- function(root = ".", confirm = interactive()) {
   validate_logical_scalar(confirm, "confirm")
 
@@ -581,13 +654,100 @@ setup_project <- function(
     set.seed(config$execution$random_seed)
   }
 
-  list(
-    root = root,
-    config = config,
-    paths = paths,
-    registry = read_project_registry(root),
-    packages = package_status
+  structure(
+    list(
+      root = root,
+      config = config,
+      paths = paths,
+      registry = read_project_registry(root),
+      packages = package_status
+    ),
+    class = "projflow_setup"
   )
+}
+
+#' Print a projflow setup summary
+#'
+#' @description
+#' Prints \code{setup_project()} as a compact runtime summary rather than a
+#' recursive list dump. The underlying object remains a list and can be
+#' inspected with \code{unclass()}.
+#'
+#' @param x A \code{"projflow_setup"} object returned by \code{setup_project()}.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' x <- setup_project()
+#' print(x)
+#' unclass(x)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.projflow_setup <- function(x, ...) {
+  config <- x$config %||% list()
+  project <- config$project %||% list()
+  settings <- config$settings %||% list()
+  paths <- x$paths %||% list()
+  packages <- x$packages %||% list(
+    ok = TRUE,
+    packages = character(),
+    installed = character(),
+    missing = character()
+  )
+
+  cat("projflow project setup\n")
+  cat("----------------------\n")
+  cat("Root: ", x$root %||% ".", "\n", sep = "")
+  cat(
+    "Project: ",
+    project$name %||% safe_basename(x$root %||% "."),
+    " (type: ",
+    project$type %||% "unknown",
+    "; scaffold: ",
+    project$scaffold_level %||% "unknown",
+    ")\n",
+    sep = ""
+  )
+
+  if (!is.null(project$created) && nzchar(project$created)) {
+    cat("Created: ", project$created, "\n", sep = "")
+  }
+
+  cat("Packages: ", format_package_status_line(packages), "\n", sep = "")
+
+  if (length(packages$missing %||% character()) > 0L) {
+    cat("Missing packages: ", paste(packages$missing, collapse = ", "), "\n", sep = "")
+  }
+
+  cat("\nRuntime settings:\n")
+  setting_flags <- c(
+    use_git = isTRUE(settings$use_git),
+    use_quarto = isTRUE(settings$use_quarto),
+    use_renv = isTRUE(settings$use_renv),
+    use_github_actions = isTRUE(settings$use_github_actions),
+    use_internal_data_dirs = isTRUE(settings$use_internal_data_dirs)
+  )
+  for (name in names(setting_flags)) {
+    cat("  - ", name, ": ", if (setting_flags[[name]]) "yes" else "no", "\n", sep = "")
+  }
+
+  cat("\nWorking paths:\n")
+  path_rows <- list(
+    analysis = paths$analysis %||% NA_character_,
+    reports = paths$reports %||% NA_character_,
+    outputs = paths$outputs %||% NA_character_
+  )
+  for (name in names(path_rows)) {
+    value <- path_rows[[name]]
+    if (!is.null(value) && !is.na(value) && nzchar(value)) {
+      cat("  - ", name, ": ", value, "\n", sep = "")
+    }
+  }
+
+  cat("\nUse project_structure() for scaffold layout and check_project_packages() for package detail.\n")
+  invisible(x)
 }
 
 missing_data_root_message <- function() {
@@ -1711,7 +1871,7 @@ projflow_quarto_render <- function(input,
   }
   
   if (!requireNamespace("quarto", quietly = TRUE)) {
-    rlang::abort("Quarto is not installed.")
+    abort_missing_optional_packages("quarto", feature = "Quarto report rendering")
   }
   
   render_args <- list(
@@ -1963,7 +2123,14 @@ render_one_report <- function(input_path, output_path) {
   
   if (identical(extension, "rmd")) {
     if (!requireNamespace("rmarkdown", quietly = TRUE)) {
-      return("rmarkdown is not installed; skipped report rendering.")
+      return(paste(
+        "R Markdown report rendering requires the following optional package:",
+        "- rmarkdown",
+        "",
+        "Install it with:",
+        "install.packages(c(\"rmarkdown\"))",
+        sep = "\n"
+      ))
     }
     
     tryCatch(
@@ -4310,25 +4477,10 @@ print.project_check <- function(x, ...) {
     sep = ""
   )
 
-  if (inherits(x$registered_files, "projflow_registered_files")) {
-    cat("\nRegistered execution graph\n")
-    cat("--------------------------\n")
-    visible_files <- x$registered_files[x$registered_files$type %in% c("script", "output", "table", "figure", "report", "deliverable"), , drop = FALSE]
-    if (nrow(visible_files) > 0L) {
-      for (kind in unique(as.character(visible_files$type[order(vapply(visible_files$type, node_kind_order, integer(1))) ]))) {
-        rows <- visible_files[visible_files$type == kind, , drop = FALSE]
-        cat(node_kind_label(kind), ": ", nrow(rows), "
-", sep = "")
-      }
-    } else {
-      cat("No registered executable files found.\n")
-    }
-  }
-
   print_issue_sections(x$issues, include_info = FALSE)
 
   if (nrow(x$info %||% empty_issue_table()) > 0L) {
-    cat("\nUse project_check_items() for the full issue table, including information items.\n")
+    cat("\nUse project_check_items() for all check rows and project_registered_files() for execution inventory.\n")
   }
 
   invisible(x)

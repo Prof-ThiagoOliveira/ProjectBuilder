@@ -294,18 +294,7 @@ check_dashboard_dependencies <- function(
   validate_character_vector(packages, "packages")
   validate_logical_scalar(require_network, "require_network")
   needed <- unique(c(packages, if (isTRUE(require_network)) "visNetwork" else character()))
-  missing <- needed[!vapply(needed, requireNamespace, logical(1), quietly = TRUE)]
-  if (length(missing) > 0L) {
-    rlang::abort(
-      paste0(
-        "The projflow Project Manager requires optional packages that are not installed:\n- ",
-        paste(missing, collapse = "\n- "),
-        "\n\nInstall them with:\ninstall.packages(c(",
-        paste(sprintf('\"%s\"', missing), collapse = ", "),
-        "))"
-      )
-    )
-  }
+  abort_missing_optional_packages(needed, feature = "projflow dashboard")
 
   if ("bslib" %in% needed && utils::packageVersion("bslib") < "0.9.0") {
     rlang::abort(
@@ -451,27 +440,135 @@ project_diagnostics_data <- function(
   diagnostics
 }
 
-render_diagnostics_console <- function(diagnostics) {
-  summary <- diagnostics$summary
-  lines <- c(
-    "projflow diagnostics",
-    "",
-    paste0("Project: ", diagnostics$project$name),
-    paste0("Root: ", diagnostics$project$root),
-    paste0("Metadata directory: ", diagnostics$project$metadata_dir),
-    "",
-    paste0("Overall status: ", summary$overall_status[[1]]),
-    paste0("Errors: ", nrow(diagnostics$checks[diagnostics$checks$severity == "error", , drop = FALSE])),
-    paste0("Warnings: ", nrow(diagnostics$checks[diagnostics$checks$severity == "warning", , drop = FALSE])),
-    paste0("Suggestions: ", nrow(diagnostics$checks[diagnostics$checks$severity == "suggestion", , drop = FALSE])),
-    paste0("Open tasks: ", summary$open_tasks[[1]]),
-    paste0("Overdue tasks: ", summary$overdue_tasks[[1]]),
-    paste0("Open risks: ", summary$open_risks[[1]]),
-    paste0("Missing outputs: ", summary$missing_outputs[[1]]),
-    paste0("Stale outputs: ", summary$stale_outputs[[1]])
+diagnostics_count_value <- function(summary, field) {
+  if (is.null(summary) || !field %in% names(summary) || nrow(summary) == 0L) {
+    return(0L)
+  }
+  value <- summary[[field]][[1]]
+  if (is.null(value) || is.na(value)) 0L else value
+}
+
+diagnostics_preview_lines <- function(df, label_col, status_col = NULL, max_n = 5L) {
+  if (is.null(df) || nrow(df) == 0L) {
+    return("- None recorded.")
+  }
+
+  preview_n <- min(max_n, nrow(df))
+  lines <- vapply(seq_len(preview_n), function(i) {
+    label <- as.character(df[[label_col]][[i]] %||% "")
+    status <- if (!is.null(status_col) && status_col %in% names(df)) as.character(df[[status_col]][[i]] %||% "") else ""
+    if (nzchar(status)) {
+      paste0("- ", label, " [", status, "]")
+    } else {
+      paste0("- ", label)
+    }
+  }, character(1))
+
+  if (nrow(df) > preview_n) {
+    lines <- c(lines, paste0("- ... and ", nrow(df) - preview_n, " more"))
+  }
+  lines
+}
+
+diagnostics_recent_activity_lines <- function(activity, max_n = 5L) {
+  if (is.null(activity) || nrow(activity) == 0L) {
+    return("- No recent activity recorded.")
+  }
+
+  preview_n <- min(max_n, nrow(activity))
+  rows <- activity[seq_len(preview_n), , drop = FALSE]
+  vapply(seq_len(nrow(rows)), function(i) {
+    summary <- as.character(rows$summary[[i]] %||% rows$action[[i]] %||% "")
+    timestamp <- as.character(rows$timestamp[[i]] %||% "")
+    if (nzchar(timestamp)) {
+      paste0("- ", timestamp, ": ", summary)
+    } else {
+      paste0("- ", summary)
+    }
+  }, character(1))
+}
+
+#' Print a project diagnostics summary
+#'
+#' @description
+#' Prints \code{project_diagnostics_data()} or \code{diagnose_project(output =
+#' "data")} as a compact project health report instead of a recursive list dump.
+#' The full diagnostics object remains available through list access.
+#'
+#' @param x A \code{"projflow_diagnostics"} object.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' \dontrun{
+#' diagnostics <- diagnose_project(output = "data")
+#' print(diagnostics)
+#' }
+#' @author Thiago de Paula Oliveira
+#' @export
+print.projflow_diagnostics <- function(x, ...) {
+  summary <- x$summary
+  checks <- x$checks %||% data.frame()
+
+  cat("projflow diagnostics\n")
+  cat("--------------------\n")
+  cat("Project: ", x$project$name %||% "<unknown>", "\n", sep = "")
+  cat("Root: ", x$project$root %||% ".", "\n", sep = "")
+  cat("Status: ", summary$overall_status[[1]] %||% "Unknown", "\n", sep = "")
+  cat(
+    "Checks: ",
+    sum(checks$severity == "error", na.rm = TRUE), " error(s); ",
+    sum(checks$severity == "warning", na.rm = TRUE), " warning(s); ",
+    sum(checks$severity == "suggestion", na.rm = TRUE), " suggestion(s)\n",
+    sep = ""
   )
-  cat(paste(lines, collapse = "\n"), "\n")
-  invisible(diagnostics)
+
+  cat("\nHealth summary:\n")
+  cat("  - Open tasks: ", diagnostics_count_value(summary, "open_tasks"), "\n", sep = "")
+  cat("  - Overdue tasks: ", diagnostics_count_value(summary, "overdue_tasks"), "\n", sep = "")
+  cat("  - Open risks: ", diagnostics_count_value(summary, "open_risks"), "\n", sep = "")
+  cat("  - Missing outputs: ", diagnostics_count_value(summary, "missing_outputs"), "\n", sep = "")
+  cat("  - Reports needing render: ", diagnostics_count_value(summary, "reports_needing_render"), "\n", sep = "")
+  cat("  - Missing packages: ", diagnostics_count_value(summary, "missing_packages"), "\n", sep = "")
+  cat("  - Unavailable data sources: ", diagnostics_count_value(summary, "data_sources_unavailable"), "\n", sep = "")
+
+  important_checks <- checks[checks$severity %in% c("error", "warning", "suggestion"), , drop = FALSE]
+  if (nrow(important_checks) > 0L) {
+    cat("\nPriority findings:\n")
+    preview_n <- min(5L, nrow(important_checks))
+    for (i in seq_len(preview_n)) {
+      cat("  - [", important_checks$severity[[i]], "] ", important_checks$message[[i]], "\n", sep = "")
+      if (nzchar(important_checks$fix[[i]] %||% "")) {
+        cat("      fix: ", important_checks$fix[[i]], "\n", sep = "")
+      }
+    }
+    if (nrow(important_checks) > preview_n) {
+      cat("  ... and ", nrow(important_checks) - preview_n, " more finding(s)\n", sep = "")
+    }
+  }
+
+  cat("\nOutput drift:\n")
+  output_rows <- x$outputs %||% data.frame()
+  missing_outputs <- if (nrow(output_rows) == 0L || !"exists" %in% names(output_rows)) {
+    data.frame()
+  } else {
+    output_rows[!output_rows$exists, , drop = FALSE]
+  }
+  for (line in diagnostics_preview_lines(missing_outputs, label_col = "name", status_col = "type")) {
+    cat(line, "\n", sep = "")
+  }
+
+  cat("\nRecent activity:\n")
+  for (line in diagnostics_recent_activity_lines(x$activity %||% data.frame())) {
+    cat(line, "\n", sep = "")
+  }
+
+  cat("\nUse project_status_report() for governance status, project_registered_files() for execution inventory, and project_check_items() for the full check table.\n")
+  invisible(x)
+}
+
+render_diagnostics_console <- function(diagnostics) {
+  print(diagnostics)
 }
 
 render_diagnostics_html <- function(diagnostics, file = NULL) {

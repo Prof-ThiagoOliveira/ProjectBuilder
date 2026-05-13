@@ -70,6 +70,42 @@ test_that("internal data directories are created only when explicitly requested"
   expect_true(dir.exists(file.path(project_path, "data", "processed")))
 })
 
+test_that("start_project creates a guided scaffold with user-selected options", {
+  project_path <- make_project_path("guided-start")
+
+  result <- start_project(
+    path = project_path,
+    type = "analysis",
+    data_location = "internal",
+    use_quarto = FALSE,
+    use_renv = FALSE,
+    use_git = TRUE,
+    use_github_actions = FALSE,
+    open = FALSE
+  )
+
+  config <- yaml::read_yaml(file.path(project_path, "project.yml"))
+  registry <- yaml::read_yaml(file.path(project_path, ".projflow", "project_registry.yml"))
+
+  expect_s3_class(result, "projflow_started_project")
+  expect_s3_class(result, "analysis_project_scaffold")
+  expect_true(dir.exists(file.path(project_path, "data", "raw")))
+  expect_true(dir.exists(file.path(project_path, "data", "processed")))
+  expect_true(file.exists(file.path(project_path, "reports", "main_report.Rmd")))
+  expect_false(file.exists(file.path(project_path, "reports", "main_report.qmd")))
+  expect_false(file.exists(file.path(project_path, "_quarto.yml")))
+  expect_true(isFALSE(config$settings$use_quarto))
+  expect_true(isTRUE(config$settings$use_git))
+  expect_true(isFALSE(config$settings$use_renv))
+  expect_identical(registry$reports$main_report$path, "reports/main_report.Rmd")
+  config_infrastructure <- config$infrastructure
+  if (is.null(config_infrastructure)) {
+    config_infrastructure <- character()
+  }
+  expect_false("quarto" %in% config_infrastructure)
+  expect_true("git" %in% config_infrastructure)
+})
+
 test_that("example script runs without real data", {
   project_path <- make_project_path("example-script")
 
