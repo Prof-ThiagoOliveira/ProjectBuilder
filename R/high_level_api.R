@@ -51,6 +51,12 @@
 #' deliverable, while requesting \code{"tables"} or \code{"figures"} may add
 #' the corresponding output directories and registry entries.
 #'
+#' If \code{components = NULL}, the default starter components
+#' \code{c("statistical_analysis", "report")} are used only when neither a
+#' deliverable nor a preset was supplied. Deliverable-first and preset-first
+#' plans instead derive their components from the requested outcome. Explicitly
+#' supplied components remain additive.
+#'
 #' Infrastructure values describe technical project support. Typical values are
 #' \code{"git"}, \code{"renv"}, \code{"quarto"},
 #' \code{"github_actions"}, \code{"targets"}, and \code{"tests"}. Use
@@ -70,12 +76,14 @@
 #' @param title Optional character scalar. Human-readable project title stored in
 #'   the proposed project metadata. If \code{NULL}, the title is inferred from
 #'   \code{path} where possible.
-#' @param components Character vector. Analytical components to include in the
-#'   proposed scaffold. Values must be recognised component names or supported
-#'   aliases. Components control which directories, scripts, reports, registry
-#'   objects, outputs, package suggestions, and dependency checks are included.
-#'   Use \code{available_project_components()} to inspect the accepted values in
-#'   the installed package version.
+#' @param components Optional character vector. Analytical components to include
+#'   in the proposed scaffold. Values must be recognised component names or
+#'   supported aliases. Components control which directories, scripts, reports,
+#'   registry objects, outputs, package suggestions, and dependency checks are
+#'   included. If \code{NULL}, the default starter components are used only when
+#'   neither \code{deliverables} nor \code{preset} is supplied. Use
+#'   \code{available_project_components()} to inspect the accepted values in the
+#'   installed package version.
 #' @param deliverables Optional character vector. Deliverables to prepare. If
 #'   \code{NULL}, deliverables are inferred from \code{components} and
 #'   \code{preset}. If supplied, values must be recognised deliverable names or
@@ -162,7 +170,7 @@
 plan_project <- function(
     path = ".",
     title = NULL,
-    components = c("statistical_analysis", "report"),
+    components = NULL,
     deliverables = NULL,
     infrastructure = NULL,
     preset = NULL,

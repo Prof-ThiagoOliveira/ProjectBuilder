@@ -42,7 +42,126 @@ We will create a small example project called `"demo-project"`.
 library(projflow)
 ```
 
-# Step 1: Plan the project before creating files
+# Step 1: Inspect the available scaffold options
+
+Before choosing project settings, look at the built-in options that `projflow` already knows how to scaffold.
+
+```{r}
+available_project_components()
+available_project_deliverables()
+available_project_infrastructure()
+available_project_presets()
+```
+
+For a first project, components and infrastructure are usually the most important choices:
+
+1. `components` describe the kinds of analytical work the project will contain;
+2. `deliverables` describe the final outputs you want to produce;
+3. `infrastructure` describes technical support such as Git, `renv`, `targets`, or GitHub Actions;
+4. `presets` provide pre-defined combinations when you want a faster starting point.
+
+If you want to understand what a specific option will add before using it, inspect it directly:
+
+```{r}
+inspect_project_component("quality_control")
+inspect_project_deliverable("client_report")
+inspect_project_infrastructure("targets")
+inspect_project_preset("client_report")
+```
+
+`projflow` expands dependencies automatically. This is important:
+
+1. if you ask for a preset, `projflow` adds everything defined by that preset;
+2. if you ask for a deliverable, `projflow` adds the components required for that deliverable;
+3. if one of those components depends on other components, those are added as well.
+
+For example, the `client_report` **preset** already includes a full workflow with components such as `data_preparation`, `quality_control`, `statistical_analysis`, `tables`, `figures`, `report`, and governance support.
+
+```{r}
+inspect_project_preset("client_report")
+```
+
+By contrast, the `client_report` **deliverable** adds only the components needed to produce that deliverable. You do not need to remember those dependencies yourself.
+
+```{r}
+deliverable_plan <- plan_project(
+  path = "client-report-demo",
+  deliverables = "client_report",
+  infrastructure = "git"
+)
+
+deliverable_plan$components
+deliverable_plan$deliverables
+```
+
+In other words, users should ask for the outcome they want and then inspect the resulting plan, rather than trying to manually add every dependency in advance. Add `components` only when the project needs work beyond the deliverable's required dependencies.
+
+You can also create your own planning options when the built-in ones do not match your workflow.
+
+For a complete guide to writing custom component, deliverable, and preset specs, see the separate vignette on custom planning specs.
+
+Register a custom component directly from R:
+
+```{r}
+register_project_component(list(
+  component = "custom_qc",
+  depends_on = "data_preparation",
+  folders = "outputs/custom_qc",
+  scripts = list(list(
+    name = "custom_qc",
+    path = "analysis/08_custom_qc.R",
+    type = "quality_control",
+    order = 80
+  )),
+  packages = "dplyr"
+))
+```
+
+Register a custom deliverable:
+
+```{r}
+register_project_deliverable(list(
+  deliverable = "executive_summary",
+  depends_on = "report",
+  path = "reports/executive_summary.qmd",
+  type = "report",
+  packages = "quarto"
+))
+```
+
+Register a custom preset:
+
+```{r}
+register_project_preset(list(
+  preset = "rapid_review",
+  components = c("data_preparation", "report"),
+  deliverables = "html_report",
+  infrastructure = "git",
+  description = "Compact preset for quick review projects"
+))
+```
+
+If you prefer YAML files, use the corresponding helpers:
+
+```{r}
+use_project_component_spec("custom_component.yml")
+use_project_deliverable_spec("custom_deliverable.yml")
+use_project_preset_spec("custom_preset.yml")
+```
+
+After registering custom options, they become available to the same discovery and inspection functions:
+
+```{r}
+available_project_components()
+available_project_deliverables()
+available_project_presets()
+
+inspect_project_component("custom_qc")
+inspect_project_deliverable("executive_summary")
+inspect_project_preset("rapid_review")
+```
+
+# Step 2: Plan the project before creating files
 
 Start by building a plan. This lets you inspect what `projflow` intends to create before anything is written to disk.
 
@@ -63,7 +182,44 @@ plot(plan)
 
 At this stage, no project folder has been created yet.
 
-# Step 2: Create the project
+## A more complex plan
+
+For a larger client-facing project, start from a preset and add the work areas that are specific to the analysis. Explicit components extend the preset, while deliverable and infrastructure dependencies are expanded automatically.
+
+```{r}
+complex_plan <- plan_project(
+  path = "regulated-client-analysis",
+  title = "Regulated client analysis",
+  preset = "client_report",
+  components = c(
+    "exploratory_analysis",
+    "model_diagnostics",
+    "data_governance",
+    "communication",
+    "validation"
+  ),
+  deliverables = c("model_outputs", "status_report"),
+  infrastructure = c(
+    "github_actions",
+    "targets",
+    "tests",
+    "lintr",
+    "styler"
+  ),
+  use_internal_data_dirs = FALSE,
+  include_example = TRUE
+)
+
+complex_plan
+complex_plan$components
+complex_plan$deliverables
+complex_plan$infrastructure
+plot(complex_plan)
+```
+
+This plan combines analytical work, client delivery, governance, data handling, validation, automated checks, and reproducibility support. Because `targets` depends on `renv` and GitHub Actions depends on Git, those infrastructure dependencies are included even though they were not repeated manually. The external-data setting remains explicit; set `use_internal_data_dirs = TRUE` only when project data should live inside the scaffold.
+
+# Step 3: Create the project
 
 Once the plan looks correct, create the project scaffold.
 
@@ -73,7 +229,7 @@ new_project(plan = plan, open = FALSE)
 
 This writes the initial folders, configuration files, and project registry.
 
-# Step 3: Set up the project for the current session
+# Step 4: Set up the project for the current session
 
 Now initialise the project so `projflow` can check folders, read metadata, and report missing packages.
 
@@ -84,7 +240,7 @@ setup
 
 If packages are missing, `setup_project()` tells you which ones are not installed.
 
-# Step 4: Inspect the project structure
+# Step 5: Inspect the project structure
 
 Before adding analysis objects, look at the scaffold that was created.
 
@@ -95,7 +251,7 @@ project_structure("demo-project")
 
 This is useful when you are still learning where scripts, reports, outputs, and metadata are stored.
 
-# Step 5: Configure where your data lives
+# Step 6: Configure where your data lives
 
 `projflow` is designed to keep raw or large data outside the repository when possible.
 
@@ -113,7 +269,7 @@ project_data_path("raw", "measurements.csv", root = "demo-project")
 
 If you prefer to keep data inside the project, you can do that when you create the plan, but the external-data workflow is the recommended default.
 
-# Step 6: Add analysis scripts
+# Step 7: Add analysis scripts
 
 Create the scripts that will do the work. A beginner-friendly pattern is to start with one script for preparing data and one script for analysis.
 
@@ -135,7 +291,7 @@ new_script(
 
 These functions create script files and register them in the project metadata. The generated scripts are placeholders: you still need to open them and write the actual analysis code.
 
-# Step 7: Register outputs and reports
+# Step 8: Register outputs and reports
 
 After you know what the scripts are supposed to produce, register those outputs explicitly.
 
@@ -164,7 +320,7 @@ new_report(
 
 This keeps the analysis objects visible in the registry instead of leaving them implicit in filenames only.
 
-# Step 8: Inspect and validate the analysis DAG
+# Step 9: Inspect and validate the analysis DAG
 
 Once scripts and outputs are registered, inspect the project graph.
 
@@ -183,7 +339,7 @@ topological_project_order("demo-project", type = "scripts")
 
 If the DAG is valid, `projflow` can determine a safe execution order for the scripts.
 
-# Step 9: Run the project
+# Step 10: Run the project
 
 After you have added real analysis code to the generated scripts, run the workflow:
 
@@ -193,7 +349,7 @@ run_project("demo-project")
 
 `run_project()` prefers DAG order when the graph is valid.
 
-# Step 10: Optionally generate a targets pipeline
+# Step 11: Optionally generate a targets pipeline
 
 If you want a `_targets.R` file based on the registered DAG, generate it from the project metadata.
 
@@ -203,7 +359,7 @@ write_targets_pipeline("demo-project", overwrite = TRUE)
 
 This is optional, but useful when you want to connect `projflow` to a `targets` workflow.
 
-# Step 11: Track project management tasks
+# Step 12: Track project management tasks
 
 `projflow` can also track the work around the analysis without mixing that governance layer into the execution graph.
 
@@ -220,7 +376,7 @@ Review the current project status:
 project_status_report(root = "demo-project")
 ```
 
-# Step 12: Run checks and open the dashboard
+# Step 13: Run checks and open the dashboard
 
 When you want a higher-level review of the project, use the diagnostic helpers.
 

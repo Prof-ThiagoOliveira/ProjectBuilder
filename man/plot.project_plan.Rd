@@ -46,16 +46,17 @@ Invisibly returns the network data produced by
 \code{\link{project_plan_network_data}()}.
 }
 \description{
-\code{plot.project_plan()} draws a lightweight network view of a project
+\code{plot.project_plan()} draws a structured planning board for a project
 plan. It is intended for the first planning step, before the project is
 created on disk.
 }
 \details{
 The plot is deliberately implemented with base R graphics so that
 \code{plot(plan)} works without adding mandatory plotting dependencies. The
-plot is a management view rather than a statistical graph: it shows how the
-proposed project root connects to components, scripts, reports, outputs,
-deliverables, and infrastructure.
+plot is a management view rather than a statistical graph: it organises the
+proposed scaffold into readable columns such as setup, scripts, outputs,
+reports, deliverables, and optional support objects, while preserving the
+dependency arrows between them.
 
 For interactive displays, use \code{project_plan_network_data()} and pass the
 returned node and edge tables to an optional graph package such as

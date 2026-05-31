@@ -386,10 +386,12 @@ start_project <- function(path = NULL,
 #' @param title Optional character scalar. Human-readable project title written
 #'   into project metadata when \code{plan = NULL}. If omitted, the project
 #'   folder name is used. Ignored when a plan is supplied.
-#' @param components Character vector. Project components to include when
-#'   \code{plan = NULL}, for example \code{"data_preparation"},
+#' @param components Optional character vector. Project components to include
+#'   when \code{plan = NULL}, for example \code{"data_preparation"},
 #'   \code{"statistical_analysis"}, \code{"report"}, \code{"tables"},
-#'   or \code{"project_management"}. Components are validated by
+#'   or \code{"project_management"}. If \code{NULL}, the default starter
+#'   components are used only when neither \code{deliverables} nor
+#'   \code{preset} is supplied. Components are validated by
 #'   \code{\link{plan_project}()} before any files are written.
 #' @param deliverables Optional character vector. Deliverables to prepare when
 #'   \code{plan = NULL}, for example \code{"html_report"},
@@ -472,7 +474,7 @@ start_project <- function(path = NULL,
 new_project <- function(
     path = NULL,
     title = NULL,
-    components = c("statistical_analysis", "report"),
+    components = NULL,
     deliverables = NULL,
     infrastructure = NULL,
     preset = NULL,

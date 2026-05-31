@@ -186,6 +186,54 @@ test_that("dependency messages distinguish deliverables from components", {
   expect_true(any(grepl("deliverable `tables`", plan$checks, fixed = TRUE)))
 })
 
+test_that("deliverable-first plans derive components without starter defaults", {
+  tables_plan <- plan_project(
+    path = tempfile(),
+    deliverables = "tables",
+    infrastructure = character()
+  )
+  status_plan <- plan_project(
+    path = tempfile(),
+    deliverables = "status_report",
+    infrastructure = character()
+  )
+  status_shortcut_plan <- new_project(
+    path = tempfile(),
+    deliverables = "status_report",
+    infrastructure = character(),
+    dry_run = TRUE
+  )
+  client_plan <- plan_project(
+    path = tempfile(),
+    deliverables = "client_report",
+    infrastructure = character()
+  )
+  explicit_client_plan <- plan_project(
+    path = tempfile(),
+    components = "statistical_analysis",
+    deliverables = "client_report",
+    infrastructure = character()
+  )
+
+  expect_identical(tables_plan$components, c("statistical_analysis", "tables"))
+  expect_length(tables_plan$reports, 0L)
+  expect_identical(status_plan$components, "project_management")
+  expect_identical(status_shortcut_plan$components, status_plan$components)
+  expect_false(any(c("statistical_analysis", "report") %in% status_plan$components))
+  expect_identical(client_plan$components, explicit_client_plan$components)
+})
+
+test_that("preset-first plans do not inherit starter components", {
+  plan <- plan_project(
+    path = tempfile(),
+    preset = "dashboard",
+    infrastructure = character()
+  )
+
+  expect_false("report" %in% plan$components)
+  expect_false("html_report" %in% plan$deliverables)
+})
+
 test_that("check_project does not render reports unless requested", {
   local_mock_quarto_render()
 

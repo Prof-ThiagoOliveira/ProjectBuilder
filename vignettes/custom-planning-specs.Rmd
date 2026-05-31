@@ -1,0 +1,272 @@
+---
+title: "Custom planning specs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Custom planning specs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+# Purpose
+
+This vignette shows how to create your own `projflow` planning specs.
+
+Use this workflow when the built-in components, deliverables, or presets are close to what you need, but not enough.
+
+The three custom spec types are:
+
+1. component specs: add new project capabilities such as a custom analysis step or governance block;
+2. deliverable specs: add new output types such as a custom report or export bundle;
+3. preset specs: save a reusable combination of components, deliverables, and infrastructure.
+
+# Before you create a custom spec
+
+Start by checking whether `projflow` already has what you need.
+
+```{r}
+library(projflow)
+
+available_project_components()
+available_project_deliverables()
+available_project_presets()
+```
+
+Inspect the closest built-in option first.
+
+```{r}
+inspect_project_component("quality_control")
+inspect_project_deliverable("client_report")
+inspect_project_preset("client_report")
+```
+
+That gives you a good template before you create your own version.
+
+It also shows an important design rule: dependencies are expanded automatically.
+
+If a deliverable depends on a component, and that component depends on other components, `projflow` adds them during planning. If a preset defines a full workflow, `projflow` expands the preset exactly as defined.
+
+# Option 1: Register a custom spec directly from R
+
+The fastest way to experiment is to register a spec from a list.
+
+## Custom component
+
+```{r}
+register_project_component(list(
+  component = "genomic_qc",
+  depends_on = "data_preparation",
+  folders = c("outputs/genomics", "outputs/genomics/qc"),
+  scripts = list(list(
+    name = "genomic_qc",
+    path = "analysis/08_genomic_qc.R",
+    type = "quality_control",
+    order = 80
+  )),
+  packages = c("dplyr", "readr"),
+  checks = "genomic_qc_outputs_registered"
+))
+```
+
+Inspect the result:
+
+```{r}
+inspect_project_component("genomic_qc")
+```
+
+## Custom deliverable
+
+```{r}
+register_project_deliverable(list(
+  deliverable = "executive_summary",
+  depends_on = "report",
+  path = "reports/executive_summary.qmd",
+  type = "report",
+  packages = "quarto"
+))
+```
+
+Inspect the result:
+
+```{r}
+inspect_project_deliverable("executive_summary")
+```
+
+The `depends_on` field is what tells `projflow` which components should be added automatically when a user requests the deliverable.
+
+## Custom preset
+
+```{r}
+register_project_preset(list(
+  preset = "rapid_review",
+  components = c("data_preparation", "genomic_qc", "report"),
+  deliverables = c("html_report", "executive_summary"),
+  infrastructure = c("git"),
+  description = "Compact preset for review-oriented analysis projects"
+))
+```
+
+Inspect the result:
+
+```{r}
+inspect_project_preset("rapid_review")
+```
+
+A preset is different from a deliverable: it is already a complete named bundle of components, deliverables, and infrastructure.
+
+# Option 2: Create YAML spec files
+
+For reusable workflows, YAML files are usually better than inline R lists.
+
+They can be stored in a repository, reviewed in pull requests, and shared across projects.
+
+# Step 1: Create a component spec file
+
+Create a file such as `genomic_qc.yml`.
+
+```yaml
+component: genomic_qc
+depends_on:
+  - data_preparation
+folders:
+  - outputs/genomics
+  - outputs/genomics/qc
+scripts:
+  - name: genomic_qc
+    path: analysis/08_genomic_qc.R
+    type: quality_control
+    order: 80
+packages:
+  - dplyr
+  - readr
+checks:
+  - genomic_qc_outputs_registered
+```
+
+Load it into the current R session:
+
+```{r}
+use_project_component_spec("genomic_qc.yml")
+inspect_project_component("genomic_qc")
+```
+
+# Step 2: Create a deliverable spec file
+
+Create a file such as `executive_summary.yml`.
+
+```yaml
+deliverable: executive_summary
+depends_on:
+  - report
+path: reports/executive_summary.qmd
+type: report
+packages:
+  - quarto
+```
+
+Load it:
+
+```{r}
+use_project_deliverable_spec("executive_summary.yml")
+inspect_project_deliverable("executive_summary")
+```
+
+# Step 3: Create a preset spec file
+
+Create a file such as `rapid_review.yml`.
+
+```yaml
+preset: rapid_review
+description: Compact preset for review-oriented analysis projects
+components:
+  - data_preparation
+  - genomic_qc
+  - report
+deliverables:
+  - html_report
+  - executive_summary
+infrastructure:
+  - git
+```
+
+Load it:
+
+```{r}
+use_project_preset_spec("rapid_review.yml")
+inspect_project_preset("rapid_review")
+```
+
+# Step 4: Confirm that the new options are available
+
+Once a spec is registered, it becomes part of the same planning workflow as the built-in options.
+
+```{r}
+available_project_components()
+available_project_deliverables()
+available_project_presets()
+```
+
+# Step 5: Use the custom options in a project plan
+
+After registering the specs, use them in `plan_project()` like any other option.
+
+```{r}
+plan <- plan_project(
+  path = "custom-demo-project",
+  components = c("data_preparation", "genomic_qc", "report"),
+  deliverables = c("html_report", "executive_summary"),
+  infrastructure = "git"
+)
+
+plan
+plot(plan)
+```
+
+Or use the custom preset directly:
+
+```{r}
+plan <- plan_project(
+  path = "custom-demo-project",
+  preset = "rapid_review"
+)
+
+plan
+plot(plan)
+```
+
+# How to decide which spec type to create
+
+Create a custom component when you want to add:
+
+1. folders;
+2. starter scripts;
+3. reports;
+4. package suggestions;
+5. checks;
+6. component dependencies.
+
+Create a custom deliverable when you want to add:
+
+1. a new report path;
+2. a new output folder;
+3. a tracked file;
+4. deliverable-specific dependencies on components.
+
+Create a custom preset when you want to save:
+
+1. a standard team workflow;
+2. a project template you reuse often;
+3. a named combination of components, deliverables, and infrastructure.
+
+# Practical advice
+
+Keep custom names short and stable. Prefer names like `genomic_qc`, `executive_summary`, and `rapid_review`.
+
+Start from inspection, not invention. Inspect the closest built-in option first, then change only what you actually need.
+
+When you are designing a reusable team workflow, prefer YAML spec files over inline R lists.
+
+After registering a custom option, always inspect it and then build a small test plan before using it in a real project.

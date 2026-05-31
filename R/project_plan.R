@@ -3,6 +3,8 @@
 }
 
 .projflow_component_registry <- new.env(parent = emptyenv())
+.projflow_deliverable_registry <- new.env(parent = emptyenv())
+.projflow_preset_registry <- new.env(parent = emptyenv())
 
 canonical_component_order <- function() {
   c(
@@ -147,7 +149,7 @@ infrastructure_aliases <- function() {
   )
 }
 
-project_presets <- function() {
+built_in_project_presets <- function() {
   list(
     basic_analysis = list(
       components = c("statistical_analysis", "report"),
@@ -214,7 +216,7 @@ component_dependencies <- function() {
   )
 }
 
-deliverable_dependencies <- function() {
+built_in_deliverable_dependencies <- function() {
   list(
     html_report = c("report"),
     pdf_report = c("report"),
@@ -337,7 +339,12 @@ available_project_components <- function() {
 
 #' @rdname project_plan_keywords
 #' @export
-available_project_deliverables <- function() canonical_deliverable_order()
+available_project_deliverables <- function() {
+  order_keywords(
+    c(canonical_deliverable_order(), names(registered_project_deliverables())),
+    canonical_deliverable_order()
+  )
+}
 
 #' @rdname project_plan_keywords
 #' @export
@@ -505,7 +512,7 @@ resolve_project_component_dependencies <- function(components, dependency_map = 
 }
 
 resolve_project_deliverable_dependencies <- function(deliverables, existing_components = character()) {
-  dependency_map <- deliverable_dependencies()
+  dependency_map <- deliverable_dependency_map(deliverable_specs())
   required_components <- unique(unlist(dependency_map[deliverables], use.names = FALSE))
   required_components <- required_components[!is.na(required_components)]
   messages <- character()
@@ -573,6 +580,152 @@ explain_project_preset <- function(preset) {
     rlang::abort(paste0("Unknown preset: ", preset, "."))
   }
   presets[[preset]]
+}
+
+#' Inspect a project component specification
+#'
+#' @param component Character scalar. Component name to inspect.
+#'
+#' @return A structured component-specification object with class
+#'   \code{"projflow_component_spec"}.
+#' @examples
+#' inspect_project_component("quality_control")
+#' @author Thiago de Paula Oliveira
+#' @export
+inspect_project_component <- function(component) {
+  spec <- explain_project_component(component)
+  class(spec) <- c("projflow_component_spec", class(spec))
+  spec
+}
+
+#' Inspect a project deliverable specification
+#'
+#' @param deliverable Character scalar. Deliverable name to inspect.
+#'
+#' @return A structured deliverable-specification object with class
+#'   \code{"projflow_deliverable_spec"}.
+#' @examples
+#' inspect_project_deliverable("client_report")
+#' @author Thiago de Paula Oliveira
+#' @export
+inspect_project_deliverable <- function(deliverable) {
+  spec <- explain_project_deliverable(deliverable)
+  class(spec) <- c("projflow_deliverable_spec", class(spec))
+  spec
+}
+
+#' Inspect project infrastructure support
+#'
+#' @param infrastructure Character scalar. Infrastructure name to inspect.
+#'
+#' @return A structured infrastructure-specification object with class
+#'   \code{"projflow_infrastructure_spec"}.
+#' @examples
+#' inspect_project_infrastructure("targets")
+#' @author Thiago de Paula Oliveira
+#' @export
+inspect_project_infrastructure <- function(infrastructure) {
+  spec <- explain_project_infrastructure(infrastructure)
+  class(spec) <- c("projflow_infrastructure_spec", class(spec))
+  spec
+}
+
+#' Inspect a project preset
+#'
+#' @param preset Character scalar. Preset name to inspect.
+#'
+#' @return A structured preset-specification object with class
+#'   \code{"projflow_preset_spec"}.
+#' @examples
+#' inspect_project_preset("client_report")
+#' @author Thiago de Paula Oliveira
+#' @export
+inspect_project_preset <- function(preset) {
+  spec <- explain_project_preset(preset)
+  spec$preset <- validate_project_object_name(preset, repair = TRUE)
+  class(spec) <- c("projflow_preset_spec", class(spec))
+  spec
+}
+
+#' @export
+print.projflow_component_spec <- function(x, ...) {
+  cat("projflow component spec\n")
+  cat("-----------------------\n")
+  cat("Component: ", x$component %||% "unknown", "\n", sep = "")
+  cat("Depends on: ", spec_preview_items(x$depends_on %||% component_dependency_map(component_specs())[[x$component %||% ""]] %||% character()), "\n", sep = "")
+  cat("Folders: ", spec_preview_items(x$folders %||% character()), "\n", sep = "")
+  cat("Files: ", spec_preview_items(x$files %||% character()), "\n", sep = "")
+  cat("Scripts: ", spec_preview_items(vapply(x$scripts %||% list(), function(script) script$name %||% NA_character_, character(1))), "\n", sep = "")
+  cat("Reports: ", spec_preview_items(vapply(x$reports %||% list(), function(report) report$name %||% NA_character_, character(1))), "\n", sep = "")
+  cat("Packages: ", spec_preview_items(x$packages %||% character()), "\n", sep = "")
+  cat("Checks: ", spec_preview_items(x$checks %||% character()), "\n", sep = "")
+  invisible(x)
+}
+
+#' @export
+print.projflow_deliverable_spec <- function(x, ...) {
+  cat("projflow deliverable spec\n")
+  cat("-------------------------\n")
+  cat("Deliverable: ", x$deliverable %||% "unknown", "\n", sep = "")
+  cat("Depends on components: ", spec_preview_items(x$depends_on %||% deliverable_dependency_map(deliverable_specs())[[x$deliverable %||% ""]] %||% character()), "\n", sep = "")
+  cat("Report path: ", spec_preview_items(x$path %||% character()), "\n", sep = "")
+  cat("Folder: ", spec_preview_items(x$folder %||% character()), "\n", sep = "")
+  cat("File: ", spec_preview_items(x$file %||% character()), "\n", sep = "")
+  cat("Packages: ", spec_preview_items(x$packages %||% character()), "\n", sep = "")
+  cat("Checks: ", spec_preview_items(x$checks %||% character()), "\n", sep = "")
+  invisible(x)
+}
+
+#' @export
+print.projflow_infrastructure_spec <- function(x, ...) {
+  cat("projflow infrastructure spec\n")
+  cat("----------------------------\n")
+  cat("Infrastructure: ", x$infrastructure %||% "unknown", "\n", sep = "")
+  cat("Folders: ", spec_preview_items(x$folders %||% character()), "\n", sep = "")
+  cat("Files: ", spec_preview_items(x$files %||% character()), "\n", sep = "")
+  cat("Packages: ", spec_preview_items(x$packages %||% character()), "\n", sep = "")
+  cat("Checks: ", spec_preview_items(x$checks %||% character()), "\n", sep = "")
+  invisible(x)
+}
+
+#' @export
+print.projflow_preset_spec <- function(x, ...) {
+  cat("projflow preset spec\n")
+  cat("--------------------\n")
+  cat("Preset: ", x$preset %||% "unknown", "\n", sep = "")
+  if (!is.null(x$description) && nzchar(x$description)) {
+    cat("Description: ", x$description, "\n", sep = "")
+  }
+  cat("Components: ", spec_preview_items(x$components %||% character()), "\n", sep = "")
+  cat("Deliverables: ", spec_preview_items(x$deliverables %||% character()), "\n", sep = "")
+  cat("Infrastructure: ", spec_preview_items(x$infrastructure %||% character()), "\n", sep = "")
+  invisible(x)
+}
+
+spec_preview_items <- function(values, max_n = 4L) {
+  values <- values[!is.na(values) & nzchar(values)]
+  if (length(values) == 0L) {
+    return("none")
+  }
+  if (length(values) <= max_n) {
+    return(paste(values, collapse = ", "))
+  }
+
+  paste0(
+    paste(utils::head(values, max_n), collapse = ", "),
+    ", ... (+",
+    length(values) - max_n,
+    ")"
+  )
+}
+
+spec_names_or_empty <- function(x) {
+  values <- names(x)
+  if (is.null(values)) {
+    character()
+  } else {
+    values
+  }
 }
 
 normalise_legacy_terms <- function(components, infrastructure) {
@@ -883,7 +1036,11 @@ component_dependency_map <- function(component_map = component_specs()) {
   dependencies
 }
 
-deliverable_specs <- function() {
+registered_project_deliverables <- function() {
+  as.list(.projflow_deliverable_registry, all.names = TRUE)
+}
+
+built_in_deliverable_specs <- function() {
   list(
     html_report = list(report = "main_report", output = "outputs/reports/main_report/main_report.html"),
     pdf_report = list(report = "main_report", output = "outputs/reports/main_report/main_report.pdf"),
@@ -905,6 +1062,198 @@ deliverable_specs <- function() {
     decision_log = list(file = "docs/decisions.md"),
     risk_log = list(file = "docs/risks.md")
   )
+}
+
+validate_project_deliverable_spec <- function(spec) {
+  if (is.character(spec) && length(spec) == 1L && fs::file_exists(spec)) {
+    spec <- read_project_deliverable_spec(spec)
+  }
+
+  if (!is.list(spec) || is.null(spec$deliverable)) {
+    rlang::abort("A project deliverable spec must be a list with a `deliverable` field.")
+  }
+
+  validate_character_vector(spec$deliverable, "deliverable")
+  spec$deliverable <- validate_project_object_name(spec$deliverable, repair = TRUE)
+  spec$depends_on <- spec$depends_on %||% character()
+  spec$folder <- spec$folder %||% character()
+  spec$file <- spec$file %||% character()
+  spec$path <- spec$path %||% NULL
+  spec$report <- spec$report %||% NULL
+  spec$output <- spec$output %||% NULL
+  spec$type <- spec$type %||% "report"
+  spec$packages <- spec$packages %||% character()
+  spec$checks <- spec$checks %||% character()
+
+  created_targets <- c(spec$folder, spec$file, spec$path %||% character())
+  if (length(created_targets) == 0L) {
+    rlang::abort("A custom deliverable spec must define at least one of `folder`, `file`, or `path`.")
+  }
+
+  spec
+}
+
+read_project_deliverable_spec <- function(path) {
+  validate_character_vector(path, "path")
+  path <- path[[1]]
+  if (!fs::file_exists(path)) {
+    rlang::abort(paste0("Deliverable spec file does not exist: ", path))
+  }
+
+  spec <- yaml::read_yaml(path)
+  validate_project_deliverable_spec(spec)
+}
+
+register_project_deliverable <- function(spec, overwrite = FALSE) {
+  validate_logical_scalar(overwrite, "overwrite")
+  spec <- validate_project_deliverable_spec(spec)
+  name <- spec$deliverable
+
+  if (name %in% names(built_in_deliverable_specs()) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Cannot overwrite built-in deliverable `", name, "` without `overwrite = TRUE`."))
+  }
+  if (exists(name, envir = .projflow_deliverable_registry, inherits = FALSE) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Deliverable `", name, "` is already registered."))
+  }
+
+  assign(name, spec, envir = .projflow_deliverable_registry)
+  invisible(name)
+}
+
+use_project_deliverable_spec <- function(path, overwrite = FALSE) {
+  register_project_deliverable(read_project_deliverable_spec(path), overwrite = overwrite)
+}
+
+deliverable_specs <- function(custom_deliverable_specs = NULL) {
+  specs <- built_in_deliverable_specs()
+  registered <- registered_project_deliverables()
+  if (length(registered) > 0L) {
+    specs[names(registered)] <- registered
+  }
+
+  if (is.null(custom_deliverable_specs)) {
+    return(specs)
+  }
+
+  supplied <- if (is.character(custom_deliverable_specs)) {
+    lapply(custom_deliverable_specs, read_project_deliverable_spec)
+  } else if (is.list(custom_deliverable_specs) && !is.null(custom_deliverable_specs$deliverable)) {
+    list(validate_project_deliverable_spec(custom_deliverable_specs))
+  } else if (is.list(custom_deliverable_specs)) {
+    lapply(custom_deliverable_specs, validate_project_deliverable_spec)
+  } else {
+    rlang::abort("`custom_deliverable_specs` must be `NULL`, a spec path, a spec list, or a list of specs.")
+  }
+
+  for (spec in supplied) {
+    specs[[spec$deliverable]] <- spec
+  }
+
+  specs
+}
+
+deliverable_dependency_map <- function(deliverable_map = deliverable_specs()) {
+  dependencies <- built_in_deliverable_dependencies()
+  custom_names <- setdiff(names(deliverable_map), names(dependencies))
+  if (length(custom_names) > 0L) {
+    for (name in custom_names) {
+      dependencies[[name]] <- deliverable_map[[name]]$depends_on %||% character()
+    }
+  }
+  dependencies
+}
+
+registered_project_presets <- function() {
+  as.list(.projflow_preset_registry, all.names = TRUE)
+}
+
+validate_project_preset_spec <- function(spec) {
+  if (is.character(spec) && length(spec) == 1L && fs::file_exists(spec)) {
+    spec <- read_project_preset_spec(spec)
+  }
+
+  if (!is.list(spec) || is.null(spec$preset)) {
+    rlang::abort("A project preset spec must be a list with a `preset` field.")
+  }
+
+  validate_character_vector(spec$preset, "preset")
+  spec$preset <- validate_project_object_name(spec$preset, repair = TRUE)
+  spec$components <- normalise_project_components(spec$components %||% character(), component_map = component_specs())
+  spec$deliverables <- normalise_project_deliverables(spec$deliverables %||% character())
+  spec$infrastructure <- normalise_project_infrastructure(spec$infrastructure %||% character())
+  spec$description <- spec$description %||% NULL
+  spec
+}
+
+read_project_preset_spec <- function(path) {
+  validate_character_vector(path, "path")
+  path <- path[[1]]
+  if (!fs::file_exists(path)) {
+    rlang::abort(paste0("Preset spec file does not exist: ", path))
+  }
+
+  spec <- yaml::read_yaml(path)
+  validate_project_preset_spec(spec)
+}
+
+register_project_preset <- function(spec, overwrite = FALSE) {
+  validate_logical_scalar(overwrite, "overwrite")
+  spec <- validate_project_preset_spec(spec)
+  name <- spec$preset
+
+  if (name %in% names(built_in_project_presets()) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Cannot overwrite built-in preset `", name, "` without `overwrite = TRUE`."))
+  }
+  if (exists(name, envir = .projflow_preset_registry, inherits = FALSE) && !isTRUE(overwrite)) {
+    rlang::abort(paste0("Preset `", name, "` is already registered."))
+  }
+
+  assign(name, spec, envir = .projflow_preset_registry)
+  invisible(name)
+}
+
+use_project_preset_spec <- function(path, overwrite = FALSE) {
+  register_project_preset(read_project_preset_spec(path), overwrite = overwrite)
+}
+
+project_presets <- function(custom_preset_specs = NULL) {
+  presets <- built_in_project_presets()
+  registered <- registered_project_presets()
+  if (length(registered) > 0L) {
+    presets[names(registered)] <- lapply(registered, function(spec) {
+      list(
+        components = spec$components %||% character(),
+        deliverables = spec$deliverables %||% character(),
+        infrastructure = spec$infrastructure %||% character(),
+        description = spec$description %||% NULL
+      )
+    })
+  }
+
+  if (is.null(custom_preset_specs)) {
+    return(presets)
+  }
+
+  supplied <- if (is.character(custom_preset_specs)) {
+    lapply(custom_preset_specs, read_project_preset_spec)
+  } else if (is.list(custom_preset_specs) && !is.null(custom_preset_specs$preset)) {
+    list(validate_project_preset_spec(custom_preset_specs))
+  } else if (is.list(custom_preset_specs)) {
+    lapply(custom_preset_specs, validate_project_preset_spec)
+  } else {
+    rlang::abort("`custom_preset_specs` must be `NULL`, a spec path, a spec list, or a list of specs.")
+  }
+
+  for (spec in supplied) {
+    presets[[spec$preset]] <- list(
+      components = spec$components,
+      deliverables = spec$deliverables,
+      infrastructure = spec$infrastructure,
+      description = spec$description %||% NULL
+    )
+  }
+
+  presets
 }
 
 infrastructure_specs <- function() {
@@ -968,7 +1317,7 @@ task_key_from_title <- function(title) {
 build_project_plan <- function(
     path,
     title = NULL,
-    components = c("statistical_analysis", "report"),
+    components = NULL,
     deliverables = NULL,
     infrastructure = NULL,
     preset = NULL,
@@ -979,6 +1328,14 @@ build_project_plan <- function(
   validate_character_vector(title, "title", allow_null = TRUE)
   validate_logical_scalar(use_internal_data_dirs, "use_internal_data_dirs")
   validate_logical_scalar(include_example, "include_example")
+
+  if (is.null(components)) {
+    components <- if (is.null(deliverables) && is.null(preset)) {
+      c("statistical_analysis", "report")
+    } else {
+      character()
+    }
+  }
 
   preset_spec <- if (is.null(preset)) {
     list(components = character(), deliverables = character(), infrastructure = character())
@@ -1059,12 +1416,14 @@ build_project_plan <- function(
     spec <- deliverable_map[[deliverable]]
     folders <- c(folders, spec$folder %||% character())
     files <- c(files, spec$file %||% character())
+    package_suggestions <- c(package_suggestions, spec$packages %||% character())
+    checks <- c(checks, spec$checks %||% character())
 
     if (!is.null(spec$path)) {
       reports[[spec$path]] <- list(
         name = tools::file_path_sans_ext(basename(spec$path)),
         path = spec$path,
-        type = if (grepl("manuscript", deliverable, fixed = TRUE)) "manuscript" else if (identical(deliverable, "status_report")) "status_report" else "report",
+        type = spec$type %||% if (grepl("manuscript", deliverable, fixed = TRUE)) "manuscript" else if (identical(deliverable, "status_report")) "status_report" else "report",
         deliverable = deliverable
       )
     }
@@ -1222,6 +1581,99 @@ validate_project_plan <- function(plan, arg = "plan") {
   invisible(TRUE)
 }
 
+#' Print a compact project plan summary
+#'
+#' @description
+#' Prints a \code{"project_plan"} as a short user-facing summary that highlights
+#' the main planning decisions instead of dumping the full nested list
+#' structure.
+#'
+#' @param x A \code{"project_plan"} object returned by \code{plan_project()}.
+#' @param ... Additional arguments accepted for S3 compatibility but ignored.
+#'
+#' @return \code{x}, invisibly.
+#' @examples
+#' plan <- plan_project(
+#'   path = file.path(tempdir(), "demo-project"),
+#'   components = c("data_preparation", "statistical_analysis", "report"),
+#'   infrastructure = character()
+#' )
+#'
+#' print(plan)
+#' unclass(plan)
+#'
+#' @author Thiago de Paula Oliveira
+#' @export
+print.project_plan <- function(x, ...) {
+  validate_project_plan(x)
+
+  path <- x$path[[1]]
+  title <- x$title[[1]] %||% safe_basename(path)
+  components <- x$components %||% character()
+  deliverables <- x$deliverables %||% character()
+  infrastructure <- x$infrastructure %||% character()
+  folders <- x$folders %||% character()
+  files <- x$files %||% character()
+  packages <- x$packages %||% character()
+  checks <- x$checks %||% character()
+  scripts <- x$scripts %||% list()
+  reports <- x$reports %||% list()
+  registry_outputs <- x$registry$outputs %||% list()
+
+  preview_items <- function(values, max_n = 4L) {
+    values <- values[!is.na(values) & nzchar(values)]
+    if (length(values) == 0L) {
+      return("none")
+    }
+    if (length(values) <= max_n) {
+      return(paste(values, collapse = ", "))
+    }
+    paste0(
+      paste(utils::head(values, max_n), collapse = ", "),
+      ", ... (+",
+      length(values) - max_n,
+      ")"
+    )
+  }
+
+  script_names <- vapply(
+    scripts,
+    function(script) script$name %||% NA_character_,
+    character(1)
+  )
+  report_names <- vapply(
+    reports,
+    function(report) report$name %||% NA_character_,
+    character(1)
+  )
+  output_names <- names(registry_outputs)
+  if (is.null(output_names)) {
+    output_names <- character()
+  }
+
+  cat("projflow project plan\n")
+  cat("---------------------\n")
+  cat("Path: ", path, "\n", sep = "")
+  cat("Project: ", title, "\n", sep = "")
+  cat("Scaffold: ", x$scaffold_level[[1]] %||% "unknown", "\n", sep = "")
+  cat("\nPlan summary:\n")
+  cat("  - Components: ", preview_items(components), "\n", sep = "")
+  cat("  - Deliverables: ", preview_items(deliverables), "\n", sep = "")
+  cat("  - Infrastructure: ", preview_items(infrastructure), "\n", sep = "")
+  cat("\nPlanned objects:\n")
+  cat("  - Scripts: ", length(scripts), " (", preview_items(script_names), ")\n", sep = "")
+  cat("  - Reports: ", length(reports), " (", preview_items(report_names), ")\n", sep = "")
+  cat("  - Outputs: ", length(registry_outputs), " (", preview_items(output_names), ")\n", sep = "")
+  cat("  - Folders: ", length(folders), "\n", sep = "")
+  cat("  - Files: ", length(files), "\n", sep = "")
+  cat("\nChecks and packages:\n")
+  cat("  - Checks: ", preview_items(checks), "\n", sep = "")
+  cat("  - Suggested packages: ", preview_items(packages), "\n", sep = "")
+  cat("\nUse plot(plan) for the network view and unclass(plan) for the full list.\n")
+
+  invisible(x)
+}
+
 #' Convert a project plan into network data
 #'
 #' @description
@@ -1345,9 +1797,9 @@ project_plan_network_data <- function(
     add_edge(project_id, id, "project_to_deliverable")
   }
 
-  deliverable_dependency_map <- deliverable_dependencies()
-  for (deliverable in intersect(names(deliverable_dependency_map), plan$deliverables %||% character())) {
-    for (component in deliverable_dependency_map[[deliverable]]) {
+  deliverable_dependencies_map <- deliverable_dependency_map(deliverable_specs())
+  for (deliverable in intersect(names(deliverable_dependencies_map), plan$deliverables %||% character())) {
+    for (component in deliverable_dependencies_map[[deliverable]]) {
       if (component %in% (plan$components %||% character())) {
         add_edge(paste0("component:", component), paste0("deliverable:", deliverable), "component_to_deliverable")
       }
@@ -1496,16 +1948,17 @@ project_plan_network_data <- function(
 #' Plot a project plan
 #'
 #' @description
-#' \code{plot.project_plan()} draws a lightweight network view of a project
+#' \code{plot.project_plan()} draws a structured planning board for a project
 #' plan. It is intended for the first planning step, before the project is
 #' created on disk.
 #'
 #' @details
 #' The plot is deliberately implemented with base R graphics so that
 #' \code{plot(plan)} works without adding mandatory plotting dependencies. The
-#' plot is a management view rather than a statistical graph: it shows how the
-#' proposed project root connects to components, scripts, reports, outputs,
-#' deliverables, and infrastructure.
+#' plot is a management view rather than a statistical graph: it organises the
+#' proposed scaffold into readable columns such as setup, scripts, outputs,
+#' reports, deliverables, and optional support objects, while preserving the
+#' dependency arrows between them.
 #'
 #' For interactive displays, use \code{project_plan_network_data()} and pass the
 #' returned node and edge tables to an optional graph package such as
@@ -1573,62 +2026,182 @@ plot.project_plan <- function(
     return(invisible(network))
   }
 
-  type_level <- c(
-    project = 1,
-    infrastructure = 2,
-    component = 2,
-    script = 3,
-    report = 3,
-    output = 4,
-    table = 4,
-    figure = 4,
-    model = 4,
-    deliverable = 5,
-    task = 6,
-    folder = 6,
-    file = 7,
-    check = 7
-  )
-  node_level <- unname(type_level[nodes$type])
-  node_level[is.na(node_level)] <- 4
-  nodes$level <- node_level
+  truncate_text <- function(value, width = 28L) {
+    value <- value %||% ""
+    value <- gsub("[\r\n]+", " ", as.character(value))
+    if (!nzchar(value) || nchar(value) <= width) {
+      return(value)
+    }
+    paste0(substr(value, 1L, width - 3L), "...")
+  }
 
-  x_coord <- numeric(nrow(nodes))
-  y_coord <- -nodes$level
-  for (level in sort(unique(nodes$level))) {
-    idx <- which(nodes$level == level)
-    if (length(idx) == 1L) {
-      x_coord[idx] <- 0
+  node_subtitle <- function(node) {
+    type <- node$type %||% ""
+    status <- node$status %||% ""
+    path <- node$path %||% ""
+
+    if (identical(type, "project")) {
+      return(paste0("scaffold: ", status %||% "planned"))
+    }
+
+    if (type %in% c("script", "report", "output", "table", "figure", "model")) {
+      if (!is.na(path) && nzchar(path)) {
+        return(truncate_text(path, width = 34L))
+      }
+    }
+
+    if (type %in% c("folder", "file") && !is.na(path) && nzchar(path)) {
+      return(truncate_text(path, width = 34L))
+    }
+
+    if (!is.na(status) && nzchar(status)) {
+      return(truncate_text(status, width = 34L))
+    }
+
+    ""
+  }
+
+  type_rank <- c(
+    project = 1L,
+    infrastructure = 2L,
+    component = 3L,
+    script = 4L,
+    output = 5L,
+    table = 6L,
+    figure = 7L,
+    model = 8L,
+    report = 9L,
+    deliverable = 10L,
+    task = 11L,
+    folder = 12L,
+    file = 13L,
+    check = 14L
+  )
+  column_map <- c(
+    project = "Project",
+    infrastructure = "Setup",
+    component = "Setup",
+    script = "Scripts",
+    output = "Outputs",
+    table = "Outputs",
+    figure = "Outputs",
+    model = "Outputs",
+    report = "Reports",
+    deliverable = "Deliverables",
+    task = "Support",
+    folder = "Support",
+    file = "Support",
+    check = "Support"
+  )
+  column_order <- c("Project", "Setup", "Scripts", "Outputs", "Reports", "Deliverables", "Support", "Other")
+
+  nodes$type_rank <- unname(type_rank[nodes$type])
+  nodes$type_rank[is.na(nodes$type_rank)] <- 99L
+  nodes$column <- unname(column_map[nodes$type])
+  nodes$column[is.na(nodes$column)] <- "Other"
+  nodes <- nodes[order(match(nodes$column, column_order), nodes$type_rank, nodes$label), , drop = FALSE]
+
+  present_columns <- column_order[column_order %in% unique(nodes$column)]
+  column_x <- stats::setNames(seq(0.08, 0.92, length.out = length(present_columns)), present_columns)
+  size_scale <- max(0.80, min(1.25, node_cex / 2))
+  base_width <- if (length(column_x) > 1L) min(diff(unname(column_x))) * 0.68 else 0.16
+  node_width <- min(0.14, base_width) * size_scale
+  max_column_nodes <- max(as.integer(table(nodes$column)))
+  node_height <- min(0.085, 0.68 / max(3L, max_column_nodes)) * size_scale
+  node_height <- max(0.04, node_height)
+
+  nodes$x <- unname(column_x[nodes$column])
+  nodes$y <- NA_real_
+  for (column in present_columns) {
+    idx <- which(nodes$column == column)
+    if (length(idx) == 1L && identical(column, "Project")) {
+      nodes$y[idx] <- 0.50
+    } else if (length(idx) == 1L) {
+      nodes$y[idx] <- 0.50
     } else {
-      x_coord[idx] <- seq(-1, 1, length.out = length(idx))
+      nodes$y[idx] <- seq(0.82, 0.14, length.out = length(idx))
     }
   }
-  nodes$x <- x_coord
-  nodes$y <- y_coord
 
-  type_values <- sort(unique(nodes$type))
-  type_colours <- stats::setNames(grDevices::hcl.colors(length(type_values), "Dark 3"), type_values)
-  node_colours <- unname(type_colours[nodes$type])
+  type_colours <- c(
+    project = "#17324D",
+    infrastructure = "#2A6F97",
+    component = "#4C956C",
+    script = "#3B5BA5",
+    output = "#746AB0",
+    table = "#8E6CBA",
+    figure = "#A66DBB",
+    model = "#7A5C8E",
+    report = "#B56576",
+    deliverable = "#D17B49",
+    task = "#6C757D",
+    folder = "#8D99AE",
+    file = "#9AA5B1",
+    check = "#495057"
+  )
+  default_colour <- "#6C757D"
+  node_fill <- unname(type_colours[nodes$type])
+  node_fill[is.na(node_fill)] <- default_colour
+  column_fill <- c(
+    Project = "#EEF3F7",
+    Setup = "#EEF7F1",
+    Scripts = "#EFF4FB",
+    Outputs = "#F5F0FB",
+    Reports = "#FBF3F0",
+    Deliverables = "#FCF5EC",
+    Support = "#F4F5F6",
+    Other = "#F4F5F6"
+  )
 
-  x_range <- range(nodes$x, finite = TRUE)
-  y_range <- range(nodes$y, finite = TRUE)
-  x_pad <- max(0.25, diff(x_range) * 0.20)
-  y_pad <- max(0.50, diff(y_range) * 0.12)
-
-  old_par <- graphics::par(no.readonly = TRUE)
-  on.exit(graphics::par(old_par), add = TRUE)
-  graphics::par(mar = c(1, 1, 3, 1))
+  old_mar <- graphics::par("mar")
+  on.exit(graphics::par(mar = old_mar), add = TRUE)
+  graphics::par(mar = c(4, 1, 4, 1))
   graphics::plot(
     x = NA_real_,
     y = NA_real_,
-    xlim = x_range + c(-x_pad, x_pad),
-    ylim = y_range + c(-y_pad, y_pad),
+    xlim = c(0, 1),
+    ylim = c(0, 1),
     xlab = "",
     ylab = "",
     axes = FALSE,
     type = "n",
+    xaxs = "i",
+    yaxs = "i",
     main = main %||% "projflow project plan"
   )
+
+  summary_line <- paste0(
+    "scaffold: ", x$scaffold_level %||% "unknown",
+    " | components: ", length(x$components %||% character()),
+    " | deliverables: ", length(x$deliverables %||% character()),
+    " | scripts: ", length(x$scripts %||% list()),
+    " | reports: ", length(x$reports %||% list())
+  )
+  graphics::mtext(summary_line, side = 3, line = 0.6, cex = 0.82, col = "grey30")
+
+  for (column in present_columns) {
+    x_center <- column_x[[column]]
+    x_left <- max(0.01, x_center - node_width * 0.78)
+    x_right <- min(0.99, x_center + node_width * 0.78)
+    count <- sum(nodes$column == column)
+
+    graphics::rect(
+      xleft = x_left,
+      ybottom = 0.05,
+      xright = x_right,
+      ytop = 0.92,
+      border = NA,
+      col = grDevices::adjustcolor(column_fill[[column]] %||% "#F4F5F6", alpha.f = 0.95)
+    )
+    graphics::text(
+      x = x_center,
+      y = 0.95,
+      labels = paste0(column, " (", count, ")"),
+      font = 2,
+      cex = 0.9,
+      col = "grey20"
+    )
+  }
 
   if (nrow(edges) > 0L) {
     from_idx <- match(edges$from, nodes$id)
@@ -1637,42 +2210,105 @@ plot.project_plan <- function(
     from_idx <- from_idx[keep]
     to_idx <- to_idx[keep]
     if (length(from_idx) > 0L) {
-      graphics::arrows(
-        x0 = nodes$x[from_idx],
-        y0 = nodes$y[from_idx],
-        x1 = nodes$x[to_idx],
-        y1 = nodes$y[to_idx],
-        length = 0.06,
-        col = "grey70"
-      )
+      for (i in seq_along(from_idx)) {
+        from_node <- nodes[from_idx[[i]], , drop = FALSE]
+        to_node <- nodes[to_idx[[i]], , drop = FALSE]
+        relationship <- edges$relationship[keep][[i]]
+        edge_col <- if (grepl("^required_", relationship)) {
+          grDevices::adjustcolor("#6C757D", alpha.f = 0.65)
+        } else if (grepl("^task_", relationship)) {
+          grDevices::adjustcolor("#8A817C", alpha.f = 0.60)
+        } else {
+          grDevices::adjustcolor("#ADB5BD", alpha.f = 0.70)
+        }
+        edge_lty <- if (grepl("^required_", relationship)) 2 else if (grepl("^task_", relationship)) 3 else 1
+        edge_lwd <- if (grepl("^required_", relationship)) 1.5 else if (grepl("^task_", relationship)) 1.4 else 1.8
+        arrow_length <- if (grepl("^required_", relationship)) 0.06 else 0.075
+
+        if (to_node$x > from_node$x) {
+          start_x <- from_node$x + node_width / 2
+          end_x <- to_node$x - node_width / 2
+        } else if (to_node$x < from_node$x) {
+          start_x <- from_node$x - node_width / 2
+          end_x <- to_node$x + node_width / 2
+        } else {
+          start_x <- from_node$x + node_width * 0.40
+          end_x <- to_node$x + node_width * 0.40
+        }
+
+        if (abs(to_node$x - from_node$x) < 1e-8) {
+          start_y <- if (to_node$y > from_node$y) from_node$y + node_height / 2 else from_node$y - node_height / 2
+          end_y <- if (to_node$y > from_node$y) to_node$y - node_height / 2 else to_node$y + node_height / 2
+          graphics::arrows(
+            x0 = start_x,
+            y0 = start_y,
+            x1 = end_x,
+            y1 = end_y,
+            length = arrow_length,
+            col = edge_col,
+            lty = edge_lty,
+            lwd = edge_lwd
+          )
+        } else {
+          mid_x <- (start_x + end_x) / 2
+          graphics::segments(start_x, from_node$y, mid_x, from_node$y, col = edge_col, lty = edge_lty, lwd = edge_lwd)
+          graphics::segments(mid_x, from_node$y, mid_x, to_node$y, col = edge_col, lty = edge_lty, lwd = edge_lwd)
+          graphics::arrows(
+            x0 = mid_x,
+            y0 = to_node$y,
+            x1 = end_x,
+            y1 = to_node$y,
+            length = arrow_length,
+            col = edge_col,
+            lty = edge_lty,
+            lwd = edge_lwd
+          )
+        }
+      }
     }
   }
 
-  graphics::points(
-    nodes$x,
-    nodes$y,
-    pch = 21,
-    bg = node_colours,
-    col = "grey20",
-    cex = node_cex
-  )
-  graphics::text(
-    nodes$x,
-    nodes$y - 0.12,
-    labels = nodes$label,
-    cex = label_cex,
-    xpd = TRUE
-  )
+  for (i in seq_len(nrow(nodes))) {
+    label <- truncate_text(nodes$label[[i]], width = 24L)
+    subtitle <- node_subtitle(nodes[i, , drop = FALSE])
 
-  graphics::legend(
-    "topright",
-    legend = type_values,
-    pt.bg = unname(type_colours[type_values]),
-    pch = 21,
-    pt.cex = 1.5,
-    bty = "n",
-    cex = 0.75
-  )
+    graphics::rect(
+      xleft = nodes$x[[i]] - node_width / 2,
+      ybottom = nodes$y[[i]] - node_height / 2,
+      xright = nodes$x[[i]] + node_width / 2,
+      ytop = nodes$y[[i]] + node_height / 2,
+      col = grDevices::adjustcolor(node_fill[[i]], alpha.f = 0.94),
+      border = grDevices::adjustcolor("#2B2D42", alpha.f = 0.35),
+      lwd = max(1, node_cex * 0.45)
+    )
+
+    if (nzchar(subtitle)) {
+      graphics::text(
+        x = nodes$x[[i]],
+        y = nodes$y[[i]] + node_height * 0.14,
+        labels = label,
+        cex = label_cex * 0.95,
+        font = if (identical(nodes$type[[i]], "project")) 2 else 1,
+        col = "white"
+      )
+      graphics::text(
+        x = nodes$x[[i]],
+        y = nodes$y[[i]] - node_height * 0.18,
+        labels = subtitle,
+        cex = label_cex * 0.65,
+        col = grDevices::adjustcolor("white", alpha.f = 0.90)
+      )
+    } else {
+      graphics::text(
+        x = nodes$x[[i]],
+        y = nodes$y[[i]],
+        labels = label,
+        cex = label_cex,
+        font = if (identical(nodes$type[[i]], "project")) 2 else 1,
+        col = "white"
+      )
+    }
+  }
 
   invisible(network)
 }

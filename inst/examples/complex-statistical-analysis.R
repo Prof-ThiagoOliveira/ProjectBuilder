@@ -1,4 +1,4 @@
-# Complex projflow demonstration: multi-component statistical analysis
+# Complex projflow demonstration with multi-component statistical analysis
 #
 # This example creates a temporary projflow project with three analytical
 # components, writes user-authored code into the generated empty scripts, and

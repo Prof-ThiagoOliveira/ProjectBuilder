@@ -215,6 +215,86 @@ test_that("custom component specs can be registered and used", {
   expect_true("genomic_evaluation" %in% names(registry$component_specs))
 })
 
+test_that("project options can be inspected before planning", {
+  component <- inspect_project_component("quality_control")
+  deliverable <- inspect_project_deliverable("client_report")
+  infrastructure <- inspect_project_infrastructure("targets")
+  preset <- inspect_project_preset("client_report")
+
+  expect_s3_class(component, "projflow_component_spec")
+  expect_s3_class(deliverable, "projflow_deliverable_spec")
+  expect_s3_class(infrastructure, "projflow_infrastructure_spec")
+  expect_s3_class(preset, "projflow_preset_spec")
+
+  expect_identical(component$component, "quality_control")
+  expect_identical(deliverable$deliverable, "client_report")
+  expect_identical(infrastructure$infrastructure, "targets")
+  expect_identical(preset$preset, "client_report")
+})
+
+test_that("custom deliverable specs can be registered and used", {
+  project_path <- make_project_path("custom-deliverable")
+  spec_path <- file.path(tempdir(), "executive_summary.yml")
+  writeLines(
+    c(
+      "deliverable: executive_summary",
+      "depends_on:",
+      "  - report",
+      "path: reports/executive_summary.qmd",
+      "type: report",
+      "packages:",
+      "  - quarto"
+    ),
+    spec_path
+  )
+
+  expect_identical(use_project_deliverable_spec(spec_path), "executive_summary")
+  expect_true("executive_summary" %in% available_project_deliverables())
+
+  plan <- plan_project(
+    path = project_path,
+    components = "statistical_analysis",
+    deliverables = "executive_summary",
+    infrastructure = character()
+  )
+
+  report_paths <- vapply(plan$reports, `[[`, character(1), "path")
+  expect_true("report" %in% plan$components)
+  expect_true("executive_summary" %in% plan$deliverables)
+  expect_true("reports/executive_summary.qmd" %in% report_paths)
+})
+
+test_that("custom preset specs can be registered and used", {
+  project_path <- make_project_path("custom-preset")
+  spec_path <- file.path(tempdir(), "rapid_review.yml")
+  writeLines(
+    c(
+      "preset: rapid_review",
+      "description: Compact preset for quick review projects",
+      "components:",
+      "  - data_preparation",
+      "  - report",
+      "deliverables:",
+      "  - html_report",
+      "infrastructure:",
+      "  - git"
+    ),
+    spec_path
+  )
+
+  expect_identical(use_project_preset_spec(spec_path), "rapid_review")
+  expect_true("rapid_review" %in% available_project_presets())
+
+  plan <- plan_project(
+    path = project_path,
+    preset = "rapid_review",
+    infrastructure = character()
+  )
+
+  expect_true(all(c("data_preparation", "report") %in% plan$components))
+  expect_true("html_report" %in% plan$deliverables)
+})
+
 test_that("plan_project and high-level verbs grow the project", {
   project_path <- make_project_path("high-level-verbs")
 

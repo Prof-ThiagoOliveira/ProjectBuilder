@@ -110,6 +110,40 @@ test_that("project package checks print a compact summary", {
   expect_true(any(grepl("Missing:", output, fixed = TRUE)))
 })
 
+test_that("project plans print a compact planning summary", {
+  plan <- plan_project(
+    path = make_project_path("plan-print"),
+    components = c("data_preparation", "statistical_analysis", "report"),
+    infrastructure = "git"
+  )
+
+  expect_s3_class(plan, "project_plan")
+
+  output <- capture.output(print(plan))
+  expect_true(any(grepl("projflow project plan", output, fixed = TRUE)))
+  expect_true(any(grepl("Plan summary:", output, fixed = TRUE)))
+  expect_true(any(grepl("Planned objects:", output, fixed = TRUE)))
+  expect_true(any(grepl("Checks and packages:", output, fixed = TRUE)))
+  expect_true(any(grepl("plot(plan)", output, fixed = TRUE)))
+  expect_true(any(grepl("unclass(plan)", output, fixed = TRUE)))
+})
+
+test_that("project option inspectors print compact summaries", {
+  component_output <- capture.output(print(inspect_project_component("quality_control")))
+  deliverable_output <- capture.output(print(inspect_project_deliverable("client_report")))
+  infrastructure_output <- capture.output(print(inspect_project_infrastructure("targets")))
+  preset_output <- capture.output(print(inspect_project_preset("client_report")))
+
+  expect_true(any(grepl("projflow component spec", component_output, fixed = TRUE)))
+  expect_true(any(grepl("Component:", component_output, fixed = TRUE)))
+  expect_true(any(grepl("projflow deliverable spec", deliverable_output, fixed = TRUE)))
+  expect_true(any(grepl("Deliverable:", deliverable_output, fixed = TRUE)))
+  expect_true(any(grepl("projflow infrastructure spec", infrastructure_output, fixed = TRUE)))
+  expect_true(any(grepl("Infrastructure:", infrastructure_output, fixed = TRUE)))
+  expect_true(any(grepl("projflow preset spec", preset_output, fixed = TRUE)))
+  expect_true(any(grepl("Preset:", preset_output, fixed = TRUE)))
+})
+
 test_that("governance tables print compact summaries", {
   project_path <- make_project_path("governance-print")
 
